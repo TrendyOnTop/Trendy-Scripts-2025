@@ -254,17 +254,34 @@ local function UpdatePathfinding()
     end
 end
 
--- Dodging movement
+-- Check if target is visible on screen
+local function IsTargetVisible()
+    if not TargetHumanoidRootPart then return false end
+    
+    local screenPoint, onScreen = Camera:WorldToViewportPoint(TargetHumanoidRootPart.Position)
+    return onScreen
+end
+
+-- Dodging movement - Improved with approach then strafe
 local function ApplyDodgingMovement()
     if not Settings.DodgingEnabled or not TargetHumanoidRootPart then
         return Vector3.new(0, 0, 0)
     end
     
+    local targetVisible = IsTargetVisible()
+    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
+    
+    -- If target is not visible or too far, approach first
+    if not targetVisible or distanceToTarget > 50 then
+        return Vector3.new(0, 0, 0) -- No dodging, just approach
+    end
+    
+    -- Target is visible and close - start strafing with human movements
     local currentTime = tick()
     local dodgeMovement = Vector3.new(0, 0, 0)
     
-    -- Side to side movement
-    if currentTime - LastDodgeChange > 0.5 + math.random() * 0.5 then
+    -- Side to side strafing movement
+    if currentTime - LastDodgeChange > 0.3 + math.random() * 0.4 then
         DodgingDirection = -DodgingDirection
         LastDodgeChange = currentTime
     end
@@ -273,26 +290,61 @@ local function ApplyDodgingMovement()
     local toTarget = (TargetHumanoidRootPart.Position - HumanoidRootPart.Position)
     local rightVector = Camera.CFrame.RightVector
     
-    -- Side to side dodging
+    -- Side to side strafing
     dodgeMovement = dodgeMovement + rightVector * DodgingDirection * Settings.DodgingSpeed * Settings.DodgingIntensity
     
-    -- Random human-like movements
+    -- Random human-like movements (forward/back, slight variations)
     RandomMovementTimer = RandomMovementTimer + (1/60)
-    if RandomMovementTimer > 0.3 then
+    if RandomMovementTimer > 0.2 + math.random() * 0.3 then
         RandomMovementTimer = 0
         -- Add small random movements
-        local randomX = (math.random() - 0.5) * 2
-        local randomZ = (math.random() - 0.5) * 2
-        dodgeMovement = dodgeMovement + Vector3.new(randomX, 0, randomZ) * Settings.DodgingSpeed * 0.5
+        local randomX = (math.random() - 0.5) * 1.5
+        local randomZ = (math.random() - 0.5) * 1.5
+        dodgeMovement = dodgeMovement + Vector3.new(randomX, 0, randomZ) * Settings.DodgingSpeed * 0.4
     end
     
     return dodgeMovement
 end
 
--- Move to target using pathfinding
+-- Move to target using pathfinding with approach then strafe behavior
 local function MoveToTarget()
     if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
         return
+    end
+    
+    -- Auto-shoot when pathfinding is enabled and target is visible (only if camera lock shooting is not active)
+    if Settings.PathfindingEnabled and TargetHumanoid and TargetHumanoid.Health > Settings.AutoStopShootingHP and not Settings.CameraLockEnabled then
+        if not IsShooting then
+            IsShooting = true
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+            end
+            ShootingConnection = RunService.Heartbeat:Connect(function()
+                if not Settings.PathfindingEnabled or Settings.CameraLockEnabled or not TargetHumanoid or TargetHumanoid.Health < Settings.AutoStopShootingHP then
+                    if ShootingConnection then
+                        ShootingConnection:Disconnect()
+                        ShootingConnection = nil
+                    end
+                    IsShooting = false
+                    return
+                end
+                
+                pcall(function()
+                    local inputObject = {
+                        UserInputType = Enum.UserInputType.MouseButton1,
+                        UserInputState = Enum.UserInputState.Begin
+                    }
+                    UserInputService.InputBegan:Fire(inputObject)
+                end)
+            end)
+        end
+    elseif not Settings.PathfindingEnabled and IsShooting and not Settings.CameraLockEnabled then
+        -- Stop shooting if pathfinding is disabled
+        if ShootingConnection then
+            ShootingConnection:Disconnect()
+            ShootingConnection = nil
+        end
+        IsShooting = false
     end
     
     -- Update pathfinding periodically
@@ -304,9 +356,11 @@ local function MoveToTarget()
     
     local targetPosition = TargetHumanoidRootPart.Position
     local moveVector = Vector3.new(0, 0, 0)
+    local targetVisible = IsTargetVisible()
+    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
     
-    -- Use pathfinding if available
-    if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
+    -- Use pathfinding if available and target is not visible or far away
+    if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success and (not targetVisible or distanceToTarget > 30) then
         local waypoints = PathfindingPath:GetWaypoints()
         
         if #waypoints > 1 then
@@ -332,22 +386,38 @@ local function MoveToTarget()
     local direction = (targetPosition - HumanoidRootPart.Position)
     direction = Vector3.new(direction.X, 0, direction.Z).Unit
     
-    -- Apply walk speed
-    moveVector = direction * Settings.WalkSpeed
-    
-    -- Add dodging movement if target is visible
-    if TargetHumanoidRootPart then
+    -- If target is visible and close, prioritize strafing over approaching
+    if targetVisible and distanceToTarget < 50 then
+        -- Strafe mode - move side to side with human movements
         local dodgingMove = ApplyDodgingMovement()
-        moveVector = moveVector + dodgingMove
+        moveVector = dodgingMove
+        
+        -- Add slight forward movement to maintain distance
+        local forwardComponent = direction * Settings.WalkSpeed * 0.3
+        moveVector = moveVector + forwardComponent
+        
+        -- More frequent jumping when strafing
+        if math.random() < Settings.JumpProbability * 2 then
+            Humanoid.Jump = true
+        end
+    else
+        -- Approach mode - run directly to target
+        moveVector = direction * Settings.WalkSpeed
+        
+        -- Add dodging movement if enabled (but less when approaching)
+        if Settings.DodgingEnabled then
+            local dodgingMove = ApplyDodgingMovement()
+            moveVector = moveVector + dodgingMove * 0.5
+        end
+        
+        -- Random jumping while approaching
+        if math.random() < Settings.JumpProbability then
+            Humanoid.Jump = true
+        end
     end
     
     -- Apply movement using CFrame
     HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + moveVector * (1/60)
-    
-    -- Random jumping
-    if math.random() < Settings.JumpProbability then
-        Humanoid.Jump = true
-    end
 end
 
 -- Camera lock function
@@ -800,8 +870,9 @@ local function CreateUI()
     listLayout.Padding = UDim.new(0, isMobile and 4 or 3)
     listLayout.Parent = scrollFrame
     
-    -- Create section divider/box with clear visual separation
+    -- Create section divider/box with collapse functionality
     local function CreateSection(title)
+        local isCollapsed = false
         local sectionContainer = Instance.new("Frame")
         sectionContainer.Name = title .. "Section"
         sectionContainer.Size = UDim2.new(1, 0, 0, 0) -- Height will be auto
@@ -815,7 +886,7 @@ local function CreateUI()
         sectionCorner.CornerRadius = UDim.new(0, 10)
         sectionCorner.Parent = sectionContainer
         
-        -- Section header with divider line
+        -- Section header with collapse button
         local header = Instance.new("Frame")
         header.Name = "Header"
         header.Size = UDim2.new(1, 0, 0, isMobile and 32 or 28)
@@ -827,6 +898,25 @@ local function CreateUI()
         local headerCorner = Instance.new("UICorner")
         headerCorner.CornerRadius = UDim.new(0, 10)
         headerCorner.Parent = header
+        
+        -- Collapse button (arrow)
+        local collapseButton = Instance.new("TextButton")
+        collapseButton.Name = "CollapseButton"
+        collapseButton.Size = UDim2.new(0, isMobile and 28 or 24, 0, isMobile and 28 or 24)
+        collapseButton.Position = UDim2.new(0, 5, 0.5, -(isMobile and 14 or 12))
+        collapseButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        collapseButton.BackgroundTransparency = 0.5
+        collapseButton.BorderSizePixel = 0
+        collapseButton.Text = "▼"
+        collapseButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+        collapseButton.TextSize = isMobile and 14 or 12
+        collapseButton.Font = Enum.Font.GothamBold
+        collapseButton.Active = true
+        collapseButton.Parent = header
+        
+        local collapseCorner = Instance.new("UICorner")
+        collapseCorner.CornerRadius = UDim.new(0, 6)
+        collapseCorner.Parent = collapseButton
         
         -- Divider line under header
         local divider = Instance.new("Frame")
@@ -840,10 +930,10 @@ local function CreateUI()
         
         local headerLabel = Instance.new("TextLabel")
         headerLabel.Name = "Title"
-        headerLabel.Size = UDim2.new(1, -10, 1, 0)
-        headerLabel.Position = UDim2.new(0, 8, 0, 0)
+        headerLabel.Size = UDim2.new(1, -(isMobile and 40 or 35), 1, 0)
+        headerLabel.Position = UDim2.new(0, isMobile and 35 or 30, 0, 0)
         headerLabel.BackgroundTransparency = 1
-        headerLabel.Text = "▶ " .. title
+        headerLabel.Text = title
         headerLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Yellow text
         headerLabel.TextSize = isMobile and 15 or 14
         headerLabel.Font = Enum.Font.GothamBold
@@ -856,15 +946,38 @@ local function CreateUI()
         contentFrame.Size = UDim2.new(1, -16, 0, 0)
         contentFrame.Position = UDim2.new(0, 8, 0, header.Size.Y.Offset + 5)
         contentFrame.BackgroundTransparency = 1
+        contentFrame.Visible = true
         contentFrame.Parent = sectionContainer
         
         local contentLayout = Instance.new("UIListLayout")
         contentLayout.Padding = UDim.new(0, isMobile and 4 or 3)
         contentLayout.Parent = contentFrame
         
+        -- Toggle collapse function
+        local function toggleCollapse()
+            isCollapsed = not isCollapsed
+            contentFrame.Visible = not isCollapsed
+            collapseButton.Text = isCollapsed and "▶" or "▼"
+            
+            if isCollapsed then
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset)
+            else
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
+            end
+        end
+        
+        -- Collapse button click handlers
+        collapseButton.MouseButton1Click:Connect(toggleCollapse)
+        collapseButton.Activated:Connect(toggleCollapse)
+        if isMobile or isTablet then
+            collapseButton.TouchTap:Connect(toggleCollapse)
+        end
+        
         -- Update section height when content changes
         contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
+            if not isCollapsed then
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
+            end
         end)
         
         return contentFrame, sectionContainer
