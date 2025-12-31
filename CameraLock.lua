@@ -745,13 +745,70 @@ local function CreateUI()
     listLayout.Padding = UDim.new(0, isMobile and 4 or 3)
     listLayout.Parent = scrollFrame
     
+    -- Create section divider/box
+    local function CreateSection(title)
+        local sectionContainer = Instance.new("Frame")
+        sectionContainer.Name = title .. "Section"
+        sectionContainer.Size = UDim2.new(1, 0, 0, 0) -- Height will be auto
+        sectionContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        sectionContainer.BorderSizePixel = 0
+        sectionContainer.Parent = scrollFrame
+        
+        local sectionCorner = Instance.new("UICorner")
+        sectionCorner.CornerRadius = UDim.new(0, 8)
+        sectionCorner.Parent = sectionContainer
+        
+        -- Section header
+        local header = Instance.new("Frame")
+        header.Name = "Header"
+        header.Size = UDim2.new(1, 0, 0, isMobile and 30 or 26)
+        header.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        header.BorderSizePixel = 0
+        header.Parent = sectionContainer
+        
+        local headerCorner = Instance.new("UICorner")
+        headerCorner.CornerRadius = UDim.new(0, 8)
+        headerCorner.Parent = header
+        
+        local headerLabel = Instance.new("TextLabel")
+        headerLabel.Name = "Title"
+        headerLabel.Size = UDim2.new(1, -10, 1, 0)
+        headerLabel.Position = UDim2.new(0, 5, 0, 0)
+        headerLabel.BackgroundTransparency = 1
+        headerLabel.Text = title
+        headerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        headerLabel.TextSize = isMobile and 14 or 13
+        headerLabel.Font = Enum.Font.GothamBold
+        headerLabel.TextXAlignment = Enum.TextXAlignment.Left
+        headerLabel.Parent = header
+        
+        -- Content frame
+        local contentFrame = Instance.new("Frame")
+        contentFrame.Name = "Content"
+        contentFrame.Size = UDim2.new(1, -10, 0, 0)
+        contentFrame.Position = UDim2.new(0, 5, 0, header.Size.Y.Offset)
+        contentFrame.BackgroundTransparency = 1
+        contentFrame.Parent = sectionContainer
+        
+        local contentLayout = Instance.new("UIListLayout")
+        contentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+        contentLayout.Parent = contentFrame
+        
+        -- Update section height when content changes
+        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 10)
+        end)
+        
+        return contentFrame, sectionContainer
+    end
+    
     -- Settings UI Helper Functions
-    local function CreateSlider(name, min, max, current, callback)
+    local function CreateSlider(name, min, max, current, callback, parent)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
         container.Size = UDim2.new(1, 0, 0, isMobile and 38 or 32)
         container.BackgroundTransparency = 1
-        container.Parent = scrollFrame
+        container.Parent = parent or scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
@@ -873,13 +930,13 @@ local function CreateUI()
         return container
     end
     
-    local function CreateToggle(name, settingKey, callback)
+    local function CreateToggle(name, settingKey, callback, parent)
         local current = Settings[settingKey]
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
         container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
         container.BackgroundTransparency = 1
-        container.Parent = scrollFrame
+        container.Parent = parent or scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
@@ -946,12 +1003,12 @@ local function CreateUI()
     end
     
     -- Create text box input
-    local function CreateTextBox(name, current, callback, placeholder)
+    local function CreateTextBox(name, current, callback, placeholder, parent)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
         container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
         container.BackgroundTransparency = 1
-        container.Parent = scrollFrame
+        container.Parent = parent or scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
@@ -996,7 +1053,11 @@ local function CreateUI()
         return container
     end
     
-    -- Create all settings - Mix of toggles, sliders, and text boxes
+    -- Create all settings organized into sections
+    
+    -- Section 1: Camera Lock (Camera Lock toggle, Smoothness, Prediction)
+    local camLockSection, camLockBox = CreateSection("Camera Lock")
+    
     CreateToggle("Camera Lock", "CameraLockEnabled", function(val)
         if val then
             CreateFOVCircle()
@@ -1024,36 +1085,26 @@ local function CreateUI()
                 CornerButtons[1].BackgroundColor3 = Color3.fromRGB(200, 50, 50)
             end
         end
-    end)
+    end, camLockSection)
     
-    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
-        -- Pathfinding toggle works automatically
-    end)
-    
-    CreateToggle("Auto Reload", "AutoReload", function(val)
-        -- Auto reload toggle works automatically
-    end)
-    
-    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
-        -- Dodging toggle works automatically
-    end)
-    
-    -- Sliders for precise values
     CreateSlider("Smoothness X", 0.01, 1, Settings.SmoothnessX, function(val)
         Settings.SmoothnessX = val
-    end)
+    end, camLockSection)
     
     CreateSlider("Smoothness Y", 0.01, 1, Settings.SmoothnessY, function(val)
         Settings.SmoothnessY = val
-    end)
+    end, camLockSection)
     
     CreateSlider("Prediction X", 0, 2, Settings.PredictionX, function(val)
         Settings.PredictionX = val
-    end)
+    end, camLockSection)
     
     CreateSlider("Prediction Y", 0, 2, Settings.PredictionY, function(val)
         Settings.PredictionY = val
-    end)
+    end, camLockSection)
+    
+    -- Section 2: FOV Settings
+    local fovSection, fovBox = CreateSection("FOV Settings")
     
     CreateSlider("FOV", 50, 200, Settings.FOV, function(val)
         Settings.FOV = val
@@ -1061,7 +1112,7 @@ local function CreateUI()
             FOVCircle.Circle.Size = UDim2.new(0, val * 2, 0, val * 2)
             FOVCircle.Circle.Position = UDim2.new(0.5, -val, 0.5, -val)
         end
-    end)
+    end, fovSection)
     
     CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
         Settings.FOVCircleTransparency = val
@@ -1074,32 +1125,52 @@ local function CreateUI()
                 NumberSequenceKeypoint.new(1, val)
             })
         end
-    end)
+    end, fovSection)
     
-    -- Text boxes for quick value entry
+    -- Section 3: Movement
+    local movementSection, movementBox = CreateSection("Movement")
+    
+    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
+        -- Pathfinding toggle works automatically
+    end, movementSection)
+    
     CreateTextBox("Walk Speed", Settings.WalkSpeed, function(val)
         Settings.WalkSpeed = math.clamp(val, 0, 300)
-    end, "0-300")
+    end, "0-300", movementSection)
     
     CreateTextBox("Jump Probability", Settings.JumpProbability, function(val)
         Settings.JumpProbability = math.clamp(val, 0, 0.1)
-    end, "0-0.1")
+    end, "0-0.1", movementSection)
     
-    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
-        Settings.DodgingSpeed = math.clamp(val, 0, 50)
-    end, "0-50")
+    -- Section 4: Combat
+    local combatSection, combatBox = CreateSection("Combat")
     
-    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
-        Settings.DodgingIntensity = math.clamp(val, 0, 10)
-    end, "0-10")
+    CreateToggle("Auto Reload", "AutoReload", function(val)
+        -- Auto reload toggle works automatically
+    end, combatSection)
     
     CreateTextBox("Reload Interval", Settings.AutoReloadInterval, function(val)
         Settings.AutoReloadInterval = math.clamp(val, 1, 5)
-    end, "1-5")
+    end, "1-5", combatSection)
     
     CreateTextBox("Stop Shooting HP", Settings.AutoStopShootingHP, function(val)
         Settings.AutoStopShootingHP = math.clamp(val, 0, 100)
-    end, "0-100")
+    end, "0-100", combatSection)
+    
+    -- Section 5: Dodging
+    local dodgingSection, dodgingBox = CreateSection("Dodging")
+    
+    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
+        -- Dodging toggle works automatically
+    end, dodgingSection)
+    
+    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
+        Settings.DodgingSpeed = math.clamp(val, 0, 50)
+    end, "0-50", dodgingSection)
+    
+    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
+        Settings.DodgingIntensity = math.clamp(val, 0, 10)
+    end, "0-10", dodgingSection)
     
     -- Update scroll frame size
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
