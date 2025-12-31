@@ -28,11 +28,11 @@ end)
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local isTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
 
--- Settings
+-- Settings (All turned off by default - must be enabled manually)
 local Settings = {
     CameraLockEnabled = false,
-    PathfindingEnabled = true,
-    UIEnabled = true,
+    PathfindingEnabled = false,
+    UIEnabled = false,
     SmoothnessX = 0.15,
     SmoothnessY = 0.15,
     PredictionX = 0.5,
@@ -40,13 +40,13 @@ local Settings = {
     FOV = 100,
     WalkSpeed = 200,
     JumpProbability = 0.02,
-    AutoReload = true,
+    AutoReload = false,
     AutoReloadInterval = 2.3,
     AutoStopShootingHP = 10,
     FOVCircleColor = Color3.fromRGB(255, 0, 0),
     FOVCircleTransparency = 0.5,
     FOVCircleThickness = 2,
-    DodgingEnabled = true,
+    DodgingEnabled = false,
     DodgingSpeed = 16,
     DodgingIntensity = 5
 }
@@ -452,7 +452,52 @@ local function ConnectButton(button, callback)
     end
 end
 
--- Create Corner Toggle Buttons (Only 2: Camera Lock and Settings)
+-- Make button draggable
+local function MakeDraggable(frame)
+    local dragging = false
+    local dragInput = nil
+    local dragStart = nil
+    local startPos = nil
+    
+    local function update(input)
+        local delta = input.Position - dragStart
+        local newPos = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+        frame.Position = newPos
+    end
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            update(input)
+        end
+    end)
+end
+
+-- Create Center Toggle Buttons (Draggable)
 local function CreateCornerButtons()
     -- Clean up old buttons
     for _, btn in pairs(CornerButtons) do
@@ -468,27 +513,30 @@ local function CreateCornerButtons()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    local buttonSize = isMobile and 70 or 60
-    local buttonOffset = 15
+    local buttonSize = isMobile and 80 or 70
+    local buttonSpacing = 20
     
-    -- Corner 1: Top Left - Camera Lock Toggle
+    -- Button 1: Camera Lock Toggle (Center Left)
     local btn1 = Instance.new("TextButton")
     btn1.Name = "CameraLockToggle"
     btn1.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-    btn1.Position = UDim2.new(0, buttonOffset, 0, buttonOffset)
+    btn1.Position = UDim2.new(0.5, -(buttonSize + buttonSpacing/2), 0.5, -buttonSize/2)
     btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
     btn1.BorderSizePixel = 0
     btn1.Text = Settings.CameraLockEnabled and "LOCK\nON" or "LOCK\nOFF"
     btn1.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn1.TextSize = isMobile and 14 or 12
+    btn1.TextSize = isMobile and 16 or 14
     btn1.Font = Enum.Font.GothamBold
     btn1.TextWrapped = true
     btn1.Active = true
     btn1.Parent = screenGui
     
     local corner1 = Instance.new("UICorner")
-    corner1.CornerRadius = UDim.new(0, 10)
+    corner1.CornerRadius = UDim.new(0, 12)
     corner1.Parent = btn1
+    
+    -- Make draggable
+    MakeDraggable(btn1)
     
     ConnectButton(btn1, function()
         Settings.CameraLockEnabled = not Settings.CameraLockEnabled
@@ -513,24 +561,27 @@ local function CreateCornerButtons()
         end
     end)
     
-    -- Corner 2: Bottom Right - Settings UI Toggle
+    -- Button 2: Settings UI Toggle (Center Right)
     local btn2 = Instance.new("TextButton")
     btn2.Name = "UIToggle"
     btn2.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-    btn2.Position = UDim2.new(1, -(buttonSize + buttonOffset), 1, -(buttonSize + buttonOffset))
+    btn2.Position = UDim2.new(0.5, buttonSpacing/2, 0.5, -buttonSize/2)
     btn2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn2.BorderSizePixel = 0
     btn2.Text = "⚙\nSETTINGS"
     btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn2.TextSize = isMobile and 14 or 12
+    btn2.TextSize = isMobile and 16 or 14
     btn2.Font = Enum.Font.GothamBold
     btn2.TextWrapped = true
     btn2.Active = true
     btn2.Parent = screenGui
     
     local corner2 = Instance.new("UICorner")
-    corner2.CornerRadius = UDim.new(0, 10)
+    corner2.CornerRadius = UDim.new(0, 12)
     corner2.Parent = btn2
+    
+    -- Make draggable
+    MakeDraggable(btn2)
     
     ConnectButton(btn2, function()
         Settings.UIEnabled = not Settings.UIEnabled
@@ -566,7 +617,7 @@ local function CreateUI()
     mainFrame.Position = UDim2.new(0.5, -(baseWidth * uiScale / 2), 0.5, -(baseHeight * uiScale / 2))
     mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     mainFrame.BorderSizePixel = 0
-    mainFrame.Visible = Settings.UIEnabled
+    mainFrame.Visible = false -- Start hidden, must be enabled manually
     mainFrame.Active = true
     mainFrame.Parent = screenGui
     
@@ -896,4 +947,5 @@ CreateCornerButtons()
 CreateUI()
 
 print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
-print("Corner Toggle Buttons: Top Left (Camera Lock), Bottom Right (Settings)")
+print("Center Toggle Buttons (Draggable): Left (Camera Lock), Right (Settings)")
+print("All settings are OFF by default - enable manually through buttons or settings panel")
