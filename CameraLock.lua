@@ -452,7 +452,7 @@ local function ConnectButton(button, callback)
     end
 end
 
--- Create Corner Toggle Buttons (4 corners)
+-- Create Corner Toggle Buttons (Only 2: Camera Lock and Settings)
 local function CreateCornerButtons()
     -- Clean up old buttons
     for _, btn in pairs(CornerButtons) do
@@ -513,14 +513,14 @@ local function CreateCornerButtons()
         end
     end)
     
-    -- Corner 2: Top Right - Pathfinding Toggle
+    -- Corner 2: Bottom Right - Settings UI Toggle
     local btn2 = Instance.new("TextButton")
-    btn2.Name = "PathfindingToggle"
+    btn2.Name = "UIToggle"
     btn2.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-    btn2.Position = UDim2.new(1, -(buttonSize + buttonOffset), 0, buttonOffset)
-    btn2.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    btn2.Position = UDim2.new(1, -(buttonSize + buttonOffset), 1, -(buttonSize + buttonOffset))
+    btn2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn2.BorderSizePixel = 0
-    btn2.Text = Settings.PathfindingEnabled and "PATH\nON" or "PATH\nOFF"
+    btn2.Text = "⚙\nSETTINGS"
     btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn2.TextSize = isMobile and 14 or 12
     btn2.Font = Enum.Font.GothamBold
@@ -533,63 +533,13 @@ local function CreateCornerButtons()
     corner2.Parent = btn2
     
     ConnectButton(btn2, function()
-        Settings.PathfindingEnabled = not Settings.PathfindingEnabled
-        btn2.Text = Settings.PathfindingEnabled and "PATH\nON" or "PATH\nOFF"
-        btn2.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    end)
-    
-    -- Corner 3: Bottom Left - Auto Reload Toggle
-    local btn3 = Instance.new("TextButton")
-    btn3.Name = "AutoReloadToggle"
-    btn3.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-    btn3.Position = UDim2.new(0, buttonOffset, 1, -(buttonSize + buttonOffset))
-    btn3.BackgroundColor3 = Settings.AutoReload and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    btn3.BorderSizePixel = 0
-    btn3.Text = Settings.AutoReload and "RELOAD\nON" or "RELOAD\nOFF"
-    btn3.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn3.TextSize = isMobile and 14 or 12
-    btn3.Font = Enum.Font.GothamBold
-    btn3.TextWrapped = true
-    btn3.Active = true
-    btn3.Parent = screenGui
-    
-    local corner3 = Instance.new("UICorner")
-    corner3.CornerRadius = UDim.new(0, 10)
-    corner3.Parent = btn3
-    
-    ConnectButton(btn3, function()
-        Settings.AutoReload = not Settings.AutoReload
-        btn3.Text = Settings.AutoReload and "RELOAD\nON" or "RELOAD\nOFF"
-        btn3.BackgroundColor3 = Settings.AutoReload and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    end)
-    
-    -- Corner 4: Bottom Right - UI Toggle
-    local btn4 = Instance.new("TextButton")
-    btn4.Name = "UIToggle"
-    btn4.Size = UDim2.new(0, buttonSize, 0, buttonSize)
-    btn4.Position = UDim2.new(1, -(buttonSize + buttonOffset), 1, -(buttonSize + buttonOffset))
-    btn4.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn4.BorderSizePixel = 0
-    btn4.Text = "⚙\nSETTINGS"
-    btn4.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn4.TextSize = isMobile and 14 or 12
-    btn4.Font = Enum.Font.GothamBold
-    btn4.TextWrapped = true
-    btn4.Active = true
-    btn4.Parent = screenGui
-    
-    local corner4 = Instance.new("UICorner")
-    corner4.CornerRadius = UDim.new(0, 10)
-    corner4.Parent = btn4
-    
-    ConnectButton(btn4, function()
         Settings.UIEnabled = not Settings.UIEnabled
         if MainUI then
             MainUI.Visible = Settings.UIEnabled
         end
     end)
     
-    CornerButtons = {btn1, btn2, btn3, btn4}
+    CornerButtons = {btn1, btn2}
 end
 
 -- Create UI (Bigger and Mobile Compatible)
@@ -946,4 +896,4 @@ CreateCornerButtons()
 CreateUI()
 
 print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
-print("Corner Toggle Buttons: Top Left (Camera Lock), Top Right (Pathfinding), Bottom Left (Auto Reload), Bottom Right (Settings)")
+print("Corner Toggle Buttons: Top Left (Camera Lock), Bottom Right (Settings)")
