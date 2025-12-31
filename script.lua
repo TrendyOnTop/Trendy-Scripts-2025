@@ -370,6 +370,9 @@ local SoundService = game:GetService("SoundService")
 local Stas = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
+-- Script initialization check
+print("[Aimbot Script] Starting initialization...")
+
 -- Target Variables
 local TargBindEnabled = false
 local TargetPlr = nil
@@ -1316,13 +1319,17 @@ local function BuildUI()
     end
     
     -- Update canvas size after layout updates
-    task.wait(0.1)
     local function updateCanvasSize()
         local totalHeight = UIListLayout.AbsoluteContentSize.Y
-        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 20)
+        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight + 20, 100))
     end
     
-    updateCanvasSize()
+    -- Wait for layout to update
+    task.spawn(function()
+        task.wait(0.1)
+        updateCanvasSize()
+    end)
+    
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
 end
 
@@ -1413,8 +1420,16 @@ end
 LockToggleBtn.MouseButton1Click:Connect(ToggleLock)
 FloatingLockToggle.MouseButton1Click:Connect(ToggleLock)
 
--- Initial UI Build
-BuildUI()
+-- Initial UI Build (with error handling)
+task.spawn(function()
+    local success, err = pcall(function()
+        BuildUI()
+        print("[Aimbot Script] UI Loaded Successfully!")
+    end)
+    if not success then
+        warn("[Aimbot Script] UI Build Error: " .. tostring(err))
+    end
+end)
 
 -- ============================================
 -- FEATURE CODE IMPLEMENTATIONS
@@ -1454,41 +1469,46 @@ local predictionTable = {
 -- Update Prediction Value
 local function updatePredictionValue()
     if getgenv().Sentinel.AutoPrediction then
-        local pingValue = Stas.Network.ServerStatsItem["Data Ping"]:GetValueString()
-        local split = string.split(pingValue, '(')
-        local ping = tonumber(split[1])
+        pcall(function()
+            local pingValue = Stas.Network.ServerStatsItem["Data Ping"]:GetValueString()
+            local split = string.split(pingValue, '(')
+            local ping = tonumber(split[1])
 
-        if ping then
-            if getgenv().Sentinel.AutoPredMode == "PingBased" then
-                local closestPingDiff = math.huge
-                local closestValue = nil
+            if ping then
+                if getgenv().Sentinel.AutoPredMode == "PingBased" then
+                    local closestPingDiff = math.huge
+                    local closestValue = nil
 
-                for i = 1, #predictionTable do
-                    local tablePing = predictionTable[i][1]
-                    local tableValue = predictionTable[i][2]
-                    local pingDiff = math.abs(ping - tablePing)
+                    for i = 1, #predictionTable do
+                        local tablePing = predictionTable[i][1]
+                        local tableValue = predictionTable[i][2]
+                        local pingDiff = math.abs(ping - tablePing)
 
-                    if pingDiff < closestPingDiff then
-                        closestPingDiff = pingDiff
-                        closestValue = tableValue
+                        if pingDiff < closestPingDiff then
+                            closestPingDiff = pingDiff
+                            closestValue = tableValue
+                        end
+                    end
+
+                    if closestValue then
+                        getgenv().Sentinel.HorizontalPrediction = closestValue
+                        getgenv().Sentinel.VerticalPrediction = closestValue * 0.8
                     end
                 end
-
-                if closestValue then
-                    getgenv().Sentinel.HorizontalPrediction = closestValue
-                    getgenv().Sentinel.VerticalPrediction = closestValue * 0.8
-                end
             end
-        end
+        end)
     end
 end
 
 -- Look At Player
 function LookAtPlayer(Target)
-    local localChar = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
-    local localHumanoidRootPart = localChar:FindFirstChild("HumanoidRootPart")
+    pcall(function()
+        local localChar = LocalPlayer.Character
+        if not localChar then return end
+        
+        local localHumanoidRootPart = localChar:FindFirstChild("HumanoidRootPart")
+        if not localHumanoidRootPart then return end
 
-    if localHumanoidRootPart then
         if getgenv().Sentinel and getgenv().Sentinel.LookAt then
             if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
                 local targetHumanoidRootPart = Target.Character.HumanoidRootPart
@@ -1496,57 +1516,62 @@ function LookAtPlayer(Target)
                 local localPosition = localHumanoidRootPart.Position
                 local horizontalDirection = Vector3.new(targetPosition.X - localPosition.X, 0, targetPosition.Z - localPosition.Z).unit
                 localHumanoidRootPart.CFrame = CFrame.new(localPosition, localPosition + horizontalDirection)
-                localChar.Humanoid.AutoRotate = false
+                if localChar:FindFirstChild("Humanoid") then
+                    localChar.Humanoid.AutoRotate = false
+                end
             end
         else
-            if localChar.Humanoid then
+            if localChar:FindFirstChild("Humanoid") then
                 localChar.Humanoid.AutoRotate = true
             end
         end
-    end
-    
-    if not (Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")) then
-        if localChar.Humanoid then
-            localChar.Humanoid.AutoRotate = true
+        
+        if not (Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")) then
+            if localChar:FindFirstChild("Humanoid") then
+                localChar.Humanoid.AutoRotate = true
+            end
         end
-    end
+    end)
 end
 
 -- Nearest Part
 local function NearestPart(TargetPlr)
-    local BodyParts = {
-        "Head", "UpperTorso", "LowerTorso", 
-        "LeftUpperArm", "LeftLowerArm", "LeftHand", 
-        "RightUpperArm", "RightLowerArm", "RightHand", 
-        "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", 
-        "RightUpperLeg", "RightLowerLeg", "RightFoot"
-    }
+    pcall(function()
+        local BodyParts = {
+            "Head", "UpperTorso", "LowerTorso", 
+            "LeftUpperArm", "LeftLowerArm", "LeftHand", 
+            "RightUpperArm", "RightLowerArm", "RightHand", 
+            "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", 
+            "RightUpperLeg", "RightLowerLeg", "RightFoot"
+        }
 
-    local selectedPartName = getgenv().Sentinel.SelectedPart
+        local selectedPartName = getgenv().Sentinel.SelectedPart
+        local localChar = LocalPlayer.Character
 
-    if TargetPlr and TargetPlr.Character then
-        if getgenv().Sentinel.NearestPart then
-            local minDistance = math.huge
-            local nearestPart = nil
-            
-            for _, partName in pairs(BodyParts) do
-                local part = TargetPlr.Character:FindFirstChild(partName)
-                if part then
-                    local distance = (part.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if distance < minDistance then
-                        minDistance = distance
-                        nearestPart = part
+        if TargetPlr and TargetPlr.Character and localChar and localChar:FindFirstChild("HumanoidRootPart") then
+            if getgenv().Sentinel.NearestPart then
+                local minDistance = math.huge
+                local nearestPart = nil
+                
+                for _, partName in pairs(BodyParts) do
+                    local part = TargetPlr.Character:FindFirstChild(partName)
+                    if part then
+                        local distance = (part.Position - localChar.HumanoidRootPart.Position).Magnitude
+                        if distance < minDistance then
+                            minDistance = distance
+                            nearestPart = part
+                        end
                     end
                 end
+                
+                if nearestPart then
+                    getgenv().Sentinel.SelectedPart = nearestPart.Name
+                end
+            else
+                getgenv().Sentinel.SelectedPart = selectedPartName
             end
-            
-            if nearestPart then
-                getgenv().Sentinel.SelectedPart = nearestPart.Name
-            end
-        else
-            getgenv().Sentinel.SelectedPart = selectedPartName
         end
-    end
+    end)
 end
 
 -- In Air Check
@@ -1592,55 +1617,63 @@ end
 
 -- Camera Smoothing
 RunService.Heartbeat:Connect(function()
-    if getgenv().Sentinel.Camera and TargetPlr and TargetPlr.Character and getgenv().Sentinel.SelectedPart then
-        local camera = Workspace.CurrentCamera
-        local selectedPart = getgenv().Sentinel.SelectedPart
-        local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
+    pcall(function()
+        if getgenv().Sentinel.Camera and TargetPlr and TargetPlr.Character and getgenv().Sentinel.SelectedPart then
+            local camera = Workspace.CurrentCamera
+            if not camera then return end
+            
+            local selectedPart = getgenv().Sentinel.SelectedPart
+            local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
 
-        if targetPart then
-            local velocity = targetPart.Velocity
-            local jumpOffset = getgenv().Sentinel.jumpoffset or 0
-            local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-            local verticalPrediction = getgenv().Sentinel.VerticalPrediction
+            if targetPart then
+                local velocity = targetPart.Velocity
+                local jumpOffset = getgenv().Sentinel.jumpoffset or 0
+                local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
+                local verticalPrediction = getgenv().Sentinel.VerticalPrediction
 
-            local targetPosition = Vector3.new(
-                targetPart.Position.X + (velocity.X * horizontalPrediction),
-                targetPart.Position.Y + (velocity.Y * verticalPrediction) + jumpOffset,
-                targetPart.Position.Z + (velocity.Z * horizontalPrediction)
-            )
+                local targetPosition = Vector3.new(
+                    targetPart.Position.X + (velocity.X * horizontalPrediction),
+                    targetPart.Position.Y + (velocity.Y * verticalPrediction) + jumpOffset,
+                    targetPart.Position.Z + (velocity.Z * horizontalPrediction)
+                )
 
-            local smoothness = getgenv().Sentinel.smoothness or 0.1
-            local easingStyle = Enum.EasingStyle[getgenv().Sentinel.easingStyle] or Enum.EasingStyle.Quad
-            local easingDirection = Enum.EasingDirection[getgenv().Sentinel.easingDirection] or Enum.EasingDirection.In
+                local smoothness = getgenv().Sentinel.smoothness or 0.1
+                local easingStyle = Enum.EasingStyle[getgenv().Sentinel.easingStyle] or Enum.EasingStyle.Quad
+                local easingDirection = Enum.EasingDirection[getgenv().Sentinel.easingDirection] or Enum.EasingDirection.In
 
-            camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPosition), smoothness, easingStyle, easingDirection)
+                camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPosition), smoothness, easingStyle, easingDirection)
+            end
         end
-    end
+    end)
 end)
 
 -- Main Stepped Loop
 RunService.Stepped:Connect(function()
-    updatePredictionValue()
-    LookAtPlayer(TargetPlr)
-    NearestPart(TargetPlr)
-    inAir()
-    if not getgenv().Sentinel.AutoPrediction then
-        getgenv().Sentinel.HorizontalPrediction2 = getgenv().Sentinel.HorizontalPrediction
-        getgenv().Sentinel.VerticalPrediction = getgenv().Sentinel.HorizontalPrediction2
-    end
+    pcall(function()
+        updatePredictionValue()
+        LookAtPlayer(TargetPlr)
+        NearestPart(TargetPlr)
+        inAir()
+        if not getgenv().Sentinel.AutoPrediction then
+            getgenv().Sentinel.HorizontalPrediction2 = getgenv().Sentinel.HorizontalPrediction
+            getgenv().Sentinel.VerticalPrediction = getgenv().Sentinel.HorizontalPrediction2
+        end
+    end)
 end)
 
 -- Grenade TP
 RunService.Heartbeat:Connect(function()
-    if Script.Locals.GrenadeTP.Enabled and TargetPlr and TargetPlr.Character and workspace:FindFirstChild("Ignored") then
-        if workspace.Ignored:FindFirstChild("Handle") then
-            local selectedPart = getgenv().Sentinel.SelectedPart
-            local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
-            if targetPart then
-                workspace.Ignored.Handle.Position = targetPart.Position + (targetPart.Velocity * getgenv().Sentinel.HorizontalPrediction)
+    pcall(function()
+        if Script.Locals.GrenadeTP.Enabled and TargetPlr and TargetPlr.Character and workspace:FindFirstChild("Ignored") then
+            if workspace.Ignored:FindFirstChild("Handle") then
+                local selectedPart = getgenv().Sentinel.SelectedPart
+                local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
+                if targetPart then
+                    workspace.Ignored.Handle.Position = targetPart.Position + (targetPart.Velocity * getgenv().Sentinel.HorizontalPrediction)
+                end
             end
         end
-    end
+    end)
 end)
 
 -- Rocket TP
@@ -1734,24 +1767,42 @@ end)
 
 -- Speed Hack
 RunService.Heartbeat:Connect(function()
-    if Settings.Misc.Movement.Speed.Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = 16 * Settings.Misc.Movement.Speed.Amount
-    elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = 16
-    end
+    pcall(function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if Settings.Misc.Movement.Speed.Enabled then
+                LocalPlayer.Character.Humanoid.WalkSpeed = 16 * Settings.Misc.Movement.Speed.Amount
+            else
+                LocalPlayer.Character.Humanoid.WalkSpeed = 16
+            end
+        end
+    end)
 end)
 
 -- Spectate
 RunService.RenderStepped:Connect(function()
-    if Settings.Combat.Spectate and TargetPlr and TargetPlr.Character then
-        Workspace.CurrentCamera.CameraSubject = TargetPlr.Character:FindFirstChild("Humanoid")
-    else
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+    pcall(function()
+        local camera = Workspace.CurrentCamera
+        if not camera then return end
+        
+        if Settings.Combat.Spectate and TargetPlr and TargetPlr.Character then
+            local targetHumanoid = TargetPlr.Character:FindFirstChild("Humanoid")
+            if targetHumanoid then
+                camera.CameraSubject = targetHumanoid
+            end
+        else
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                camera.CameraSubject = LocalPlayer.Character.Humanoid
+            end
         end
-    end
+    end)
 end)
 
-print("Custom UI Script Loaded Successfully!")
-print("UI Toggle: Click 'UI' button to show/hide")
-print("Lock Toggle: Click 'Lock' button to lock/unlock target")
+-- Success message
+task.spawn(function()
+    task.wait(1)
+    print("============================================")
+    print("Custom UI Script Loaded Successfully!")
+    print("UI Toggle: Click 'UI' button to show/hide")
+    print("Lock Toggle: Click 'Lock' button to lock/unlock target")
+    print("============================================")
+end)
