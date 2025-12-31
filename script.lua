@@ -394,6 +394,56 @@ MainGui.Parent = CoreGui
 MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 MainGui.ResetOnSpawn = false
 
+-- Create Floating UI Toggle Button (Always Visible)
+local FloatingUIToggle = Instance.new("TextButton")
+FloatingUIToggle.Name = "FloatingUIToggle"
+FloatingUIToggle.Parent = MainGui
+FloatingUIToggle.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+FloatingUIToggle.BorderSizePixel = 0
+FloatingUIToggle.Size = UDim2.new(0, 60, 0, 35)
+FloatingUIToggle.Position = UDim2.new(1, -70, 0, 10)
+FloatingUIToggle.Font = Enum.Font.GothamBold
+FloatingUIToggle.Text = "UI"
+FloatingUIToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatingUIToggle.TextSize = 14
+FloatingUIToggle.Active = true
+FloatingUIToggle.Draggable = true
+FloatingUIToggle.ZIndex = 10
+
+local FloatingUIToggleCorner = Instance.new("UICorner")
+FloatingUIToggleCorner.CornerRadius = UDim.new(0, 6)
+FloatingUIToggleCorner.Parent = FloatingUIToggle
+
+local FloatingUIToggleStroke = Instance.new("UIStroke")
+FloatingUIToggleStroke.Parent = FloatingUIToggle
+FloatingUIToggleStroke.Color = Color3.fromRGB(40, 40, 60)
+FloatingUIToggleStroke.Thickness = 2
+
+-- Create Floating Lock Toggle Button (Always Visible)
+local FloatingLockToggle = Instance.new("TextButton")
+FloatingLockToggle.Name = "FloatingLockToggle"
+FloatingLockToggle.Parent = MainGui
+FloatingLockToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+FloatingLockToggle.BorderSizePixel = 0
+FloatingLockToggle.Size = UDim2.new(0, 60, 0, 35)
+FloatingLockToggle.Position = UDim2.new(1, -70, 0, 55)
+FloatingLockToggle.Font = Enum.Font.GothamBold
+FloatingLockToggle.Text = "Lock"
+FloatingLockToggle.TextColor3 = Color3.fromRGB(255, 100, 100)
+FloatingLockToggle.TextSize = 14
+FloatingLockToggle.Active = true
+FloatingLockToggle.Draggable = true
+FloatingLockToggle.ZIndex = 10
+
+local FloatingLockToggleCorner = Instance.new("UICorner")
+FloatingLockToggleCorner.CornerRadius = UDim.new(0, 6)
+FloatingLockToggleCorner.Parent = FloatingLockToggle
+
+local FloatingLockToggleStroke = Instance.new("UIStroke")
+FloatingLockToggleStroke.Parent = FloatingLockToggle
+FloatingLockToggleStroke.Color = Color3.fromRGB(40, 40, 60)
+FloatingLockToggleStroke.Thickness = 2
+
 -- Create Main Frame (Draggable)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -513,6 +563,7 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 10)
 
 -- Function to create tab button
+local TabButtons = {}
 local function CreateTab(name, text)
     local TabBtn = Instance.new("TextButton")
     TabBtn.Name = name
@@ -527,9 +578,14 @@ local function CreateTab(name, text)
     
     TabBtn.MouseButton1Click:Connect(function()
         CurrentTab = name
+        -- Update all tab buttons
+        for tabName, btn in pairs(TabButtons) do
+            btn.BackgroundColor3 = CurrentTab == tabName and Color3.fromRGB(50, 100, 200) or Color3.fromRGB(30, 30, 40)
+        end
         BuildUI()
     end)
     
+    TabButtons[name] = TabBtn
     return TabBtn
 end
 
@@ -775,13 +831,6 @@ local function BuildUI()
         end
     end
     
-    -- Update tab buttons
-    for _, tab in pairs(TabContainer:GetChildren()) do
-        if tab:IsA("TextButton") then
-            tab.BackgroundColor3 = CurrentTab == tab.Name and Color3.fromRGB(50, 100, 200) or Color3.fromRGB(30, 30, 40)
-        end
-    end
-    
     if CurrentTab == "Combat" then
         local MainSection, MainContent = CreateSection(ContentFrame, "Main")
         CreateToggle(MainContent, "Enabled", "Enabled", Settings.Combat.Enabled, function(val)
@@ -802,6 +851,86 @@ local function BuildUI()
         CreateToggle(MainContent, "NearestPart", "Nearest Part", getgenv().Sentinel.NearestPart, function(val)
             getgenv().Sentinel.NearestPart = val
         end)
+        CreateToggle(MainContent, "ESP", "ESP", Settings.Combat.ESP, function(val)
+            Settings.Combat.ESP = val
+        end)
+        CreateToggle(MainContent, "Silent", "Silent", Settings.Combat.Silent, function(val)
+            Settings.Combat.Silent = val
+        end)
+        CreateToggle(MainContent, "BetaAirshot", "Beta Airshot", Settings.Combat.BetaAirshot, function(val)
+            Settings.Combat.BetaAirshot = val
+        end)
+        CreateToggle(MainContent, "TargetInfo", "Target Info", Settings.Combat.TargetInfo, function(val)
+            Settings.Combat.TargetInfo = val
+        end)
+        CreateToggle(MainContent, "Alerts", "Alerts", Settings.Combat.Alerts, function(val)
+            Settings.Combat.Alerts = val
+        end)
+        CreateToggle(MainContent, "PingBased", "Ping Based", Settings.Combat.PingBased, function(val)
+            Settings.Combat.PingBased = val
+        end)
+        CreateToggle(MainContent, "UseIndex", "Use Index", Settings.Combat.UseIndex, function(val)
+            Settings.Combat.UseIndex = val
+        end)
+        CreateToggle(MainContent, "AntiAimViewer", "Anti Aim Viewer", Settings.Combat.AntiAimViewer, function(val)
+            Settings.Combat.AntiAimViewer = val
+        end)
+        
+        local TriggerBotSection, TriggerBotContent = CreateSection(ContentFrame, "Trigger Bot")
+        CreateToggle(TriggerBotContent, "TriggerBot", "Enabled", Settings.Combat.TriggerBot.Enabled, function(val)
+            Settings.Combat.TriggerBot.Enabled = val
+        end)
+        CreateSlider(TriggerBotContent, "TriggerDelay", "Delay", 0, 1, Settings.Combat.TriggerBot.Delay, function(val)
+            Settings.Combat.TriggerBot.Delay = val
+        end)
+        CreateToggle(TriggerBotContent, "TriggerTargetOnly", "Target Only", Settings.Combat.TriggerBot.TargeyOnly, function(val)
+            Settings.Combat.TriggerBot.TargeyOnly = val
+        end)
+        CreateToggle(TriggerBotContent, "TriggerFOVShow", "Show FOV", Settings.Combat.TriggerBot.FOV.Show, function(val)
+            Settings.Combat.TriggerBot.FOV.Show = val
+        end)
+        CreateSlider(TriggerBotContent, "TriggerFOVSize", "FOV Size", 0, 200, Settings.Combat.TriggerBot.FOV.Size, function(val)
+            Settings.Combat.TriggerBot.FOV.Size = val
+        end)
+        
+        local AutoSelectSection, AutoSelectContent = CreateSection(ContentFrame, "Auto Select")
+        CreateToggle(AutoSelectContent, "AutoSelect", "Enabled", Settings.Combat.AutoSelect.Enabled, function(val)
+            Settings.Combat.AutoSelect.Enabled = val
+        end)
+        CreateToggle(AutoSelectContent, "AutoSelectCooldown", "Cooldown", Settings.Combat.AutoSelect.Cooldown.Enabled, function(val)
+            Settings.Combat.AutoSelect.Cooldown.Enabled = val
+        end)
+        CreateSlider(AutoSelectContent, "AutoSelectCooldownAmount", "Cooldown Amount", 0, 5, Settings.Combat.AutoSelect.Cooldown.Amount, function(val)
+            Settings.Combat.AutoSelect.Cooldown.Amount = val
+        end)
+        
+        local ChecksSection, ChecksContent = CreateSection(ContentFrame, "Checks")
+        CreateToggle(ChecksContent, "ChecksEnabled", "Enabled", Settings.Combat.Checks.Enabled, function(val)
+            Settings.Combat.Checks.Enabled = val
+        end)
+        CreateToggle(ChecksContent, "CheckKnocked", "Knocked", Settings.Combat.Checks.Knocked, function(val)
+            Settings.Combat.Checks.Knocked = val
+        end)
+        CreateToggle(ChecksContent, "CheckCrew", "Crew", Settings.Combat.Checks.Crew, function(val)
+            Settings.Combat.Checks.Crew = val
+        end)
+        CreateToggle(ChecksContent, "CheckWall", "Wall", Settings.Combat.Checks.Wall, function(val)
+            Settings.Combat.Checks.Wall = val
+        end)
+        CreateToggle(ChecksContent, "CheckGrabbed", "Grabbed", Settings.Combat.Checks.Grabbed, function(val)
+            Settings.Combat.Checks.Grabbed = val
+        end)
+        CreateToggle(ChecksContent, "CheckVehicle", "Vehicle", Settings.Combat.Checks.Vehicle, function(val)
+            Settings.Combat.Checks.Vehicle = val
+        end)
+        
+        local SmoothingSection, SmoothingContent = CreateSection(ContentFrame, "Smoothing")
+        CreateSlider(SmoothingContent, "SmoothHorizontal", "Horizontal", 0, 10, Settings.Combat.Smoothing.Horizontal, function(val)
+            Settings.Combat.Smoothing.Horizontal = val
+        end)
+        CreateSlider(SmoothingContent, "SmoothVertical", "Vertical", 0, 10, Settings.Combat.Smoothing.Vertical, function(val)
+            Settings.Combat.Smoothing.Vertical = val
+        end)
         
         local PredictionSection, PredictionContent = CreateSection(ContentFrame, "Prediction")
         CreateToggle(PredictionContent, "AutoPrediction", "Auto Prediction", getgenv().Sentinel.AutoPrediction, function(val)
@@ -816,6 +945,65 @@ local function BuildUI()
             getgenv().Sentinel.VerticalPrediction = val
         end)
         
+        local ResolverSection, ResolverContent = CreateSection(ContentFrame, "Resolver")
+        CreateSlider(ResolverContent, "ResolverRefreshRate", "Refresh Rate", 0, 500, Settings.Combat.Resolver.RefreshRate, function(val)
+            Settings.Combat.Resolver.RefreshRate = val
+        end)
+        
+        local FOVSection, FOVContent = CreateSection(ContentFrame, "FOV")
+        CreateToggle(FOVContent, "FOVVisualize", "Visualize", Settings.Combat.Fov.Visualize.Enabled, function(val)
+            Settings.Combat.Fov.Visualize.Enabled = val
+        end)
+        CreateSlider(FOVContent, "FOVRadius", "Radius", 0, 500, Settings.Combat.Fov.Radius, function(val)
+            Settings.Combat.Fov.Radius = val
+        end)
+        
+        local VisualsCombatSection, VisualsCombatContent = CreateSection(ContentFrame, "Combat Visuals")
+        CreateToggle(VisualsCombatContent, "CombatVisuals", "Enabled", Settings.Combat.Visuals.Enabled, function(val)
+            Settings.Combat.Visuals.Enabled = val
+        end)
+        CreateToggle(VisualsCombatContent, "Tracer", "Tracer", Settings.Combat.Visuals.Tracer.Enabled, function(val)
+            Settings.Combat.Visuals.Tracer.Enabled = val
+        end)
+        CreateSlider(VisualsCombatContent, "TracerThickness", "Tracer Thickness", 0, 10, Settings.Combat.Visuals.Tracer.Thickness, function(val)
+            Settings.Combat.Visuals.Tracer.Thickness = val
+        end)
+        CreateToggle(VisualsCombatContent, "Dot", "Dot", Settings.Combat.Visuals.Dot.Enabled, function(val)
+            Settings.Combat.Visuals.Dot.Enabled = val
+        end)
+        CreateSlider(VisualsCombatContent, "DotSize", "Dot Size", 0, 20, Settings.Combat.Visuals.Dot.Size, function(val)
+            Settings.Combat.Visuals.Dot.Size = val
+        end)
+        CreateToggle(VisualsCombatContent, "DotFilled", "Dot Filled", Settings.Combat.Visuals.Dot.Filled, function(val)
+            Settings.Combat.Visuals.Dot.Filled = val
+        end)
+        CreateToggle(VisualsCombatContent, "Chams", "Chams", Settings.Combat.Visuals.Chams.Enabled, function(val)
+            Settings.Combat.Visuals.Chams.Enabled = val
+        end)
+        CreateSlider(VisualsCombatContent, "ChamsFillTransparency", "Chams Fill Transparency", 0, 1, Settings.Combat.Visuals.Chams.Fill.Transparency, function(val)
+            Settings.Combat.Visuals.Chams.Fill.Transparency = val
+        end)
+        CreateSlider(VisualsCombatContent, "ChamsOutlineTransparency", "Chams Outline Transparency", 0, 1, Settings.Combat.Visuals.Chams.Outline.Transparency, function(val)
+            Settings.Combat.Visuals.Chams.Outline.Transparency = val
+        end)
+        
+        local AirSection, AirContent = CreateSection(ContentFrame, "Air")
+        CreateToggle(AirContent, "AirEnabled", "Enabled", Settings.Combat.Air.Enabled, function(val)
+            Settings.Combat.Air.Enabled = val
+        end)
+        CreateToggle(AirContent, "AirAimPart", "Air Aim Part", Settings.Combat.Air.AirAimPart.Enabled, function(val)
+            Settings.Combat.Air.AirAimPart.Enabled = val
+        end)
+        CreateTextBox(AirContent, "AirHitPart", "Hit Part", Settings.Combat.Air.AirAimPart.HitPart, function(val)
+            Settings.Combat.Air.AirAimPart.HitPart = val
+        end)
+        CreateToggle(AirContent, "JumpOffset", "Jump Offset", Settings.Combat.Air.JumpOffset.Enabled, function(val)
+            Settings.Combat.Air.JumpOffset.Enabled = val
+        end)
+        CreateSlider(AirContent, "JumpOffsetAmount", "Jump Offset Amount", -5, 5, Settings.Combat.Air.JumpOffset.Offset, function(val)
+            Settings.Combat.Air.JumpOffset.Offset = val
+        end)
+        
         local CameraSection, CameraContent = CreateSection(ContentFrame, "Camera")
         CreateToggle(CameraContent, "Camera", "Enabled", getgenv().Sentinel.Camera, function(val)
             getgenv().Sentinel.Camera = val
@@ -823,10 +1011,21 @@ local function BuildUI()
         CreateSlider(CameraContent, "Smoothness", "Smoothness", 0, 1, getgenv().Sentinel.smoothness, function(val)
             getgenv().Sentinel.smoothness = val
         end)
+        CreateTextBox(CameraContent, "EasingStyle", "Easing Style", Settings.Combat.EasingStyle, function(val)
+            Settings.Combat.EasingStyle = val
+            getgenv().Sentinel.easingStyle = val
+        end)
+        CreateTextBox(CameraContent, "EasingDirection", "Easing Direction", Settings.Combat.EasingDirection, function(val)
+            Settings.Combat.EasingDirection = val
+            getgenv().Sentinel.easingDirection = val
+        end)
         
         local HitPartSection, HitPartContent = CreateSection(ContentFrame, "Hit Part")
         CreateTextBox(HitPartContent, "SelectedPart", "Body Part", getgenv().Sentinel.SelectedPart, function(val)
             getgenv().Sentinel.SelectedPart = val
+        end)
+        CreateTextBox(HitPartContent, "AimPart", "Aim Part", Settings.Combat.AimPart, function(val)
+            Settings.Combat.AimPart = val
         end)
         
     elseif CurrentTab == "Visuals" then
@@ -834,36 +1033,205 @@ local function BuildUI()
         CreateToggle(BacktrackContent, "Backtrack", "Enabled", Settings.Visuals.Backtrack.Enabled, function(val)
             Settings.Visuals.Backtrack.Enabled = val
         end)
+        CreateSlider(BacktrackContent, "BacktrackTransparency", "Transparency", 0, 1, Settings.Visuals.Backtrack.Transparency, function(val)
+            Settings.Visuals.Backtrack.Transparency = val
+        end)
+        CreateTextBox(BacktrackContent, "BacktrackMethod", "Method", Settings.Visuals.Backtrack.Method, function(val)
+            Settings.Visuals.Backtrack.Method = val
+        end)
+        CreateTextBox(BacktrackContent, "BacktrackMaterial", "Material", Settings.Visuals.Backtrack.Material, function(val)
+            Settings.Visuals.Backtrack.Material = val
+        end)
         
         local TracersSection, TracersContent = CreateSection(ContentFrame, "Bullet Tracers")
         CreateToggle(TracersContent, "BulletTracers", "Enabled", Settings.Visuals.BulletTracers.Enabled, function(val)
             Settings.Visuals.BulletTracers.Enabled = val
         end)
+        CreateSlider(TracersContent, "TracerDuration", "Duration", 0, 10, Settings.Visuals.BulletTracers.Duration, function(val)
+            Settings.Visuals.BulletTracers.Duration = val
+        end)
+        CreateToggle(TracersContent, "TracerFade", "Fade", Settings.Visuals.BulletTracers.Fade.Enabled, function(val)
+            Settings.Visuals.BulletTracers.Fade.Enabled = val
+        end)
+        CreateSlider(TracersContent, "TracerFadeDuration", "Fade Duration", 0, 5, Settings.Visuals.BulletTracers.Fade.Duration, function(val)
+            Settings.Visuals.BulletTracers.Fade.Duration = val
+        end)
+        
+        local ImpactsSection, ImpactsContent = CreateSection(ContentFrame, "Bullet Impacts")
+        CreateToggle(ImpactsContent, "BulletImpacts", "Enabled", Settings.Visuals.BulletImpacts.Enabled, function(val)
+            Settings.Visuals.BulletImpacts.Enabled = val
+        end)
+        CreateSlider(ImpactsContent, "ImpactDuration", "Duration", 0, 10, Settings.Visuals.BulletImpacts.Duration, function(val)
+            Settings.Visuals.BulletImpacts.Duration = val
+        end)
+        CreateSlider(ImpactsContent, "ImpactSize", "Size", 0, 10, Settings.Visuals.BulletImpacts.Size, function(val)
+            Settings.Visuals.BulletImpacts.Size = val
+        end)
+        CreateTextBox(ImpactsContent, "ImpactMaterial", "Material", Settings.Visuals.BulletImpacts.Material, function(val)
+            Settings.Visuals.BulletImpacts.Material = val
+        end)
+        CreateToggle(ImpactsContent, "ImpactFade", "Fade", Settings.Visuals.BulletImpacts.Fade.Enabled, function(val)
+            Settings.Visuals.BulletImpacts.Fade.Enabled = val
+        end)
+        CreateSlider(ImpactsContent, "ImpactFadeDuration", "Fade Duration", 0, 5, Settings.Visuals.BulletImpacts.Fade.Duration, function(val)
+            Settings.Visuals.BulletImpacts.Fade.Duration = val
+        end)
         
         local OnHitSection, OnHitContent = CreateSection(ContentFrame, "On Hit")
+        CreateToggle(OnHitContent, "OnHitEnabled", "Enabled", Settings.Visuals.OnHit.Enabled, function(val)
+            Settings.Visuals.OnHit.Enabled = val
+        end)
         CreateToggle(OnHitContent, "OnHitEffect", "Effect", Settings.Visuals.OnHit.Effect.Enabled, function(val)
             Settings.Visuals.OnHit.Effect.Enabled = val
         end)
         CreateToggle(OnHitContent, "OnHitSound", "Sound", Settings.Visuals.OnHit.Sound.Enabled, function(val)
             Settings.Visuals.OnHit.Sound.Enabled = val
         end)
+        CreateSlider(OnHitContent, "OnHitSoundVolume", "Sound Volume", 0, 10, Settings.Visuals.OnHit.Sound.Volume, function(val)
+            Settings.Visuals.OnHit.Sound.Volume = val
+        end)
+        CreateTextBox(OnHitContent, "OnHitSoundValue", "Sound Value", Settings.Visuals.OnHit.Sound.Value, function(val)
+            Settings.Visuals.OnHit.Sound.Value = val
+        end)
         CreateToggle(OnHitContent, "OnHitChams", "Chams", Settings.Visuals.OnHit.Chams.Enabled, function(val)
             Settings.Visuals.OnHit.Chams.Enabled = val
         end)
+        CreateSlider(OnHitContent, "OnHitChamsDuration", "Chams Duration", 0, 10, Settings.Visuals.OnHit.Chams.Duration, function(val)
+            Settings.Visuals.OnHit.Chams.Duration = val
+        end)
+        CreateTextBox(OnHitContent, "OnHitChamsMaterial", "Chams Material", Settings.Visuals.OnHit.Chams.Material.Name, function(val)
+            Settings.Visuals.OnHit.Chams.Material = Enum.Material[val] or Enum.Material.ForceField
+        end)
+        
+        local WorldSection, WorldContent = CreateSection(ContentFrame, "World")
+        CreateToggle(WorldContent, "WorldEnabled", "Enabled", Settings.Visuals.World.Enabled, function(val)
+            Settings.Visuals.World.Enabled = val
+        end)
+        CreateToggle(WorldContent, "Fog", "Fog", Settings.Visuals.World.Fog.Enabled, function(val)
+            Settings.Visuals.World.Fog.Enabled = val
+        end)
+        CreateSlider(WorldContent, "FogStart", "Fog Start", 0, 50000, Settings.Visuals.World.Fog.Start, function(val)
+            Settings.Visuals.World.Fog.Start = val
+        end)
+        CreateSlider(WorldContent, "FogEnd", "Fog End", 0, 50000, Settings.Visuals.World.Fog.End, function(val)
+            Settings.Visuals.World.Fog.End = val
+        end)
+        CreateToggle(WorldContent, "Ambient", "Ambient", Settings.Visuals.World.Ambient.Enabled, function(val)
+            Settings.Visuals.World.Ambient.Enabled = val
+        end)
+        CreateToggle(WorldContent, "Brightness", "Brightness", Settings.Visuals.World.Brightness.Enabled, function(val)
+            Settings.Visuals.World.Brightness.Enabled = val
+        end)
+        CreateSlider(WorldContent, "BrightnessValue", "Brightness Value", -5, 5, Settings.Visuals.World.Brightness.Value, function(val)
+            Settings.Visuals.World.Brightness.Value = val
+        end)
+        CreateToggle(WorldContent, "ClockTime", "Clock Time", Settings.Visuals.World.ClockTime.Enabled, function(val)
+            Settings.Visuals.World.ClockTime.Enabled = val
+        end)
+        CreateSlider(WorldContent, "ClockTimeValue", "Clock Time Value", 0, 24, Settings.Visuals.World.ClockTime.Value, function(val)
+            Settings.Visuals.World.ClockTime.Value = val
+        end)
+        CreateToggle(WorldContent, "WorldExposure", "World Exposure", Settings.Visuals.World.WorldExposure.Enabled, function(val)
+            Settings.Visuals.World.WorldExposure.Enabled = val
+        end)
+        CreateSlider(WorldContent, "WorldExposureValue", "World Exposure Value", -5, 5, Settings.Visuals.World.WorldExposure.Value, function(val)
+            Settings.Visuals.World.WorldExposure.Value = val
+        end)
+        
+        local CrosshairSection, CrosshairContent = CreateSection(ContentFrame, "Crosshair")
+        CreateToggle(CrosshairContent, "Crosshair", "Enabled", Settings.Visuals.Crosshair.Enabled, function(val)
+            Settings.Visuals.Crosshair.Enabled = val
+        end)
+        CreateToggle(CrosshairContent, "CrosshairStickToTarget", "Stick To Target", Settings.Visuals.Crosshair.StickToTarget, function(val)
+            Settings.Visuals.Crosshair.StickToTarget = val
+        end)
+        CreateSlider(CrosshairContent, "CrosshairSize", "Size", 0, 50, Settings.Visuals.Crosshair.Size, function(val)
+            Settings.Visuals.Crosshair.Size = val
+        end)
+        CreateSlider(CrosshairContent, "CrosshairGap", "Gap", 0, 20, Settings.Visuals.Crosshair.Gap, function(val)
+            Settings.Visuals.Crosshair.Gap = val
+        end)
+        CreateToggle(CrosshairContent, "CrosshairRotation", "Rotation", Settings.Visuals.Crosshair.Rotation.Enabled, function(val)
+            Settings.Visuals.Crosshair.Rotation.Enabled = val
+        end)
+        CreateSlider(CrosshairContent, "CrosshairRotationSpeed", "Rotation Speed", 0, 10, Settings.Visuals.Crosshair.Rotation.Speed, function(val)
+            Settings.Visuals.Crosshair.Rotation.Speed = val
+        end)
         
     elseif CurrentTab == "AntiAim" then
+        local DesyncSection, DesyncContent = CreateSection(ContentFrame, "Desync")
+        CreateToggle(DesyncContent, "DaCoolBoyDesync", "Da Cool Boy Desync", Settings.AntiAim.DaCoolBoyDesync, function(val)
+            Settings.AntiAim.DaCoolBoyDesync = val
+        end)
+        CreateToggle(DesyncContent, "DaCoolBoyDesync2", "Da Cool Boy Desync 2", Settings.AntiAim.DaCoolBoyDesync2, function(val)
+            Settings.AntiAim.DaCoolBoyDesync2 = val
+        end)
+        CreateToggle(DesyncContent, "DaCoolBoyDesync3", "Da Cool Boy Desync 3", Settings.AntiAim.DaCoolBoyDesync3, function(val)
+            Settings.AntiAim.DaCoolBoyDesync3 = val
+        end)
+        CreateToggle(DesyncContent, "Desync", "Enabled", getgenv().Desync, function(val)
+            getgenv().Desync = val
+        end)
+        CreateTextBox(DesyncContent, "AntiLockType", "Anti Lock Type", getgenv().AntiLockType, function(val)
+            getgenv().AntiLockType = val
+        end)
+        
+        local VelocitySpooferSection, VelocitySpooferContent = CreateSection(ContentFrame, "Velocity Spoofer")
+        CreateToggle(VelocitySpooferContent, "VelocitySpoofer", "Enabled", Settings.AntiAim.VelocitySpoofer.Enabled, function(val)
+            Settings.AntiAim.VelocitySpoofer.Enabled = val
+        end)
+        CreateToggle(VelocitySpooferContent, "VelocitySpooferVisualize", "Visualize", Settings.AntiAim.VelocitySpoofer.Visualize.Enabled, function(val)
+            Settings.AntiAim.VelocitySpoofer.Visualize.Enabled = val
+        end)
+        CreateSlider(VelocitySpooferContent, "VelocitySpooferPrediction", "Prediction", 0, 1, Settings.AntiAim.VelocitySpoofer.Visualize.Prediction, function(val)
+            Settings.AntiAim.VelocitySpoofer.Visualize.Prediction = val
+        end)
+        CreateTextBox(VelocitySpooferContent, "VelocitySpooferType", "Type", Settings.AntiAim.VelocitySpoofer.Type, function(val)
+            Settings.AntiAim.VelocitySpoofer.Type = val
+        end)
+        CreateSlider(VelocitySpooferContent, "VelocitySpooferRoll", "Roll", -180, 180, Settings.AntiAim.VelocitySpoofer.Roll, function(val)
+            Settings.AntiAim.VelocitySpoofer.Roll = val
+        end)
+        CreateSlider(VelocitySpooferContent, "VelocitySpooferPitch", "Pitch", -180, 180, Settings.AntiAim.VelocitySpoofer.Pitch, function(val)
+            Settings.AntiAim.VelocitySpoofer.Pitch = val
+        end)
+        CreateSlider(VelocitySpooferContent, "VelocitySpooferYaw", "Yaw", -180, 180, Settings.AntiAim.VelocitySpoofer.Yaw, function(val)
+            Settings.AntiAim.VelocitySpoofer.Yaw = val
+        end)
+        
         local CSyncSection, CSyncContent = CreateSection(ContentFrame, "CSync")
         CreateToggle(CSyncContent, "CSync", "Enabled", Settings.AntiAim.CSync.Enabled, function(val)
             Settings.AntiAim.CSync.Enabled = val
         end)
-        CreateSlider(CSyncContent, "CSyncDistance", "Distance", 0, 20, Settings.AntiAim.CSync.RandomDistance, function(val)
+        CreateToggle(CSyncContent, "CSyncSpoof", "Spoof", Settings.AntiAim.CSync.Spoof, function(val)
+            Settings.AntiAim.CSync.Spoof = val
+        end)
+        CreateTextBox(CSyncContent, "CSyncType", "Type", Settings.AntiAim.CSync.Type, function(val)
+            Settings.AntiAim.CSync.Type = val
+        end)
+        CreateToggle(CSyncContent, "CSyncVisualize", "Visualize", Settings.AntiAim.CSync.Visualize.Enabled, function(val)
+            Settings.AntiAim.CSync.Visualize.Enabled = val
+        end)
+        CreateSlider(CSyncContent, "CSyncRandomDistance", "Random Distance", 0, 50, Settings.AntiAim.CSync.RandomDistance, function(val)
             Settings.AntiAim.CSync.RandomDistance = val
         end)
-        CreateSlider(CSyncContent, "CSyncHeight", "Height", 0, 10, Settings.AntiAim.CSync.TargetStrafe.Height, function(val)
-            Settings.AntiAim.CSync.TargetStrafe.Height = val
+        CreateSlider(CSyncContent, "CSyncCustomX", "Custom X", -50, 50, Settings.AntiAim.CSync.Custom.X, function(val)
+            Settings.AntiAim.CSync.Custom.X = val
         end)
-        CreateSlider(CSyncContent, "CSyncSpeed", "Speed", 0, 20, Settings.AntiAim.CSync.TargetStrafe.Speed, function(val)
+        CreateSlider(CSyncContent, "CSyncCustomY", "Custom Y", -50, 50, Settings.AntiAim.CSync.Custom.Y, function(val)
+            Settings.AntiAim.CSync.Custom.Y = val
+        end)
+        CreateSlider(CSyncContent, "CSyncCustomZ", "Custom Z", -50, 50, Settings.AntiAim.CSync.Custom.Z, function(val)
+            Settings.AntiAim.CSync.Custom.Z = val
+        end)
+        CreateSlider(CSyncContent, "CSyncTargetStrafeSpeed", "Target Strafe Speed", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Speed, function(val)
             Settings.AntiAim.CSync.TargetStrafe.Speed = val
+        end)
+        CreateSlider(CSyncContent, "CSyncTargetStrafeDistance", "Target Strafe Distance", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Distance, function(val)
+            Settings.AntiAim.CSync.TargetStrafe.Distance = val
+        end)
+        CreateSlider(CSyncContent, "CSyncTargetStrafeHeight", "Target Strafe Height", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Height, function(val)
+            Settings.AntiAim.CSync.TargetStrafe.Height = val
         end)
         
         local NetworkSection, NetworkContent = CreateSection(ContentFrame, "Network")
@@ -871,13 +1239,33 @@ local function BuildUI()
             Settings.AntiAim.Network.Enabled = val
             getgenv().Sentinel.network = val
         end)
-        
-        local DesyncSection, DesyncContent = CreateSection(ContentFrame, "Desync")
-        CreateToggle(DesyncContent, "Desync", "Enabled", getgenv().Desync, function(val)
-            getgenv().Desync = val
+        CreateToggle(NetworkContent, "NetworkWalkingCheck", "Walking Check", Settings.AntiAim.Network.WalkingCheck, function(val)
+            Settings.AntiAim.Network.WalkingCheck = val
         end)
-        CreateTextBox(DesyncContent, "AntiLockType", "Anti Lock Type", getgenv().AntiLockType, function(val)
-            getgenv().AntiLockType = val
+        CreateSlider(NetworkContent, "NetworkAmount", "Amount", 0, 1, Settings.AntiAim.Network.Amount, function(val)
+            Settings.AntiAim.Network.Amount = val
+        end)
+        
+        local VelocityDesyncSection, VelocityDesyncContent = CreateSection(ContentFrame, "Velocity Desync")
+        CreateToggle(VelocityDesyncContent, "VelocityDesync", "Enabled", Settings.AntiAim.VelocityDesync.Enabled, function(val)
+            Settings.AntiAim.VelocityDesync.Enabled = val
+        end)
+        CreateSlider(VelocityDesyncContent, "VelocityDesyncRange", "Range", 0, 10, Settings.AntiAim.VelocityDesync.Range, function(val)
+            Settings.AntiAim.VelocityDesync.Range = val
+        end)
+        
+        local FFlagDesyncSection, FFlagDesyncContent = CreateSection(ContentFrame, "FFlag Desync")
+        CreateToggle(FFlagDesyncContent, "FFlagDesync", "Enabled", Settings.AntiAim.FFlagDesync.Enabled, function(val)
+            Settings.AntiAim.FFlagDesync.Enabled = val
+        end)
+        CreateToggle(FFlagDesyncContent, "FFlagDesyncSetNew", "Set New", Settings.AntiAim.FFlagDesync.SetNew, function(val)
+            Settings.AntiAim.FFlagDesync.SetNew = val
+        end)
+        CreateSlider(FFlagDesyncContent, "FFlagDesyncAmount", "Amount", 0, 10, Settings.AntiAim.FFlagDesync.Amount, function(val)
+            Settings.AntiAim.FFlagDesync.Amount = val
+        end)
+        CreateSlider(FFlagDesyncContent, "FFlagDesyncSetNewAmount", "Set New Amount", 0, 10, Settings.AntiAim.FFlagDesync.SetNewAmount, function(val)
+            Settings.AntiAim.FFlagDesync.SetNewAmount = val
         end)
         
     elseif CurrentTab == "Misc" then
@@ -944,12 +1332,18 @@ CreateTab("Visuals", "Visuals")
 CreateTab("AntiAim", "AntiAim")
 CreateTab("Misc", "Misc")
 
--- UI Toggle Functionality
-UIToggleBtn.MouseButton1Click:Connect(function()
+-- UI Toggle Functionality (Show/Hide UI)
+local function ToggleUI()
     UIEnabled = not UIEnabled
     MainFrame.Visible = UIEnabled
     UIToggleBtn.BackgroundColor3 = UIEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
-end)
+    UIToggleBtn.Text = UIEnabled and "UI ON" or "UI OFF"
+    FloatingUIToggle.BackgroundColor3 = UIEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
+    FloatingUIToggle.Text = UIEnabled and "UI ON" or "UI OFF"
+end
+
+UIToggleBtn.MouseButton1Click:Connect(ToggleUI)
+FloatingUIToggle.MouseButton1Click:Connect(ToggleUI)
 
 -- Lock Toggle Functionality
 local function SigmaOhioPlayer()
@@ -980,7 +1374,8 @@ local function SigmaOhioPlayer()
     return closestPlayer
 end
 
-LockToggleBtn.MouseButton1Click:Connect(function()
+-- Lock Toggle Functionality (Target Lock/Camlock)
+local function ToggleLock()
     LockEnabled = not LockEnabled
     TargBindEnabled = LockEnabled
     
@@ -990,16 +1385,33 @@ LockToggleBtn.MouseButton1Click:Connect(function()
         if TargetPlr then
             LockToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
             LockToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            LockToggleBtn.Text = "LOCKED"
+            FloatingLockToggle.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            FloatingLockToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            FloatingLockToggle.Text = "LOCKED"
         else
             LockEnabled = false
             TargBindEnabled = false
+            LockToggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            LockToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+            LockToggleBtn.Text = "Lock"
+            FloatingLockToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            FloatingLockToggle.TextColor3 = Color3.fromRGB(255, 100, 100)
+            FloatingLockToggle.Text = "Lock"
         end
     else
         TargetPlr = nil
         LockToggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
         LockToggleBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+        LockToggleBtn.Text = "Lock"
+        FloatingLockToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        FloatingLockToggle.TextColor3 = Color3.fromRGB(255, 100, 100)
+        FloatingLockToggle.Text = "Lock"
     end
-end)
+end
+
+LockToggleBtn.MouseButton1Click:Connect(ToggleLock)
+FloatingLockToggle.MouseButton1Click:Connect(ToggleLock)
 
 -- Initial UI Build
 BuildUI()
