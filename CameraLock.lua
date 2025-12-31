@@ -745,58 +745,68 @@ local function CreateUI()
     listLayout.Padding = UDim.new(0, isMobile and 4 or 3)
     listLayout.Parent = scrollFrame
     
-    -- Create section divider/box
+    -- Create section divider/box with clear visual separation
     local function CreateSection(title)
         local sectionContainer = Instance.new("Frame")
         sectionContainer.Name = title .. "Section"
         sectionContainer.Size = UDim2.new(1, 0, 0, 0) -- Height will be auto
-        sectionContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-        sectionContainer.BorderSizePixel = 0
+        sectionContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+        sectionContainer.BorderSizePixel = 2
+        sectionContainer.BorderColor3 = Color3.fromRGB(60, 60, 70)
         sectionContainer.Parent = scrollFrame
         
         local sectionCorner = Instance.new("UICorner")
-        sectionCorner.CornerRadius = UDim.new(0, 8)
+        sectionCorner.CornerRadius = UDim.new(0, 10)
         sectionCorner.Parent = sectionContainer
         
-        -- Section header
+        -- Section header with divider line
         local header = Instance.new("Frame")
         header.Name = "Header"
-        header.Size = UDim2.new(1, 0, 0, isMobile and 30 or 26)
-        header.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        header.Size = UDim2.new(1, 0, 0, isMobile and 32 or 28)
+        header.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
         header.BorderSizePixel = 0
         header.Parent = sectionContainer
         
         local headerCorner = Instance.new("UICorner")
-        headerCorner.CornerRadius = UDim.new(0, 8)
+        headerCorner.CornerRadius = UDim.new(0, 10)
         headerCorner.Parent = header
+        
+        -- Divider line under header
+        local divider = Instance.new("Frame")
+        divider.Name = "Divider"
+        divider.Size = UDim2.new(1, -10, 0, 1)
+        divider.Position = UDim2.new(0, 5, 1, -1)
+        divider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        divider.BorderSizePixel = 0
+        divider.Parent = header
         
         local headerLabel = Instance.new("TextLabel")
         headerLabel.Name = "Title"
         headerLabel.Size = UDim2.new(1, -10, 1, 0)
-        headerLabel.Position = UDim2.new(0, 5, 0, 0)
+        headerLabel.Position = UDim2.new(0, 8, 0, 0)
         headerLabel.BackgroundTransparency = 1
-        headerLabel.Text = title
-        headerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        headerLabel.TextSize = isMobile and 14 or 13
+        headerLabel.Text = "━━ " .. title .. " ━━"
+        headerLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        headerLabel.TextSize = isMobile and 15 or 14
         headerLabel.Font = Enum.Font.GothamBold
         headerLabel.TextXAlignment = Enum.TextXAlignment.Left
         headerLabel.Parent = header
         
-        -- Content frame
+        -- Content frame with padding
         local contentFrame = Instance.new("Frame")
         contentFrame.Name = "Content"
-        contentFrame.Size = UDim2.new(1, -10, 0, 0)
-        contentFrame.Position = UDim2.new(0, 5, 0, header.Size.Y.Offset)
+        contentFrame.Size = UDim2.new(1, -16, 0, 0)
+        contentFrame.Position = UDim2.new(0, 8, 0, header.Size.Y.Offset + 5)
         contentFrame.BackgroundTransparency = 1
         contentFrame.Parent = sectionContainer
         
         local contentLayout = Instance.new("UIListLayout")
-        contentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+        contentLayout.Padding = UDim.new(0, isMobile and 4 or 3)
         contentLayout.Parent = contentFrame
         
         -- Update section height when content changes
         contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 10)
+            sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
         end)
         
         return contentFrame, sectionContainer
