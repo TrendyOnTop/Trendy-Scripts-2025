@@ -452,14 +452,16 @@ local function ConnectButton(button, callback)
     end
 end
 
--- Make button draggable
+-- Make button draggable (but allow clicks)
 local function MakeDraggable(frame)
     local dragging = false
     local dragInput = nil
     local dragStart = nil
     local startPos = nil
+    local hasMoved = false
     
     local function update(input)
+        if not dragStart then return end
         local delta = input.Position - dragStart
         local newPos = UDim2.new(
             startPos.X.Scale,
@@ -472,27 +474,33 @@ local function MakeDraggable(frame)
     
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
             dragStart = input.Position
             startPos = frame.Position
+            hasMoved = false
+            dragging = false
+            
+            local moveConnection
+            moveConnection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput == input and dragStart then
+                    local moved = (moveInput.Position - dragStart).Magnitude
+                    if moved > 10 then
+                        hasMoved = true
+                        dragging = true
+                        update(moveInput)
+                    end
+                end
+            end)
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
+                    moveConnection:Disconnect()
+                    if not hasMoved then
+                        -- It was a click, not a drag - let the button click handler work
+                    end
                     dragging = false
+                    dragStart = nil
                 end
             end)
-        end
-    end)
-    
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
         end
     end)
 end
@@ -583,14 +591,26 @@ local function CreateCornerButtons()
     -- Make draggable
     MakeDraggable(btn2)
     
-    ConnectButton(btn2, function()
+    local function toggleSettings()
         Settings.UIEnabled = not Settings.UIEnabled
-        if MainUI then
-            MainUI.Visible = Settings.UIEnabled
+        -- Find MainUI in PlayerGui
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+        local uiGui = playerGui:FindFirstChild("CameraLockUI")
+        if uiGui then
+            local mainFrame = uiGui:FindFirstChild("MainFrame")
+            if mainFrame then
+                mainFrame.Visible = Settings.UIEnabled
+            end
         end
         -- Also update button text
-        btn2.Text = Settings.UIEnabled and "⚙\nOPEN" or "⚙\nSETTINGS"
-    end)
+        btn2.Text = Settings.UIEnabled and "⚙\nCLOSE" or "⚙\nSETTINGS"
+    end
+    
+    -- Use both click methods to ensure it works
+    btn2.MouseButton1Click:Connect(toggleSettings)
+    if isMobile or isTablet then
+        btn2.TouchTap:Connect(toggleSettings)
+    end
     
     CornerButtons = {btn1, btn2}
 end
@@ -619,7 +639,7 @@ local function CreateUI()
     mainFrame.Position = UDim2.new(0.5, -(baseWidth * uiScale / 2), 0.5, -(baseHeight * uiScale / 2))
     mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     mainFrame.BorderSizePixel = 0
-    mainFrame.Visible = false -- Start hidden, must be enabled manually
+    mainFrame.Visible = Settings.UIEnabled or false -- Use Settings.UIEnabled
     mainFrame.Active = true
     mainFrame.Parent = screenGui
     
@@ -807,7 +827,8 @@ local function CreateUI()
         return container
     end
     
-    local function CreateToggle(name, current, callback)
+    local function CreateToggle(name, settingKey, callback)
+        local current = Settings[settingKey]
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
         container.Size = UDim2.new(1, 0, 0, isMobile and 35 or 30)
@@ -851,17 +872,29 @@ local function CreateUI()
         indicatorCorner.CornerRadius = UDim.new(0, 10)
         indicatorCorner.Parent = indicator
         
-        ConnectButton(toggle, function()
-            current = not current
-            toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
+        local function updateToggle(newValue)
+            Settings[settingKey] = newValue
+            toggle.BackgroundColor3 = newValue and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                {Position = current and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))}
+                {Position = newValue and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))}
             )
             tween:Play()
-            callback(current)
+            if callback then
+                callback(newValue)
+            end
+        end
+        
+        toggle.MouseButton1Click:Connect(function()
+            updateToggle(not Settings[settingKey])
         end)
+        
+        if isMobile or isTablet then
+            toggle.TouchTap:Connect(function()
+                updateToggle(not Settings[settingKey])
+            end)
+        end
         
         return container
     end
@@ -917,28 +950,45 @@ local function CreateUI()
     end
     
     -- Create all settings - Mix of toggles, sliders, and text boxes
-    CreateToggle("Camera Lock", Settings.CameraLockEnabled, function(val)
-        Settings.CameraLockEnabled = val
+    CreateToggle("Camera Lock", "CameraLockEnabled", function(val)
         if val then
             CreateFOVCircle()
+            -- Update corner button
+            if CornerButtons[1] then
+                CornerButtons[1].Text = "LOCK\nON"
+                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            end
         else
             if FOVCircle then
                 FOVCircle.ScreenGui:Destroy()
                 FOVCircle = nil
             end
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+            IsShooting = false
+            Target = nil
+            TargetHumanoid = nil
+            TargetHumanoidRootPart = nil
+            -- Update corner button
+            if CornerButtons[1] then
+                CornerButtons[1].Text = "LOCK\nOFF"
+                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            end
         end
     end)
     
-    CreateToggle("Pathfinding", Settings.PathfindingEnabled, function(val)
-        Settings.PathfindingEnabled = val
+    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
+        -- Pathfinding toggle works automatically
     end)
     
-    CreateToggle("Auto Reload", Settings.AutoReload, function(val)
-        Settings.AutoReload = val
+    CreateToggle("Auto Reload", "AutoReload", function(val)
+        -- Auto reload toggle works automatically
     end)
     
-    CreateToggle("Dodging Mode", Settings.DodgingEnabled, function(val)
-        Settings.DodgingEnabled = val
+    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
+        -- Dodging toggle works automatically
     end)
     
     -- Sliders for precise values
