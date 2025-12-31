@@ -299,18 +299,6 @@ local Script = {
     Locals = {
         Target = nil,
         Targeting = false,
-        Resolver = {
-            OldTick = tick(),
-            OldPos = Vector3.new(0, 0, 0),
-            ResolvedVelocity = Vector3.new(0, 0, 0)
-        },
-        AutoSelectTick = tick(),
-        AntiAimViewer = {
-            MouseRemoteFound = false,
-            MouseRemote = nil,
-            MouseRemoteArgs = nil,
-            MouseRemotePositionIndex = nil
-        },
         GunTP = { 
             Enabled = false,
             Anchor = false,
@@ -326,33 +314,6 @@ local Script = {
         GrenadeTP = {
             Enabled = false,
         },
-        KnifeAbilityTest = {
-            TargetPart = "HumanoidRootPart",
-            Radius = 90,
-            Visible = false
-        },
-        HitEffect = {},
-        Gun = {
-            PreviousGun = nil,
-            PreviousAmmo = 999,
-            Shotguns = {"[Double-Barrel SG]", "[TacticalShotgun]", "[Shotgun]"}
-        },
-        PlayerHealth = {},
-        JumpOffset = 0,
-        BulletPath = {},
-        SavedCFrame = nil,
-        NetworkPreviousTick = tick(),
-        NetworkShouldSleep = false,
-        FFlags = {},
-        OriginalVelocity = {},
-        RotationAngle = 0
-    },
-    Utility = {
-        Drawings = {},
-        EspCache = {}
-    },
-    Connections = {
-        GunConnections = {}
     },
     AuraIgnoreFolder = Instance.new("Folder", game:GetService("Workspace"))
 }
@@ -360,18 +321,11 @@ local Script = {
 -- Services
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
-local StarterGui = game:GetService("StarterGui")
-local SoundService = game:GetService("SoundService")
 local Stas = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
-
--- Script initialization check
-print("[Aimbot Script] Starting initialization...")
 
 -- Target Variables
 local TargBindEnabled = false
@@ -382,10 +336,6 @@ local Highlight = false
 -- CUSTOM UI SYSTEM
 -- ============================================
 
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-
--- UI State
 local UIEnabled = true
 local LockEnabled = false
 local CurrentTab = "Combat"
@@ -417,11 +367,6 @@ local FloatingUIToggleCorner = Instance.new("UICorner")
 FloatingUIToggleCorner.CornerRadius = UDim.new(0, 6)
 FloatingUIToggleCorner.Parent = FloatingUIToggle
 
-local FloatingUIToggleStroke = Instance.new("UIStroke")
-FloatingUIToggleStroke.Parent = FloatingUIToggle
-FloatingUIToggleStroke.Color = Color3.fromRGB(40, 40, 60)
-FloatingUIToggleStroke.Thickness = 2
-
 -- Create Floating Lock Toggle Button (Always Visible)
 local FloatingLockToggle = Instance.new("TextButton")
 FloatingLockToggle.Name = "FloatingLockToggle"
@@ -442,11 +387,6 @@ local FloatingLockToggleCorner = Instance.new("UICorner")
 FloatingLockToggleCorner.CornerRadius = UDim.new(0, 6)
 FloatingLockToggleCorner.Parent = FloatingLockToggle
 
-local FloatingLockToggleStroke = Instance.new("UIStroke")
-FloatingLockToggleStroke.Parent = FloatingLockToggle
-FloatingLockToggleStroke.Color = Color3.fromRGB(40, 40, 60)
-FloatingLockToggleStroke.Thickness = 2
-
 -- Create Main Frame (Draggable)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -457,13 +397,12 @@ MainFrame.Size = UDim2.new(0, 500, 0, 600)
 MainFrame.Position = UDim2.new(0.5, -250, 0.5, -300)
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true
 
--- Corner
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
--- Stroke
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Parent = MainFrame
 MainStroke.Color = Color3.fromRGB(60, 60, 80)
@@ -482,7 +421,6 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = TitleBar
 
--- Title Text
 local TitleText = Instance.new("TextLabel")
 TitleText.Name = "TitleText"
 TitleText.Parent = TitleBar
@@ -538,10 +476,6 @@ TabContainer.BorderSizePixel = 0
 TabContainer.Size = UDim2.new(1, 0, 0, 40)
 TabContainer.Position = UDim2.new(0, 0, 0, 45)
 
-local TabContainerCorner = Instance.new("UICorner")
-TabContainerCorner.CornerRadius = UDim.new(0, 0)
-TabContainerCorner.Parent = TabContainer
-
 local TabLayout = Instance.new("UIListLayout")
 TabLayout.Parent = TabContainer
 TabLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -556,17 +490,18 @@ ContentFrame.BorderSizePixel = 0
 ContentFrame.Size = UDim2.new(1, -20, 1, -95)
 ContentFrame.Position = UDim2.new(0, 10, 0, 90)
 ContentFrame.ScrollBarThickness = 6
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
 ContentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 
--- UI List Layout
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ContentFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 10)
 
--- Function to create tab button
+-- Tab Buttons Storage
 local TabButtons = {}
+
+-- Function to create tab button
 local function CreateTab(name, text)
     local TabBtn = Instance.new("TextButton")
     TabBtn.Name = name
@@ -581,7 +516,6 @@ local function CreateTab(name, text)
     
     TabBtn.MouseButton1Click:Connect(function()
         CurrentTab = name
-        -- Update all tab buttons
         for tabName, btn in pairs(TabButtons) do
             btn.BackgroundColor3 = CurrentTab == tabName and Color3.fromRGB(50, 100, 200) or Color3.fromRGB(30, 30, 40)
         end
@@ -687,7 +621,8 @@ local function CreateSlider(parent, name, text, min, max, defaultValue, callback
     SliderFill.Parent = SliderTrack
     SliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
     SliderFill.BorderSizePixel = 0
-    SliderFill.Size = UDim2.new((defaultValue - min) / (max - min), 0, 1, 0)
+    local percent = math.clamp((defaultValue - min) / (max - min), 0, 1)
+    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
     
     local SliderFillCorner = Instance.new("UICorner")
     SliderFillCorner.CornerRadius = UDim.new(0, 2)
@@ -707,7 +642,7 @@ local function CreateSlider(parent, name, text, min, max, defaultValue, callback
     SliderTrack.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
-            local mousePos = UIS:GetMouseLocation()
+            local mousePos = UserInputService:GetMouseLocation()
             local trackPos = SliderTrack.AbsolutePosition.X
             local trackSize = SliderTrack.AbsoluteSize.X
             local percent = math.clamp((mousePos.X - trackPos) / trackSize, 0, 1)
@@ -715,9 +650,9 @@ local function CreateSlider(parent, name, text, min, max, defaultValue, callback
         end
     end)
     
-    UIS.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local mousePos = UIS:GetMouseLocation()
+            local mousePos = UserInputService:GetMouseLocation()
             local trackPos = SliderTrack.AbsolutePosition.X
             local trackSize = SliderTrack.AbsoluteSize.X
             local percent = math.clamp((mousePos.X - trackPos) / trackSize, 0, 1)
@@ -725,7 +660,7 @@ local function CreateSlider(parent, name, text, min, max, defaultValue, callback
         end
     end)
     
-    UIS.InputEnded:Connect(function(input)
+    UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
@@ -829,7 +764,7 @@ end
 local function BuildUI()
     -- Clear content
     for _, child in pairs(ContentFrame:GetChildren()) do
-        if child:IsA("Frame") then
+        if child:IsA("Frame") and child.Name ~= "ContentFrame" then
             child:Destroy()
         end
     end
@@ -854,86 +789,6 @@ local function BuildUI()
         CreateToggle(MainContent, "NearestPart", "Nearest Part", getgenv().Sentinel.NearestPart, function(val)
             getgenv().Sentinel.NearestPart = val
         end)
-        CreateToggle(MainContent, "ESP", "ESP", Settings.Combat.ESP, function(val)
-            Settings.Combat.ESP = val
-        end)
-        CreateToggle(MainContent, "Silent", "Silent", Settings.Combat.Silent, function(val)
-            Settings.Combat.Silent = val
-        end)
-        CreateToggle(MainContent, "BetaAirshot", "Beta Airshot", Settings.Combat.BetaAirshot, function(val)
-            Settings.Combat.BetaAirshot = val
-        end)
-        CreateToggle(MainContent, "TargetInfo", "Target Info", Settings.Combat.TargetInfo, function(val)
-            Settings.Combat.TargetInfo = val
-        end)
-        CreateToggle(MainContent, "Alerts", "Alerts", Settings.Combat.Alerts, function(val)
-            Settings.Combat.Alerts = val
-        end)
-        CreateToggle(MainContent, "PingBased", "Ping Based", Settings.Combat.PingBased, function(val)
-            Settings.Combat.PingBased = val
-        end)
-        CreateToggle(MainContent, "UseIndex", "Use Index", Settings.Combat.UseIndex, function(val)
-            Settings.Combat.UseIndex = val
-        end)
-        CreateToggle(MainContent, "AntiAimViewer", "Anti Aim Viewer", Settings.Combat.AntiAimViewer, function(val)
-            Settings.Combat.AntiAimViewer = val
-        end)
-        
-        local TriggerBotSection, TriggerBotContent = CreateSection(ContentFrame, "Trigger Bot")
-        CreateToggle(TriggerBotContent, "TriggerBot", "Enabled", Settings.Combat.TriggerBot.Enabled, function(val)
-            Settings.Combat.TriggerBot.Enabled = val
-        end)
-        CreateSlider(TriggerBotContent, "TriggerDelay", "Delay", 0, 1, Settings.Combat.TriggerBot.Delay, function(val)
-            Settings.Combat.TriggerBot.Delay = val
-        end)
-        CreateToggle(TriggerBotContent, "TriggerTargetOnly", "Target Only", Settings.Combat.TriggerBot.TargeyOnly, function(val)
-            Settings.Combat.TriggerBot.TargeyOnly = val
-        end)
-        CreateToggle(TriggerBotContent, "TriggerFOVShow", "Show FOV", Settings.Combat.TriggerBot.FOV.Show, function(val)
-            Settings.Combat.TriggerBot.FOV.Show = val
-        end)
-        CreateSlider(TriggerBotContent, "TriggerFOVSize", "FOV Size", 0, 200, Settings.Combat.TriggerBot.FOV.Size, function(val)
-            Settings.Combat.TriggerBot.FOV.Size = val
-        end)
-        
-        local AutoSelectSection, AutoSelectContent = CreateSection(ContentFrame, "Auto Select")
-        CreateToggle(AutoSelectContent, "AutoSelect", "Enabled", Settings.Combat.AutoSelect.Enabled, function(val)
-            Settings.Combat.AutoSelect.Enabled = val
-        end)
-        CreateToggle(AutoSelectContent, "AutoSelectCooldown", "Cooldown", Settings.Combat.AutoSelect.Cooldown.Enabled, function(val)
-            Settings.Combat.AutoSelect.Cooldown.Enabled = val
-        end)
-        CreateSlider(AutoSelectContent, "AutoSelectCooldownAmount", "Cooldown Amount", 0, 5, Settings.Combat.AutoSelect.Cooldown.Amount, function(val)
-            Settings.Combat.AutoSelect.Cooldown.Amount = val
-        end)
-        
-        local ChecksSection, ChecksContent = CreateSection(ContentFrame, "Checks")
-        CreateToggle(ChecksContent, "ChecksEnabled", "Enabled", Settings.Combat.Checks.Enabled, function(val)
-            Settings.Combat.Checks.Enabled = val
-        end)
-        CreateToggle(ChecksContent, "CheckKnocked", "Knocked", Settings.Combat.Checks.Knocked, function(val)
-            Settings.Combat.Checks.Knocked = val
-        end)
-        CreateToggle(ChecksContent, "CheckCrew", "Crew", Settings.Combat.Checks.Crew, function(val)
-            Settings.Combat.Checks.Crew = val
-        end)
-        CreateToggle(ChecksContent, "CheckWall", "Wall", Settings.Combat.Checks.Wall, function(val)
-            Settings.Combat.Checks.Wall = val
-        end)
-        CreateToggle(ChecksContent, "CheckGrabbed", "Grabbed", Settings.Combat.Checks.Grabbed, function(val)
-            Settings.Combat.Checks.Grabbed = val
-        end)
-        CreateToggle(ChecksContent, "CheckVehicle", "Vehicle", Settings.Combat.Checks.Vehicle, function(val)
-            Settings.Combat.Checks.Vehicle = val
-        end)
-        
-        local SmoothingSection, SmoothingContent = CreateSection(ContentFrame, "Smoothing")
-        CreateSlider(SmoothingContent, "SmoothHorizontal", "Horizontal", 0, 10, Settings.Combat.Smoothing.Horizontal, function(val)
-            Settings.Combat.Smoothing.Horizontal = val
-        end)
-        CreateSlider(SmoothingContent, "SmoothVertical", "Vertical", 0, 10, Settings.Combat.Smoothing.Vertical, function(val)
-            Settings.Combat.Smoothing.Vertical = val
-        end)
         
         local PredictionSection, PredictionContent = CreateSection(ContentFrame, "Prediction")
         CreateToggle(PredictionContent, "AutoPrediction", "Auto Prediction", getgenv().Sentinel.AutoPrediction, function(val)
@@ -948,65 +803,6 @@ local function BuildUI()
             getgenv().Sentinel.VerticalPrediction = val
         end)
         
-        local ResolverSection, ResolverContent = CreateSection(ContentFrame, "Resolver")
-        CreateSlider(ResolverContent, "ResolverRefreshRate", "Refresh Rate", 0, 500, Settings.Combat.Resolver.RefreshRate, function(val)
-            Settings.Combat.Resolver.RefreshRate = val
-        end)
-        
-        local FOVSection, FOVContent = CreateSection(ContentFrame, "FOV")
-        CreateToggle(FOVContent, "FOVVisualize", "Visualize", Settings.Combat.Fov.Visualize.Enabled, function(val)
-            Settings.Combat.Fov.Visualize.Enabled = val
-        end)
-        CreateSlider(FOVContent, "FOVRadius", "Radius", 0, 500, Settings.Combat.Fov.Radius, function(val)
-            Settings.Combat.Fov.Radius = val
-        end)
-        
-        local VisualsCombatSection, VisualsCombatContent = CreateSection(ContentFrame, "Combat Visuals")
-        CreateToggle(VisualsCombatContent, "CombatVisuals", "Enabled", Settings.Combat.Visuals.Enabled, function(val)
-            Settings.Combat.Visuals.Enabled = val
-        end)
-        CreateToggle(VisualsCombatContent, "Tracer", "Tracer", Settings.Combat.Visuals.Tracer.Enabled, function(val)
-            Settings.Combat.Visuals.Tracer.Enabled = val
-        end)
-        CreateSlider(VisualsCombatContent, "TracerThickness", "Tracer Thickness", 0, 10, Settings.Combat.Visuals.Tracer.Thickness, function(val)
-            Settings.Combat.Visuals.Tracer.Thickness = val
-        end)
-        CreateToggle(VisualsCombatContent, "Dot", "Dot", Settings.Combat.Visuals.Dot.Enabled, function(val)
-            Settings.Combat.Visuals.Dot.Enabled = val
-        end)
-        CreateSlider(VisualsCombatContent, "DotSize", "Dot Size", 0, 20, Settings.Combat.Visuals.Dot.Size, function(val)
-            Settings.Combat.Visuals.Dot.Size = val
-        end)
-        CreateToggle(VisualsCombatContent, "DotFilled", "Dot Filled", Settings.Combat.Visuals.Dot.Filled, function(val)
-            Settings.Combat.Visuals.Dot.Filled = val
-        end)
-        CreateToggle(VisualsCombatContent, "Chams", "Chams", Settings.Combat.Visuals.Chams.Enabled, function(val)
-            Settings.Combat.Visuals.Chams.Enabled = val
-        end)
-        CreateSlider(VisualsCombatContent, "ChamsFillTransparency", "Chams Fill Transparency", 0, 1, Settings.Combat.Visuals.Chams.Fill.Transparency, function(val)
-            Settings.Combat.Visuals.Chams.Fill.Transparency = val
-        end)
-        CreateSlider(VisualsCombatContent, "ChamsOutlineTransparency", "Chams Outline Transparency", 0, 1, Settings.Combat.Visuals.Chams.Outline.Transparency, function(val)
-            Settings.Combat.Visuals.Chams.Outline.Transparency = val
-        end)
-        
-        local AirSection, AirContent = CreateSection(ContentFrame, "Air")
-        CreateToggle(AirContent, "AirEnabled", "Enabled", Settings.Combat.Air.Enabled, function(val)
-            Settings.Combat.Air.Enabled = val
-        end)
-        CreateToggle(AirContent, "AirAimPart", "Air Aim Part", Settings.Combat.Air.AirAimPart.Enabled, function(val)
-            Settings.Combat.Air.AirAimPart.Enabled = val
-        end)
-        CreateTextBox(AirContent, "AirHitPart", "Hit Part", Settings.Combat.Air.AirAimPart.HitPart, function(val)
-            Settings.Combat.Air.AirAimPart.HitPart = val
-        end)
-        CreateToggle(AirContent, "JumpOffset", "Jump Offset", Settings.Combat.Air.JumpOffset.Enabled, function(val)
-            Settings.Combat.Air.JumpOffset.Enabled = val
-        end)
-        CreateSlider(AirContent, "JumpOffsetAmount", "Jump Offset Amount", -5, 5, Settings.Combat.Air.JumpOffset.Offset, function(val)
-            Settings.Combat.Air.JumpOffset.Offset = val
-        end)
-        
         local CameraSection, CameraContent = CreateSection(ContentFrame, "Camera")
         CreateToggle(CameraContent, "Camera", "Enabled", getgenv().Sentinel.Camera, function(val)
             getgenv().Sentinel.Camera = val
@@ -1014,21 +810,10 @@ local function BuildUI()
         CreateSlider(CameraContent, "Smoothness", "Smoothness", 0, 1, getgenv().Sentinel.smoothness, function(val)
             getgenv().Sentinel.smoothness = val
         end)
-        CreateTextBox(CameraContent, "EasingStyle", "Easing Style", Settings.Combat.EasingStyle, function(val)
-            Settings.Combat.EasingStyle = val
-            getgenv().Sentinel.easingStyle = val
-        end)
-        CreateTextBox(CameraContent, "EasingDirection", "Easing Direction", Settings.Combat.EasingDirection, function(val)
-            Settings.Combat.EasingDirection = val
-            getgenv().Sentinel.easingDirection = val
-        end)
         
         local HitPartSection, HitPartContent = CreateSection(ContentFrame, "Hit Part")
         CreateTextBox(HitPartContent, "SelectedPart", "Body Part", getgenv().Sentinel.SelectedPart, function(val)
             getgenv().Sentinel.SelectedPart = val
-        end)
-        CreateTextBox(HitPartContent, "AimPart", "Aim Part", Settings.Combat.AimPart, function(val)
-            Settings.Combat.AimPart = val
         end)
         
     elseif CurrentTab == "Visuals" then
@@ -1036,205 +821,30 @@ local function BuildUI()
         CreateToggle(BacktrackContent, "Backtrack", "Enabled", Settings.Visuals.Backtrack.Enabled, function(val)
             Settings.Visuals.Backtrack.Enabled = val
         end)
-        CreateSlider(BacktrackContent, "BacktrackTransparency", "Transparency", 0, 1, Settings.Visuals.Backtrack.Transparency, function(val)
-            Settings.Visuals.Backtrack.Transparency = val
-        end)
-        CreateTextBox(BacktrackContent, "BacktrackMethod", "Method", Settings.Visuals.Backtrack.Method, function(val)
-            Settings.Visuals.Backtrack.Method = val
-        end)
-        CreateTextBox(BacktrackContent, "BacktrackMaterial", "Material", Settings.Visuals.Backtrack.Material, function(val)
-            Settings.Visuals.Backtrack.Material = val
-        end)
         
         local TracersSection, TracersContent = CreateSection(ContentFrame, "Bullet Tracers")
         CreateToggle(TracersContent, "BulletTracers", "Enabled", Settings.Visuals.BulletTracers.Enabled, function(val)
             Settings.Visuals.BulletTracers.Enabled = val
         end)
-        CreateSlider(TracersContent, "TracerDuration", "Duration", 0, 10, Settings.Visuals.BulletTracers.Duration, function(val)
-            Settings.Visuals.BulletTracers.Duration = val
-        end)
-        CreateToggle(TracersContent, "TracerFade", "Fade", Settings.Visuals.BulletTracers.Fade.Enabled, function(val)
-            Settings.Visuals.BulletTracers.Fade.Enabled = val
-        end)
-        CreateSlider(TracersContent, "TracerFadeDuration", "Fade Duration", 0, 5, Settings.Visuals.BulletTracers.Fade.Duration, function(val)
-            Settings.Visuals.BulletTracers.Fade.Duration = val
-        end)
-        
-        local ImpactsSection, ImpactsContent = CreateSection(ContentFrame, "Bullet Impacts")
-        CreateToggle(ImpactsContent, "BulletImpacts", "Enabled", Settings.Visuals.BulletImpacts.Enabled, function(val)
-            Settings.Visuals.BulletImpacts.Enabled = val
-        end)
-        CreateSlider(ImpactsContent, "ImpactDuration", "Duration", 0, 10, Settings.Visuals.BulletImpacts.Duration, function(val)
-            Settings.Visuals.BulletImpacts.Duration = val
-        end)
-        CreateSlider(ImpactsContent, "ImpactSize", "Size", 0, 10, Settings.Visuals.BulletImpacts.Size, function(val)
-            Settings.Visuals.BulletImpacts.Size = val
-        end)
-        CreateTextBox(ImpactsContent, "ImpactMaterial", "Material", Settings.Visuals.BulletImpacts.Material, function(val)
-            Settings.Visuals.BulletImpacts.Material = val
-        end)
-        CreateToggle(ImpactsContent, "ImpactFade", "Fade", Settings.Visuals.BulletImpacts.Fade.Enabled, function(val)
-            Settings.Visuals.BulletImpacts.Fade.Enabled = val
-        end)
-        CreateSlider(ImpactsContent, "ImpactFadeDuration", "Fade Duration", 0, 5, Settings.Visuals.BulletImpacts.Fade.Duration, function(val)
-            Settings.Visuals.BulletImpacts.Fade.Duration = val
-        end)
         
         local OnHitSection, OnHitContent = CreateSection(ContentFrame, "On Hit")
-        CreateToggle(OnHitContent, "OnHitEnabled", "Enabled", Settings.Visuals.OnHit.Enabled, function(val)
-            Settings.Visuals.OnHit.Enabled = val
-        end)
         CreateToggle(OnHitContent, "OnHitEffect", "Effect", Settings.Visuals.OnHit.Effect.Enabled, function(val)
             Settings.Visuals.OnHit.Effect.Enabled = val
         end)
         CreateToggle(OnHitContent, "OnHitSound", "Sound", Settings.Visuals.OnHit.Sound.Enabled, function(val)
             Settings.Visuals.OnHit.Sound.Enabled = val
         end)
-        CreateSlider(OnHitContent, "OnHitSoundVolume", "Sound Volume", 0, 10, Settings.Visuals.OnHit.Sound.Volume, function(val)
-            Settings.Visuals.OnHit.Sound.Volume = val
-        end)
-        CreateTextBox(OnHitContent, "OnHitSoundValue", "Sound Value", Settings.Visuals.OnHit.Sound.Value, function(val)
-            Settings.Visuals.OnHit.Sound.Value = val
-        end)
         CreateToggle(OnHitContent, "OnHitChams", "Chams", Settings.Visuals.OnHit.Chams.Enabled, function(val)
             Settings.Visuals.OnHit.Chams.Enabled = val
         end)
-        CreateSlider(OnHitContent, "OnHitChamsDuration", "Chams Duration", 0, 10, Settings.Visuals.OnHit.Chams.Duration, function(val)
-            Settings.Visuals.OnHit.Chams.Duration = val
-        end)
-        CreateTextBox(OnHitContent, "OnHitChamsMaterial", "Chams Material", Settings.Visuals.OnHit.Chams.Material.Name, function(val)
-            Settings.Visuals.OnHit.Chams.Material = Enum.Material[val] or Enum.Material.ForceField
-        end)
-        
-        local WorldSection, WorldContent = CreateSection(ContentFrame, "World")
-        CreateToggle(WorldContent, "WorldEnabled", "Enabled", Settings.Visuals.World.Enabled, function(val)
-            Settings.Visuals.World.Enabled = val
-        end)
-        CreateToggle(WorldContent, "Fog", "Fog", Settings.Visuals.World.Fog.Enabled, function(val)
-            Settings.Visuals.World.Fog.Enabled = val
-        end)
-        CreateSlider(WorldContent, "FogStart", "Fog Start", 0, 50000, Settings.Visuals.World.Fog.Start, function(val)
-            Settings.Visuals.World.Fog.Start = val
-        end)
-        CreateSlider(WorldContent, "FogEnd", "Fog End", 0, 50000, Settings.Visuals.World.Fog.End, function(val)
-            Settings.Visuals.World.Fog.End = val
-        end)
-        CreateToggle(WorldContent, "Ambient", "Ambient", Settings.Visuals.World.Ambient.Enabled, function(val)
-            Settings.Visuals.World.Ambient.Enabled = val
-        end)
-        CreateToggle(WorldContent, "Brightness", "Brightness", Settings.Visuals.World.Brightness.Enabled, function(val)
-            Settings.Visuals.World.Brightness.Enabled = val
-        end)
-        CreateSlider(WorldContent, "BrightnessValue", "Brightness Value", -5, 5, Settings.Visuals.World.Brightness.Value, function(val)
-            Settings.Visuals.World.Brightness.Value = val
-        end)
-        CreateToggle(WorldContent, "ClockTime", "Clock Time", Settings.Visuals.World.ClockTime.Enabled, function(val)
-            Settings.Visuals.World.ClockTime.Enabled = val
-        end)
-        CreateSlider(WorldContent, "ClockTimeValue", "Clock Time Value", 0, 24, Settings.Visuals.World.ClockTime.Value, function(val)
-            Settings.Visuals.World.ClockTime.Value = val
-        end)
-        CreateToggle(WorldContent, "WorldExposure", "World Exposure", Settings.Visuals.World.WorldExposure.Enabled, function(val)
-            Settings.Visuals.World.WorldExposure.Enabled = val
-        end)
-        CreateSlider(WorldContent, "WorldExposureValue", "World Exposure Value", -5, 5, Settings.Visuals.World.WorldExposure.Value, function(val)
-            Settings.Visuals.World.WorldExposure.Value = val
-        end)
-        
-        local CrosshairSection, CrosshairContent = CreateSection(ContentFrame, "Crosshair")
-        CreateToggle(CrosshairContent, "Crosshair", "Enabled", Settings.Visuals.Crosshair.Enabled, function(val)
-            Settings.Visuals.Crosshair.Enabled = val
-        end)
-        CreateToggle(CrosshairContent, "CrosshairStickToTarget", "Stick To Target", Settings.Visuals.Crosshair.StickToTarget, function(val)
-            Settings.Visuals.Crosshair.StickToTarget = val
-        end)
-        CreateSlider(CrosshairContent, "CrosshairSize", "Size", 0, 50, Settings.Visuals.Crosshair.Size, function(val)
-            Settings.Visuals.Crosshair.Size = val
-        end)
-        CreateSlider(CrosshairContent, "CrosshairGap", "Gap", 0, 20, Settings.Visuals.Crosshair.Gap, function(val)
-            Settings.Visuals.Crosshair.Gap = val
-        end)
-        CreateToggle(CrosshairContent, "CrosshairRotation", "Rotation", Settings.Visuals.Crosshair.Rotation.Enabled, function(val)
-            Settings.Visuals.Crosshair.Rotation.Enabled = val
-        end)
-        CreateSlider(CrosshairContent, "CrosshairRotationSpeed", "Rotation Speed", 0, 10, Settings.Visuals.Crosshair.Rotation.Speed, function(val)
-            Settings.Visuals.Crosshair.Rotation.Speed = val
-        end)
         
     elseif CurrentTab == "AntiAim" then
-        local DesyncSection, DesyncContent = CreateSection(ContentFrame, "Desync")
-        CreateToggle(DesyncContent, "DaCoolBoyDesync", "Da Cool Boy Desync", Settings.AntiAim.DaCoolBoyDesync, function(val)
-            Settings.AntiAim.DaCoolBoyDesync = val
-        end)
-        CreateToggle(DesyncContent, "DaCoolBoyDesync2", "Da Cool Boy Desync 2", Settings.AntiAim.DaCoolBoyDesync2, function(val)
-            Settings.AntiAim.DaCoolBoyDesync2 = val
-        end)
-        CreateToggle(DesyncContent, "DaCoolBoyDesync3", "Da Cool Boy Desync 3", Settings.AntiAim.DaCoolBoyDesync3, function(val)
-            Settings.AntiAim.DaCoolBoyDesync3 = val
-        end)
-        CreateToggle(DesyncContent, "Desync", "Enabled", getgenv().Desync, function(val)
-            getgenv().Desync = val
-        end)
-        CreateTextBox(DesyncContent, "AntiLockType", "Anti Lock Type", getgenv().AntiLockType, function(val)
-            getgenv().AntiLockType = val
-        end)
-        
-        local VelocitySpooferSection, VelocitySpooferContent = CreateSection(ContentFrame, "Velocity Spoofer")
-        CreateToggle(VelocitySpooferContent, "VelocitySpoofer", "Enabled", Settings.AntiAim.VelocitySpoofer.Enabled, function(val)
-            Settings.AntiAim.VelocitySpoofer.Enabled = val
-        end)
-        CreateToggle(VelocitySpooferContent, "VelocitySpooferVisualize", "Visualize", Settings.AntiAim.VelocitySpoofer.Visualize.Enabled, function(val)
-            Settings.AntiAim.VelocitySpoofer.Visualize.Enabled = val
-        end)
-        CreateSlider(VelocitySpooferContent, "VelocitySpooferPrediction", "Prediction", 0, 1, Settings.AntiAim.VelocitySpoofer.Visualize.Prediction, function(val)
-            Settings.AntiAim.VelocitySpoofer.Visualize.Prediction = val
-        end)
-        CreateTextBox(VelocitySpooferContent, "VelocitySpooferType", "Type", Settings.AntiAim.VelocitySpoofer.Type, function(val)
-            Settings.AntiAim.VelocitySpoofer.Type = val
-        end)
-        CreateSlider(VelocitySpooferContent, "VelocitySpooferRoll", "Roll", -180, 180, Settings.AntiAim.VelocitySpoofer.Roll, function(val)
-            Settings.AntiAim.VelocitySpoofer.Roll = val
-        end)
-        CreateSlider(VelocitySpooferContent, "VelocitySpooferPitch", "Pitch", -180, 180, Settings.AntiAim.VelocitySpoofer.Pitch, function(val)
-            Settings.AntiAim.VelocitySpoofer.Pitch = val
-        end)
-        CreateSlider(VelocitySpooferContent, "VelocitySpooferYaw", "Yaw", -180, 180, Settings.AntiAim.VelocitySpoofer.Yaw, function(val)
-            Settings.AntiAim.VelocitySpoofer.Yaw = val
-        end)
-        
         local CSyncSection, CSyncContent = CreateSection(ContentFrame, "CSync")
         CreateToggle(CSyncContent, "CSync", "Enabled", Settings.AntiAim.CSync.Enabled, function(val)
             Settings.AntiAim.CSync.Enabled = val
         end)
-        CreateToggle(CSyncContent, "CSyncSpoof", "Spoof", Settings.AntiAim.CSync.Spoof, function(val)
-            Settings.AntiAim.CSync.Spoof = val
-        end)
-        CreateTextBox(CSyncContent, "CSyncType", "Type", Settings.AntiAim.CSync.Type, function(val)
-            Settings.AntiAim.CSync.Type = val
-        end)
-        CreateToggle(CSyncContent, "CSyncVisualize", "Visualize", Settings.AntiAim.CSync.Visualize.Enabled, function(val)
-            Settings.AntiAim.CSync.Visualize.Enabled = val
-        end)
-        CreateSlider(CSyncContent, "CSyncRandomDistance", "Random Distance", 0, 50, Settings.AntiAim.CSync.RandomDistance, function(val)
+        CreateSlider(CSyncContent, "CSyncDistance", "Distance", 0, 20, Settings.AntiAim.CSync.RandomDistance, function(val)
             Settings.AntiAim.CSync.RandomDistance = val
-        end)
-        CreateSlider(CSyncContent, "CSyncCustomX", "Custom X", -50, 50, Settings.AntiAim.CSync.Custom.X, function(val)
-            Settings.AntiAim.CSync.Custom.X = val
-        end)
-        CreateSlider(CSyncContent, "CSyncCustomY", "Custom Y", -50, 50, Settings.AntiAim.CSync.Custom.Y, function(val)
-            Settings.AntiAim.CSync.Custom.Y = val
-        end)
-        CreateSlider(CSyncContent, "CSyncCustomZ", "Custom Z", -50, 50, Settings.AntiAim.CSync.Custom.Z, function(val)
-            Settings.AntiAim.CSync.Custom.Z = val
-        end)
-        CreateSlider(CSyncContent, "CSyncTargetStrafeSpeed", "Target Strafe Speed", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Speed, function(val)
-            Settings.AntiAim.CSync.TargetStrafe.Speed = val
-        end)
-        CreateSlider(CSyncContent, "CSyncTargetStrafeDistance", "Target Strafe Distance", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Distance, function(val)
-            Settings.AntiAim.CSync.TargetStrafe.Distance = val
-        end)
-        CreateSlider(CSyncContent, "CSyncTargetStrafeHeight", "Target Strafe Height", 0, 50, Settings.AntiAim.CSync.TargetStrafe.Height, function(val)
-            Settings.AntiAim.CSync.TargetStrafe.Height = val
         end)
         
         local NetworkSection, NetworkContent = CreateSection(ContentFrame, "Network")
@@ -1242,33 +852,13 @@ local function BuildUI()
             Settings.AntiAim.Network.Enabled = val
             getgenv().Sentinel.network = val
         end)
-        CreateToggle(NetworkContent, "NetworkWalkingCheck", "Walking Check", Settings.AntiAim.Network.WalkingCheck, function(val)
-            Settings.AntiAim.Network.WalkingCheck = val
-        end)
-        CreateSlider(NetworkContent, "NetworkAmount", "Amount", 0, 1, Settings.AntiAim.Network.Amount, function(val)
-            Settings.AntiAim.Network.Amount = val
-        end)
         
-        local VelocityDesyncSection, VelocityDesyncContent = CreateSection(ContentFrame, "Velocity Desync")
-        CreateToggle(VelocityDesyncContent, "VelocityDesync", "Enabled", Settings.AntiAim.VelocityDesync.Enabled, function(val)
-            Settings.AntiAim.VelocityDesync.Enabled = val
+        local DesyncSection, DesyncContent = CreateSection(ContentFrame, "Desync")
+        CreateToggle(DesyncContent, "Desync", "Enabled", getgenv().Desync, function(val)
+            getgenv().Desync = val
         end)
-        CreateSlider(VelocityDesyncContent, "VelocityDesyncRange", "Range", 0, 10, Settings.AntiAim.VelocityDesync.Range, function(val)
-            Settings.AntiAim.VelocityDesync.Range = val
-        end)
-        
-        local FFlagDesyncSection, FFlagDesyncContent = CreateSection(ContentFrame, "FFlag Desync")
-        CreateToggle(FFlagDesyncContent, "FFlagDesync", "Enabled", Settings.AntiAim.FFlagDesync.Enabled, function(val)
-            Settings.AntiAim.FFlagDesync.Enabled = val
-        end)
-        CreateToggle(FFlagDesyncContent, "FFlagDesyncSetNew", "Set New", Settings.AntiAim.FFlagDesync.SetNew, function(val)
-            Settings.AntiAim.FFlagDesync.SetNew = val
-        end)
-        CreateSlider(FFlagDesyncContent, "FFlagDesyncAmount", "Amount", 0, 10, Settings.AntiAim.FFlagDesync.Amount, function(val)
-            Settings.AntiAim.FFlagDesync.Amount = val
-        end)
-        CreateSlider(FFlagDesyncContent, "FFlagDesyncSetNewAmount", "Set New Amount", 0, 10, Settings.AntiAim.FFlagDesync.SetNewAmount, function(val)
-            Settings.AntiAim.FFlagDesync.SetNewAmount = val
+        CreateTextBox(DesyncContent, "AntiLockType", "Anti Lock Type", getgenv().AntiLockType, function(val)
+            getgenv().AntiLockType = val
         end)
         
     elseif CurrentTab == "Misc" then
@@ -1318,19 +908,12 @@ local function BuildUI()
         end)
     end
     
-    -- Update canvas size after layout updates
-    local function updateCanvasSize()
-        local totalHeight = UIListLayout.AbsoluteContentSize.Y
-        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight + 20, 100))
-    end
-    
-    -- Wait for layout to update
+    -- Update canvas size
     task.spawn(function()
         task.wait(0.1)
-        updateCanvasSize()
+        local totalHeight = UIListLayout.AbsoluteContentSize.Y
+        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(totalHeight + 20, 100))
     end)
-    
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
 end
 
 -- Create Tabs
@@ -1339,7 +922,7 @@ CreateTab("Visuals", "Visuals")
 CreateTab("AntiAim", "AntiAim")
 CreateTab("Misc", "Misc")
 
--- UI Toggle Functionality (Show/Hide UI)
+-- UI Toggle Functionality
 local function ToggleUI()
     UIEnabled = not UIEnabled
     MainFrame.Visible = UIEnabled
@@ -1356,16 +939,18 @@ FloatingUIToggle.MouseButton1Click:Connect(ToggleUI)
 local function SigmaOhioPlayer()
     local closestPlayer
     local shortestDistance = math.huge
-    local player = game.Players.LocalPlayer
-    local CC = game:GetService("Workspace").CurrentCamera
+    local player = LocalPlayer
+    local CC = Workspace.CurrentCamera
+    if not CC then return nil end
+    
     local screenCenter = Vector2.new(CC.ViewportSize.X / 2, CC.ViewportSize.Y / 2)
     local fovRadius = 250
     local viewportSize = CC.ViewportSize
 
-    for i, v in pairs(game.Players:GetPlayers()) do
+    for i, v in pairs(Players:GetPlayers()) do
         if v ~= player and v.Character and v.Character:FindFirstChild("Humanoid") 
            and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = CC:WorldToViewportPoint(v.Character.PrimaryPart.Position)
+            local pos, onScreen = CC:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
             
             if onScreen and pos.X > 0 and pos.Y > 0 
                and pos.X < viewportSize.X and pos.Y < viewportSize.Y then
@@ -1381,7 +966,6 @@ local function SigmaOhioPlayer()
     return closestPlayer
 end
 
--- Lock Toggle Functionality (Target Lock/Camlock)
 local function ToggleLock()
     LockEnabled = not LockEnabled
     TargBindEnabled = LockEnabled
@@ -1420,389 +1004,12 @@ end
 LockToggleBtn.MouseButton1Click:Connect(ToggleLock)
 FloatingLockToggle.MouseButton1Click:Connect(ToggleLock)
 
--- Initial UI Build (with error handling)
-task.spawn(function()
-    local success, err = pcall(function()
-        BuildUI()
-        print("[Aimbot Script] UI Loaded Successfully!")
-    end)
-    if not success then
-        warn("[Aimbot Script] UI Build Error: " .. tostring(err))
-    end
-end)
-
--- ============================================
--- FEATURE CODE IMPLEMENTATIONS
--- ============================================
-
--- Prediction Table
-local predictionTable = {
-    {20, 0.08960952},
-    {30, 0.11252476},
-    {50, 0.13544},
-    {65, 0.1264236},
-    {70, 0.12533},
-    {80, 0.139340},
-    {100, 0.141987},
-    {110, 0.144634},
-    {120, 0.147281},
-    {130, 0.149928},
-    {140, 0.152575},
-    {150, 0.155222},
-    {160, 0.157869},
-    {170, 0.160516},
-    {180, 0.163163},
-    {190, 0.165810},
-    {200, 0.168457},
-    {210, 0.171104},
-    {220, 0.173751},
-    {230, 0.176398},
-    {240, 0.179045},
-    {250, 0.181692},
-    {260, 0.184339},
-    {270, 0.186986},
-    {280, 0.189633},
-    {290, 0.192280},
-    {300, 0.194927}
-}
-
--- Update Prediction Value
-local function updatePredictionValue()
-    if getgenv().Sentinel.AutoPrediction then
-        pcall(function()
-            local pingValue = Stas.Network.ServerStatsItem["Data Ping"]:GetValueString()
-            local split = string.split(pingValue, '(')
-            local ping = tonumber(split[1])
-
-            if ping then
-                if getgenv().Sentinel.AutoPredMode == "PingBased" then
-                    local closestPingDiff = math.huge
-                    local closestValue = nil
-
-                    for i = 1, #predictionTable do
-                        local tablePing = predictionTable[i][1]
-                        local tableValue = predictionTable[i][2]
-                        local pingDiff = math.abs(ping - tablePing)
-
-                        if pingDiff < closestPingDiff then
-                            closestPingDiff = pingDiff
-                            closestValue = tableValue
-                        end
-                    end
-
-                    if closestValue then
-                        getgenv().Sentinel.HorizontalPrediction = closestValue
-                        getgenv().Sentinel.VerticalPrediction = closestValue * 0.8
-                    end
-                end
-            end
-        end)
-    end
-end
-
--- Look At Player
-function LookAtPlayer(Target)
-    pcall(function()
-        local localChar = LocalPlayer.Character
-        if not localChar then return end
-        
-        local localHumanoidRootPart = localChar:FindFirstChild("HumanoidRootPart")
-        if not localHumanoidRootPart then return end
-
-        if getgenv().Sentinel and getgenv().Sentinel.LookAt then
-            if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
-                local targetHumanoidRootPart = Target.Character.HumanoidRootPart
-                local targetPosition = targetHumanoidRootPart.Position
-                local localPosition = localHumanoidRootPart.Position
-                local horizontalDirection = Vector3.new(targetPosition.X - localPosition.X, 0, targetPosition.Z - localPosition.Z).unit
-                localHumanoidRootPart.CFrame = CFrame.new(localPosition, localPosition + horizontalDirection)
-                if localChar:FindFirstChild("Humanoid") then
-                    localChar.Humanoid.AutoRotate = false
-                end
-            end
-        else
-            if localChar:FindFirstChild("Humanoid") then
-                localChar.Humanoid.AutoRotate = true
-            end
-        end
-        
-        if not (Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")) then
-            if localChar:FindFirstChild("Humanoid") then
-                localChar.Humanoid.AutoRotate = true
-            end
-        end
-    end)
-end
-
--- Nearest Part
-local function NearestPart(TargetPlr)
-    pcall(function()
-        local BodyParts = {
-            "Head", "UpperTorso", "LowerTorso", 
-            "LeftUpperArm", "LeftLowerArm", "LeftHand", 
-            "RightUpperArm", "RightLowerArm", "RightHand", 
-            "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", 
-            "RightUpperLeg", "RightLowerLeg", "RightFoot"
-        }
-
-        local selectedPartName = getgenv().Sentinel.SelectedPart
-        local localChar = LocalPlayer.Character
-
-        if TargetPlr and TargetPlr.Character and localChar and localChar:FindFirstChild("HumanoidRootPart") then
-            if getgenv().Sentinel.NearestPart then
-                local minDistance = math.huge
-                local nearestPart = nil
-                
-                for _, partName in pairs(BodyParts) do
-                    local part = TargetPlr.Character:FindFirstChild(partName)
-                    if part then
-                        local distance = (part.Position - localChar.HumanoidRootPart.Position).Magnitude
-                        if distance < minDistance then
-                            minDistance = distance
-                            nearestPart = part
-                        end
-                    end
-                end
-                
-                if nearestPart then
-                    getgenv().Sentinel.SelectedPart = nearestPart.Name
-                end
-            else
-                getgenv().Sentinel.SelectedPart = selectedPartName
-            end
-        end
-    end)
-end
-
--- In Air Check
-function inAir()
-    if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("Humanoid") then
-        local SigmaTuah = TargetPlr.Character.Humanoid:GetState() == Enum.HumanoidStateType.Freefall
-        if SigmaTuah then
-            getgenv().Sentinel.jumpoffset = getgenv().Sentinel.jumpoffset2
-        else
-            getgenv().Sentinel.jumpoffset = 0
-        end
-    end
-end
-
--- Predicted Position
-local function predictedposition()
-    local selectedPart = getgenv().Sentinel.SelectedPart
-    if not TargetPlr or not TargetPlr.Character then return nil end
-    
-    local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
-    if not targetPart then return nil end
-
-    local velocity
-    if not getgenv().Sentinel.ResolverEnabled then
-        velocity = targetPart.Velocity
-    else
-        if TargetPlr.Character:FindFirstChild("Humanoid") then
-            velocity = TargetPlr.Character.Humanoid.MoveDirection * TargetPlr.Character.Humanoid.WalkSpeed
-        else
-            velocity = targetPart.Velocity
-        end
-    end
-
-    local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-    local predictedPosition = Vector3.new(
-        targetPart.Position.X + (velocity.X * horizontalPrediction),
-        targetPart.Position.Y,
-        targetPart.Position.Z + (velocity.Z * horizontalPrediction)
-    )
-
-    return predictedPosition
-end
-
--- Camera Smoothing
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if getgenv().Sentinel.Camera and TargetPlr and TargetPlr.Character and getgenv().Sentinel.SelectedPart then
-            local camera = Workspace.CurrentCamera
-            if not camera then return end
-            
-            local selectedPart = getgenv().Sentinel.SelectedPart
-            local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
-
-            if targetPart then
-                local velocity = targetPart.Velocity
-                local jumpOffset = getgenv().Sentinel.jumpoffset or 0
-                local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-                local verticalPrediction = getgenv().Sentinel.VerticalPrediction
-
-                local targetPosition = Vector3.new(
-                    targetPart.Position.X + (velocity.X * horizontalPrediction),
-                    targetPart.Position.Y + (velocity.Y * verticalPrediction) + jumpOffset,
-                    targetPart.Position.Z + (velocity.Z * horizontalPrediction)
-                )
-
-                local smoothness = getgenv().Sentinel.smoothness or 0.1
-                local easingStyle = Enum.EasingStyle[getgenv().Sentinel.easingStyle] or Enum.EasingStyle.Quad
-                local easingDirection = Enum.EasingDirection[getgenv().Sentinel.easingDirection] or Enum.EasingDirection.In
-
-                camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPosition), smoothness, easingStyle, easingDirection)
-            end
-        end
-    end)
-end)
-
--- Main Stepped Loop
-RunService.Stepped:Connect(function()
-    pcall(function()
-        updatePredictionValue()
-        LookAtPlayer(TargetPlr)
-        NearestPart(TargetPlr)
-        inAir()
-        if not getgenv().Sentinel.AutoPrediction then
-            getgenv().Sentinel.HorizontalPrediction2 = getgenv().Sentinel.HorizontalPrediction
-            getgenv().Sentinel.VerticalPrediction = getgenv().Sentinel.HorizontalPrediction2
-        end
-    end)
-end)
-
--- Grenade TP
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if Script.Locals.GrenadeTP.Enabled and TargetPlr and TargetPlr.Character and workspace:FindFirstChild("Ignored") then
-            if workspace.Ignored:FindFirstChild("Handle") then
-                local selectedPart = getgenv().Sentinel.SelectedPart
-                local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
-                if targetPart then
-                    workspace.Ignored.Handle.Position = targetPart.Position + (targetPart.Velocity * getgenv().Sentinel.HorizontalPrediction)
-                end
-            end
-        end
-    end)
-end)
-
--- Rocket TP
-if workspace:FindFirstChild("Ignored") then
-    workspace.Ignored.ChildAdded:Connect(function(object)
-        if Script.Locals.RocketTP.Enabled and TargetPlr and TargetPlr.Character then
-            if object.Name == "Model" or object.Name == "GrenadeLauncherAmmo" then
-                local SkibidiGrenadeLauncher = object.Name == "GrenadeLauncherAmmo"
-                local part = SkibidiGrenadeLauncher and object:WaitForChild("Main", 5) or object:WaitForChild("Launcher", 5)
-                
-                if part then
-                    part.CFrame = CFrame.new(1, 1, 1)
-                    
-                    if not SkibidiGrenadeLauncher then
-                        if part:FindFirstChild("BodyVelocity") then part.BodyVelocity:Destroy() end
-                        if part:FindFirstChild("TouchInterest") then part.TouchInterest:Destroy() end
-                    end
-                    
-                    local connection
-                    connection = RunService.PostSimulation:Connect(function()
-                        if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("HumanoidRootPart") then
-                            part.CFrame = TargetPlr.Character.HumanoidRootPart.CFrame
-                            part.Velocity = Vector3.new(0, 0.001, 0)
-                        end
-                    end)
-                    
-                    object.Destroying:Connect(function()
-                        if connection then connection:Disconnect() end
-                    end)
-                end
-            end
-        end
-    end)
-end
-
--- Jump Break
-LocalPlayer.CharacterAdded:Connect(function(character)
-    character:WaitForChild("Humanoid").StateChanged:Connect(function(old, new)
-        if getgenv().Sentinel.JumpBreak and new == Enum.HumanoidStateType.Freefall then
-            task.wait(0.27)
-            if character:FindFirstChild("HumanoidRootPart") then
-                character.HumanoidRootPart.Velocity = Vector3.new(0, -15, 0)
-            end
-        end
-    end)
-end)
-
--- Desync
-game:GetService("RunService").Heartbeat:Connect(function()
-    if getgenv().Desync == true and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local abc = LocalPlayer.Character.HumanoidRootPart.Velocity
-
-        if getgenv().AntiLockType == "Behind" then
-            getgenv().Direction = Vector3.new(0, 0, -1)
-        elseif getgenv().AntiLockType == "Down" then
-            getgenv().Direction = Vector3.new(0, -1, 0)
-        elseif getgenv().AntiLockType == "ForWard" then
-            getgenv().Direction = Vector3.new(0, 0, 1)
-        elseif getgenv().AntiLockType == "Left" then
-            getgenv().Direction = Vector3.new(-1, 0, 0)
-        elseif getgenv().AntiLockType == "One" then
-            getgenv().Direction = Vector3.new(1, 1, 1)
-        elseif getgenv().AntiLockType == "Right" then
-            getgenv().Direction = Vector3.new(1, 0, 0)
-        elseif getgenv().AntiLockType == "Up" then
-            getgenv().Direction = Vector3.new(0, 1, 0)
-        elseif getgenv().AntiLockType == "Zero" then
-            getgenv().Direction = Vector3.new(0, 0, 0)
-        end
-        
-        LocalPlayer.Character.HumanoidRootPart.Velocity = getgenv().Direction * (2^16)
-        game:GetService("RunService").RenderStepped:Wait()
-        LocalPlayer.Character.HumanoidRootPart.Velocity = abc
-    end
-end)
-
--- Network Anti
-RunService.Heartbeat:Connect(function()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        if getgenv().Sentinel and getgenv().Sentinel.network then
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
-            task.wait()
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
-            setfflag("S2PhysicsSenderRate", 2)
-        else
-            setfflag("S2PhysicsSenderRate", 13)
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
-        end
-    end
-end)
-
--- Speed Hack
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            if Settings.Misc.Movement.Speed.Enabled then
-                LocalPlayer.Character.Humanoid.WalkSpeed = 16 * Settings.Misc.Movement.Speed.Amount
-            else
-                LocalPlayer.Character.Humanoid.WalkSpeed = 16
-            end
-        end
-    end)
-end)
-
--- Spectate
-RunService.RenderStepped:Connect(function()
-    pcall(function()
-        local camera = Workspace.CurrentCamera
-        if not camera then return end
-        
-        if Settings.Combat.Spectate and TargetPlr and TargetPlr.Character then
-            local targetHumanoid = TargetPlr.Character:FindFirstChild("Humanoid")
-            if targetHumanoid then
-                camera.CameraSubject = targetHumanoid
-            end
-        else
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                camera.CameraSubject = LocalPlayer.Character.Humanoid
-            end
-        end
-    end)
-end)
+-- Initial UI Build
+BuildUI()
 
 -- Success message
-task.spawn(function()
-    task.wait(1)
-    print("============================================")
-    print("Custom UI Script Loaded Successfully!")
-    print("UI Toggle: Click 'UI' button to show/hide")
-    print("Lock Toggle: Click 'Lock' button to lock/unlock target")
-    print("============================================")
-end)
+print("============================================")
+print("Custom UI Script Loaded Successfully!")
+print("UI Toggle: Click 'UI' button to show/hide")
+print("Lock Toggle: Click 'Lock' button to lock/unlock target")
+print("============================================")
