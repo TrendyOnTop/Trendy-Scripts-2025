@@ -1,11 +1,13 @@
 -- Roblox Advanced Camera Lock System
 -- Features: Smooth camera locking, prediction, FOV circle, pathfinding, auto-reload, auto-jump, dodging
+-- Mobile Compatible UI
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -22,6 +24,10 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
 end)
 
+-- Detect if mobile
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
+
 -- Settings
 local Settings = {
     CameraLockEnabled = false,
@@ -37,7 +43,6 @@ local Settings = {
     AutoReload = true,
     AutoReloadInterval = 2.3,
     AutoStopShootingHP = 10,
-    ShowFOVCircle = true,
     FOVCircleColor = Color3.fromRGB(255, 0, 0),
     FOVCircleTransparency = 0.5,
     FOVCircleThickness = 2,
@@ -63,14 +68,25 @@ local DodgingDirection = 1
 local LastDodgeChange = 0
 local RandomMovementTimer = 0
 
--- Create FOV Circle
+-- Mobile UI sizing
+local function GetUIScale()
+    if isMobile then
+        return math.min(Camera.ViewportSize.X / 1920, Camera.ViewportSize.Y / 1080) * 1.2
+    elseif isTablet then
+        return math.min(Camera.ViewportSize.X / 1920, Camera.ViewportSize.Y / 1080) * 1.1
+    else
+        return 1
+    end
+end
+
+-- Create FOV Circle (Always visible when camera lock is enabled)
 local function CreateFOVCircle()
     if FOVCircle then
         FOVCircle.ScreenGui:Destroy()
         FOVCircle = nil
     end
     
-    if not Settings.ShowFOVCircle or not Settings.CameraLockEnabled then
+    if not Settings.CameraLockEnabled then
         return
     end
     
@@ -124,7 +140,7 @@ local function CreateFOVCircle()
     
     -- Animate gradient rotation
     spawn(function()
-        while FOVCircle and Settings.ShowFOVCircle and Settings.CameraLockEnabled do
+        while FOVCircle and Settings.CameraLockEnabled do
             for i = 0, 360, 2 do
                 if not FOVCircle or not Settings.CameraLockEnabled then break end
                 FOVCircle.Gradient.Rotation = i
@@ -427,10 +443,18 @@ local function UpdateShooting()
     end
 end
 
--- Create UI Toggle Button
+-- Mobile-friendly button click handler
+local function ConnectButton(button, callback)
+    button.MouseButton1Click:Connect(callback)
+    if isMobile or isTablet then
+        button.TouchTap:Connect(callback)
+    end
+end
+
+-- Create UI Toggle Button (Mobile Compatible)
 local function CreateUIToggleButton()
     if UIButton then
-        UIButton:Destroy()
+        UIButton.Parent:Destroy()
     end
     
     local screenGui = Instance.new("ScreenGui")
@@ -439,23 +463,25 @@ local function CreateUIToggleButton()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
+    local buttonSize = isMobile and 60 or 50
     local button = Instance.new("TextButton")
     button.Name = "UIToggle"
-    button.Size = UDim2.new(0, 50, 0, 50)
-    button.Position = UDim2.new(1, -60, 0, 10)
+    button.Size = UDim2.new(0, buttonSize, 0, buttonSize)
+    button.Position = UDim2.new(1, -(buttonSize + 10), 0, 10)
     button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     button.BorderSizePixel = 0
     button.Text = "⚙"
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 24
+    button.TextSize = isMobile and 28 or 24
     button.Font = Enum.Font.GothamBold
+    button.Active = true
     button.Parent = screenGui
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = button
     
-    button.MouseButton1Click:Connect(function()
+    ConnectButton(button, function()
         Settings.UIEnabled = not Settings.UIEnabled
         if MainUI then
             MainUI.Visible = Settings.UIEnabled
@@ -465,10 +491,10 @@ local function CreateUIToggleButton()
     UIButton = button
 end
 
--- Create UI
+-- Create UI (Mobile Compatible)
 local function CreateUI()
     if MainUI then
-        MainUI:Destroy()
+        MainUI.Parent:Destroy()
     end
     
     local screenGui = Instance.new("ScreenGui")
@@ -477,54 +503,80 @@ local function CreateUI()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
+    local uiScale = GetUIScale()
+    local baseWidth = isMobile and 350 or 320
+    local baseHeight = isMobile and 550 or 500
+    
     -- Main Frame
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 320, 0, 500)
+    mainFrame.Size = UDim2.new(0, baseWidth * uiScale, 0, baseHeight * uiScale)
     mainFrame.Position = UDim2.new(0, 10, 0, 10)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
     mainFrame.BorderSizePixel = 0
     mainFrame.Visible = Settings.UIEnabled
+    mainFrame.Active = true
     mainFrame.Parent = screenGui
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = mainFrame
     
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    title.BorderSizePixel = 0
-    title.Text = "Camera Lock Settings"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 18
-    title.Font = Enum.Font.GothamBold
-    title.Parent = mainFrame
+    -- Drop shadow effect
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.Size = UDim2.new(1, 10, 1, 10)
+    shadow.Position = UDim2.new(0, -5, 0, -5)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxasset://textures/ui/ImageSet/Shadow.png"
+    shadow.ImageTransparency = 0.5
+    shadow.ZIndex = mainFrame.ZIndex - 1
+    shadow.Parent = mainFrame
+    
+    -- Title Bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, isMobile and 50 or 45)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mainFrame
     
     local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 8)
-    titleCorner.Parent = title
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleBar
+    
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, -20, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Camera Lock Settings"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = isMobile and 20 or 18
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
     
     -- Camera Lock Toggle Button
+    local buttonHeight = isMobile and 45 or 40
     local cameraToggleButton = Instance.new("TextButton")
     cameraToggleButton.Name = "CameraToggleButton"
-    cameraToggleButton.Size = UDim2.new(1, -20, 0, 40)
-    cameraToggleButton.Position = UDim2.new(0, 10, 0, 50)
+    cameraToggleButton.Size = UDim2.new(1, -20, 0, buttonHeight)
+    cameraToggleButton.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 10)
     cameraToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     cameraToggleButton.BorderSizePixel = 0
     cameraToggleButton.Text = "CAMERA LOCK: OFF"
     cameraToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    cameraToggleButton.TextSize = 14
+    cameraToggleButton.TextSize = isMobile and 16 or 14
     cameraToggleButton.Font = Enum.Font.GothamBold
+    cameraToggleButton.Active = true
     cameraToggleButton.Parent = mainFrame
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 6)
+    toggleCorner.CornerRadius = UDim.new(0, 8)
     toggleCorner.Parent = cameraToggleButton
     
-    cameraToggleButton.MouseButton1Click:Connect(function()
+    ConnectButton(cameraToggleButton, function()
         Settings.CameraLockEnabled = not Settings.CameraLockEnabled
         cameraToggleButton.Text = Settings.CameraLockEnabled and "CAMERA LOCK: ON" or "CAMERA LOCK: OFF"
         cameraToggleButton.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
@@ -550,71 +602,74 @@ local function CreateUI()
     -- Pathfinding Toggle Button
     local pathfindingToggleButton = Instance.new("TextButton")
     pathfindingToggleButton.Name = "PathfindingToggleButton"
-    pathfindingToggleButton.Size = UDim2.new(1, -20, 0, 40)
-    pathfindingToggleButton.Position = UDim2.new(0, 10, 0, 100)
+    pathfindingToggleButton.Size = UDim2.new(1, -20, 0, buttonHeight)
+    pathfindingToggleButton.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + buttonHeight + 20)
     pathfindingToggleButton.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
     pathfindingToggleButton.BorderSizePixel = 0
     pathfindingToggleButton.Text = Settings.PathfindingEnabled and "PATHFINDING: ON" or "PATHFINDING: OFF"
     pathfindingToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pathfindingToggleButton.TextSize = 14
+    pathfindingToggleButton.TextSize = isMobile and 16 or 14
     pathfindingToggleButton.Font = Enum.Font.GothamBold
+    pathfindingToggleButton.Active = true
     pathfindingToggleButton.Parent = mainFrame
     
     local pathfindingCorner = Instance.new("UICorner")
-    pathfindingCorner.CornerRadius = UDim.new(0, 6)
+    pathfindingCorner.CornerRadius = UDim.new(0, 8)
     pathfindingCorner.Parent = pathfindingToggleButton
     
-    pathfindingToggleButton.MouseButton1Click:Connect(function()
+    ConnectButton(pathfindingToggleButton, function()
         Settings.PathfindingEnabled = not Settings.PathfindingEnabled
         pathfindingToggleButton.Text = Settings.PathfindingEnabled and "PATHFINDING: ON" or "PATHFINDING: OFF"
         pathfindingToggleButton.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
     end)
     
-    -- Scrolling Frame
+    -- Scrolling Frame (Mobile Compatible)
+    local scrollStartY = titleBar.Size.Y.Offset + buttonHeight * 2 + 30
     local scrollFrame = Instance.new("ScrollingFrame")
     scrollFrame.Name = "ScrollFrame"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -160)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 150)
+    scrollFrame.Size = UDim2.new(1, -20, 1, -scrollStartY - 10)
+    scrollFrame.Position = UDim2.new(0, 10, 0, scrollStartY)
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 8
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+    scrollFrame.ScrollBarThickness = isMobile and 10 or 8
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 90)
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.ScrollingEnabled = true
     scrollFrame.Parent = mainFrame
     
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 5)
+    listLayout.Padding = UDim.new(0, isMobile and 8 or 5)
     listLayout.Parent = scrollFrame
     
     -- Settings UI Helper Functions
     local function CreateSlider(name, min, max, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, 60)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 70 or 60)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
-        label.Size = UDim2.new(1, 0, 0, 20)
+        label.Size = UDim2.new(1, 0, 0, isMobile and 25 or 20)
         label.BackgroundTransparency = 1
         label.Text = name .. ": " .. string.format("%.2f", current)
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 14
+        label.TextSize = isMobile and 16 or 14
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local slider = Instance.new("Frame")
         slider.Name = "Slider"
-        slider.Size = UDim2.new(1, 0, 0, 6)
-        slider.Position = UDim2.new(0, 0, 0, 25)
-        slider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        slider.Size = UDim2.new(1, 0, 0, isMobile and 8 or 6)
+        slider.Position = UDim2.new(0, 0, 0, isMobile and 30 or 25)
+        slider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
         slider.BorderSizePixel = 0
         slider.Parent = container
         
         local sliderCorner = Instance.new("UICorner")
-        sliderCorner.CornerRadius = UDim.new(0, 3)
+        sliderCorner.CornerRadius = UDim.new(0, 4)
         sliderCorner.Parent = slider
         
         local fill = Instance.new("Frame")
@@ -625,22 +680,36 @@ local function CreateUI()
         fill.Parent = slider
         
         local fillCorner = Instance.new("UICorner")
-        fillCorner.CornerRadius = UDim.new(0, 3)
+        fillCorner.CornerRadius = UDim.new(0, 4)
         fillCorner.Parent = fill
         
         local button = Instance.new("TextButton")
         button.Size = UDim2.new(1, 0, 1, 0)
         button.BackgroundTransparency = 1
         button.Text = ""
+        button.Active = true
         button.Parent = slider
         
         local isDragging = false
-        button.MouseButton1Down:Connect(function()
+        local dragConnection = nil
+        
+        local function updateSlider(input)
+            local sliderPos = slider.AbsolutePosition
+            local sliderSize = slider.AbsoluteSize
+            local inputPos = input.Position.X
+            local relativeX = math.clamp((inputPos - sliderPos.X) / sliderSize.X, 0, 1)
+            local value = min + (max - min) * relativeX
+            fill.Size = UDim2.new(relativeX, 0, 1, 0)
+            label.Text = name .. ": " .. string.format("%.2f", value)
+            callback(value)
+        end
+        
+        button.MouseButton1Down:Connect(function(input)
             isDragging = true
-            local connection
-            connection = RunService.Heartbeat:Connect(function()
+            updateSlider(input)
+            dragConnection = RunService.Heartbeat:Connect(function()
                 if not isDragging then
-                    connection:Disconnect()
+                    dragConnection:Disconnect()
                     return
                 end
                 local mousePos = UserInputService:GetMouseLocation()
@@ -652,12 +721,37 @@ local function CreateUI()
                 label.Text = name .. ": " .. string.format("%.2f", value)
                 callback(value)
             end)
-            
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    isDragging = false
-                end
+        end)
+        
+        if isMobile or isTablet then
+            button.TouchTap:Connect(function(input)
+                isDragging = true
+                updateSlider(input)
+                dragConnection = RunService.Heartbeat:Connect(function()
+                    if not isDragging then
+                        dragConnection:Disconnect()
+                        return
+                    end
+                    local touchPos = UserInputService:GetMouseLocation()
+                    local sliderPos = slider.AbsolutePosition
+                    local sliderSize = slider.AbsoluteSize
+                    local relativeX = math.clamp((touchPos.X - sliderPos.X) / sliderSize.X, 0, 1)
+                    local value = min + (max - min) * relativeX
+                    fill.Size = UDim2.new(relativeX, 0, 1, 0)
+                    label.Text = name .. ": " .. string.format("%.2f", value)
+                    callback(value)
+                end)
             end)
+        end
+        
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = false
+                if dragConnection then
+                    dragConnection:Disconnect()
+                    dragConnection = nil
+                end
+            end
         end)
         
         return container
@@ -666,7 +760,7 @@ local function CreateUI()
     local function CreateToggle(name, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, 40)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 45 or 40)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
@@ -676,43 +770,44 @@ local function CreateUI()
         label.BackgroundTransparency = 1
         label.Text = name
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = 14
+        label.TextSize = isMobile and 16 or 14
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local toggle = Instance.new("TextButton")
         toggle.Name = "Toggle"
-        toggle.Size = UDim2.new(0, 50, 0, 25)
-        toggle.Position = UDim2.new(1, -50, 0.5, -12.5)
-        toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
+        toggle.Size = UDim2.new(0, isMobile and 60 or 50, 0, isMobile and 30 or 25)
+        toggle.Position = UDim2.new(1, -(isMobile and 60 or 50), 0.5, -(isMobile and 15 or 12.5))
+        toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
         toggle.BorderSizePixel = 0
         toggle.Text = ""
+        toggle.Active = true
         toggle.Parent = container
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 12)
+        toggleCorner.CornerRadius = UDim.new(0, 15)
         toggleCorner.Parent = toggle
         
         local indicator = Instance.new("Frame")
         indicator.Name = "Indicator"
-        indicator.Size = UDim2.new(0, 20, 0, 20)
-        indicator.Position = current and UDim2.new(1, -22.5, 0.5, -10) or UDim2.new(0, 2.5, 0.5, -10)
+        indicator.Size = UDim2.new(0, isMobile and 24 or 20, 0, isMobile and 24 or 20)
+        indicator.Position = current and UDim2.new(1, -(isMobile and 27 or 22.5), 0.5, -(isMobile and 12 or 10)) or UDim2.new(0, isMobile and 3 or 2.5, 0.5, -(isMobile and 12 or 10))
         indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         indicator.BorderSizePixel = 0
         indicator.Parent = toggle
         
         local indicatorCorner = Instance.new("UICorner")
-        indicatorCorner.CornerRadius = UDim.new(0, 10)
+        indicatorCorner.CornerRadius = UDim.new(0, 12)
         indicatorCorner.Parent = indicator
         
-        toggle.MouseButton1Click:Connect(function()
+        ConnectButton(toggle, function()
             current = not current
-            toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 60)
+            toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                {Position = current and UDim2.new(1, -22.5, 0.5, -10) or UDim2.new(0, 2.5, 0.5, -10)}
+                {Position = current and UDim2.new(1, -(isMobile and 27 or 22.5), 0.5, -(isMobile and 12 or 10)) or UDim2.new(0, isMobile and 3 or 2.5, 0.5, -(isMobile and 12 or 10))}
             )
             tween:Play()
             callback(current)
@@ -721,7 +816,7 @@ local function CreateUI()
         return container
     end
     
-    -- Create all settings
+    -- Create all settings (FOV always visible)
     CreateSlider("Smoothness X", 0.01, 1, Settings.SmoothnessX, function(val)
         Settings.SmoothnessX = val
     end)
@@ -770,18 +865,21 @@ local function CreateUI()
         Settings.AutoStopShootingHP = val
     end)
     
-    CreateToggle("Auto Reload", Settings.AutoReload, function(val)
-        Settings.AutoReload = val
+    CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
+        Settings.FOVCircleTransparency = val
+        if FOVCircle then
+            FOVCircle.Stroke.Transparency = val
+            FOVCircle.Circle.BackgroundTransparency = val + 0.3
+            FOVCircle.Gradient.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, val),
+                NumberSequenceKeypoint.new(0.5, val + 0.3),
+                NumberSequenceKeypoint.new(1, val)
+            })
+        end
     end)
     
-    CreateToggle("Show FOV Circle", Settings.ShowFOVCircle, function(val)
-        Settings.ShowFOVCircle = val
-        if val and Settings.CameraLockEnabled then
-            CreateFOVCircle()
-        elseif FOVCircle then
-            FOVCircle.ScreenGui:Destroy()
-            FOVCircle = nil
-        end
+    CreateToggle("Auto Reload", Settings.AutoReload, function(val)
+        Settings.AutoReload = val
     end)
     
     CreateToggle("Dodging Mode", Settings.DodgingEnabled, function(val)
@@ -790,7 +888,7 @@ local function CreateUI()
     
     -- Update scroll frame size
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 20)
     end)
     
     MainUI = mainFrame
@@ -816,4 +914,4 @@ end)
 CreateUIToggleButton()
 CreateUI()
 
-print("Camera Lock System Loaded!")
+print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
