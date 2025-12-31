@@ -1,5 +1,5 @@
 -- Roblox Advanced Camera Lock System
--- Features: Smooth camera locking, prediction, FOV circle, pathfinding, auto-reload, auto-jump
+-- Features: Smooth camera locking, prediction, FOV circle, pathfinding, auto-reload, auto-jump, dodging
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -24,21 +24,26 @@ end)
 
 -- Settings
 local Settings = {
-    Enabled = false,
+    CameraLockEnabled = false,
+    PathfindingEnabled = true,
+    UIEnabled = true,
     SmoothnessX = 0.15,
     SmoothnessY = 0.15,
     PredictionX = 0.5,
     PredictionY = 0.5,
     FOV = 100,
-    WalkSpeed = 16,
-    JumpProbability = 0.02, -- 2% chance per frame
+    WalkSpeed = 200,
+    JumpProbability = 0.02,
     AutoReload = true,
     AutoReloadInterval = 2.3,
     AutoStopShootingHP = 10,
     ShowFOVCircle = true,
     FOVCircleColor = Color3.fromRGB(255, 0, 0),
     FOVCircleTransparency = 0.5,
-    FOVCircleThickness = 2
+    FOVCircleThickness = 2,
+    DodgingEnabled = true,
+    DodgingSpeed = 16,
+    DodgingIntensity = 5
 }
 
 -- State
@@ -46,16 +51,27 @@ local Target = nil
 local TargetHumanoid = nil
 local TargetHumanoidRootPart = nil
 local LastReloadTime = 0
-local LastShootTime = 0
 local IsShooting = false
 local PathfindingPath = nil
 local FOVCircle = nil
+local MainUI = nil
+local UIButton = nil
+local ShootingConnection = nil
+local LastPathfindingUpdate = 0
+local CurrentWaypointIndex = 1
+local DodgingDirection = 1
+local LastDodgeChange = 0
+local RandomMovementTimer = 0
 
 -- Create FOV Circle
 local function CreateFOVCircle()
     if FOVCircle then
         FOVCircle.ScreenGui:Destroy()
         FOVCircle = nil
+    end
+    
+    if not Settings.ShowFOVCircle or not Settings.CameraLockEnabled then
+        return
     end
     
     local screenGui = Instance.new("ScreenGui")
@@ -69,7 +85,6 @@ local function CreateFOVCircle()
     frame.BackgroundTransparency = 1
     frame.Parent = screenGui
     
-    -- Create circle using Drawing API for better compatibility
     local circle = Instance.new("Frame")
     circle.Name = "FOVCircle"
     circle.Size = UDim2.new(0, Settings.FOV * 2, 0, Settings.FOV * 2)
@@ -78,23 +93,19 @@ local function CreateFOVCircle()
     circle.BorderSizePixel = 0
     circle.Parent = frame
     
-    -- Create circle using UIStroke for border
     local stroke = Instance.new("UIStroke")
     stroke.Color = Settings.FOVCircleColor
     stroke.Transparency = Settings.FOVCircleTransparency
     stroke.Thickness = Settings.FOVCircleThickness
     stroke.Parent = circle
     
-    -- Make it circular
     local circleCorner = Instance.new("UICorner")
     circleCorner.CornerRadius = UDim.new(0.5, 0)
     circleCorner.Parent = circle
     
-    -- Add background for gradient effect
     circle.BackgroundColor3 = Settings.FOVCircleColor
     circle.BackgroundTransparency = Settings.FOVCircleTransparency + 0.3
     
-    -- Create gradient effect
     local gradient = Instance.new("UIGradient")
     gradient.Rotation = 0
     gradient.Transparency = NumberSequence.new({
@@ -113,11 +124,11 @@ local function CreateFOVCircle()
     
     -- Animate gradient rotation
     spawn(function()
-        while FOVCircle and Settings.ShowFOVCircle and Settings.Enabled do
+        while FOVCircle and Settings.ShowFOVCircle and Settings.CameraLockEnabled do
             for i = 0, 360, 2 do
-                if not FOVCircle or not Settings.Enabled then break end
+                if not FOVCircle or not Settings.CameraLockEnabled then break end
                 FOVCircle.Gradient.Rotation = i
-                wait(0.03)
+                task.wait(0.03)
             end
         end
     end)
@@ -161,7 +172,7 @@ end
 
 -- Update target
 local function UpdateTarget()
-    if not Settings.Enabled then
+    if not Settings.CameraLockEnabled then
         Target = nil
         TargetHumanoid = nil
         TargetHumanoidRootPart = nil
@@ -181,16 +192,19 @@ local function UpdateTarget()
     end
 end
 
--- Pathfinding to target
+-- Update pathfinding
 local function UpdatePathfinding()
-    if not Settings.Enabled or not TargetHumanoidRootPart or not HumanoidRootPart then
+    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
         return
     end
     
     local path = PathfindingService:CreatePath({
         AgentRadius = 2,
         AgentHeight = 5,
-        AgentCanJump = true
+        AgentCanJump = true,
+        WaypointSpacing = 4
     })
     
     local success, errorMessage = pcall(function()
@@ -199,39 +213,101 @@ local function UpdatePathfinding()
     
     if success and path.Status == Enum.PathStatus.Success then
         PathfindingPath = path
+        CurrentWaypointIndex = 1
     else
         PathfindingPath = nil
+        CurrentWaypointIndex = 1
     end
 end
 
--- Move to target using CFrameWalkSpeed
+-- Dodging movement
+local function ApplyDodgingMovement()
+    if not Settings.DodgingEnabled or not TargetHumanoidRootPart then
+        return Vector3.new(0, 0, 0)
+    end
+    
+    local currentTime = tick()
+    local dodgeMovement = Vector3.new(0, 0, 0)
+    
+    -- Side to side movement
+    if currentTime - LastDodgeChange > 0.5 + math.random() * 0.5 then
+        DodgingDirection = -DodgingDirection
+        LastDodgeChange = currentTime
+    end
+    
+    -- Get right vector relative to target
+    local toTarget = (TargetHumanoidRootPart.Position - HumanoidRootPart.Position)
+    local rightVector = Camera.CFrame.RightVector
+    
+    -- Side to side dodging
+    dodgeMovement = dodgeMovement + rightVector * DodgingDirection * Settings.DodgingSpeed * Settings.DodgingIntensity
+    
+    -- Random human-like movements
+    RandomMovementTimer = RandomMovementTimer + (1/60)
+    if RandomMovementTimer > 0.3 then
+        RandomMovementTimer = 0
+        -- Add small random movements
+        local randomX = (math.random() - 0.5) * 2
+        local randomZ = (math.random() - 0.5) * 2
+        dodgeMovement = dodgeMovement + Vector3.new(randomX, 0, randomZ) * Settings.DodgingSpeed * 0.5
+    end
+    
+    return dodgeMovement
+end
+
+-- Move to target using pathfinding
 local function MoveToTarget()
-    if not Settings.Enabled or not TargetHumanoidRootPart or not HumanoidRootPart then
+    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
         return
     end
     
     -- Update pathfinding periodically
     local currentTime = tick()
-    if not PathfindingPath or (currentTime % 1) < (1/60) then -- Update pathfinding every second
+    if currentTime - LastPathfindingUpdate > 1 then
         UpdatePathfinding()
+        LastPathfindingUpdate = currentTime
     end
     
     local targetPosition = TargetHumanoidRootPart.Position
+    local moveVector = Vector3.new(0, 0, 0)
     
     -- Use pathfinding if available
     if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
         local waypoints = PathfindingPath:GetWaypoints()
+        
         if #waypoints > 1 then
-            targetPosition = waypoints[2].Position
+            -- Check if we've reached the current waypoint
+            if CurrentWaypointIndex <= #waypoints then
+                local currentWaypoint = waypoints[CurrentWaypointIndex]
+                local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
+                
+                if distanceToWaypoint < 4 then
+                    CurrentWaypointIndex = CurrentWaypointIndex + 1
+                end
+                
+                if CurrentWaypointIndex <= #waypoints then
+                    targetPosition = waypoints[CurrentWaypointIndex].Position
+                else
+                    targetPosition = TargetHumanoidRootPart.Position
+                end
+            end
         end
     end
     
-    -- Calculate direction
+    -- Calculate direction to target
     local direction = (targetPosition - HumanoidRootPart.Position)
     direction = Vector3.new(direction.X, 0, direction.Z).Unit
     
-    -- Apply walk speed using CFrame
-    local moveVector = direction * Settings.WalkSpeed
+    -- Apply walk speed
+    moveVector = direction * Settings.WalkSpeed
+    
+    -- Add dodging movement if target is visible
+    if TargetHumanoidRootPart then
+        local dodgingMove = ApplyDodgingMovement()
+        moveVector = moveVector + dodgingMove
+    end
+    
+    -- Apply movement using CFrame
     HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + moveVector * (1/60)
     
     -- Random jumping
@@ -242,7 +318,7 @@ end
 
 -- Camera lock function
 local function LockCamera()
-    if not Settings.Enabled or not TargetHumanoidRootPart then
+    if not Settings.CameraLockEnabled or not TargetHumanoidRootPart then
         return
     end
     
@@ -272,37 +348,20 @@ end
 
 -- Auto reload function
 local function AutoReload()
-    if not Settings.AutoReload or not Settings.Enabled then
+    if not Settings.AutoReload or not Settings.CameraLockEnabled then
         return
     end
     
     local currentTime = tick()
     if currentTime - LastReloadTime >= Settings.AutoReloadInterval then
         -- Simulate pressing R key
-        -- Method 1: Try using VirtualUser (if available)
-        if game:GetService("VirtualUser") then
-            game:GetService("VirtualUser"):ClickButton2(Vector2.new())
-        end
-        
-        -- Method 2: Fire keyboard input event
-        local keyCode = Enum.KeyCode.R
-        for _, connection in pairs(getconnections(UserInputService.InputBegan)) do
-            pcall(function()
-                connection:Fire(keyCode, false, false)
-            end)
-        end
-        
-        -- Method 3: Direct key press simulation
         pcall(function()
-            local inputObject = {
-                KeyCode = keyCode,
-                UserInputType = Enum.UserInputType.Keyboard,
-                UserInputState = Enum.UserInputState.Begin
-            }
-            UserInputService.InputBegan:Fire(inputObject)
-            task.wait(0.1)
-            inputObject.UserInputState = Enum.UserInputState.End
-            UserInputService.InputEnded:Fire(inputObject)
+            local keyCode = Enum.KeyCode.R
+            for _, connection in pairs(getconnections(UserInputService.InputBegan)) do
+                pcall(function()
+                    connection:Fire(keyCode, false, false)
+                end)
+            end
         end)
         
         LastReloadTime = currentTime
@@ -310,11 +369,8 @@ local function AutoReload()
 end
 
 -- Auto shooting control
-local ShootingConnection = nil
-
 local function UpdateShooting()
-    if not Settings.Enabled or not TargetHumanoid then
-        -- Stop shooting if active
+    if not Settings.CameraLockEnabled or not TargetHumanoid then
         if IsShooting then
             pcall(function()
                 local inputObject = {
@@ -335,12 +391,10 @@ local function UpdateShooting()
     local targetHP = TargetHumanoid.Health
     local shouldShoot = targetHP >= Settings.AutoStopShootingHP
     
-    -- Control mouse button 1 (left click) for shooting
     if shouldShoot and not IsShooting then
-        -- Start shooting and maintain it
         IsShooting = true
         ShootingConnection = RunService.Heartbeat:Connect(function()
-            if not Settings.Enabled or not TargetHumanoid or TargetHumanoid.Health < Settings.AutoStopShootingHP then
+            if not Settings.CameraLockEnabled or not TargetHumanoid or TargetHumanoid.Health < Settings.AutoStopShootingHP then
                 if ShootingConnection then
                     ShootingConnection:Disconnect()
                     ShootingConnection = nil
@@ -349,7 +403,6 @@ local function UpdateShooting()
                 return
             end
             
-            -- Continuously fire mouse button 1
             pcall(function()
                 local inputObject = {
                     UserInputType = Enum.UserInputType.MouseButton1,
@@ -359,7 +412,6 @@ local function UpdateShooting()
             end)
         end)
     elseif not shouldShoot and IsShooting then
-        -- Stop shooting
         if ShootingConnection then
             ShootingConnection:Disconnect()
             ShootingConnection = nil
@@ -375,21 +427,50 @@ local function UpdateShooting()
     end
 end
 
--- Main update loop
-RunService.Heartbeat:Connect(function()
-    if Settings.Enabled then
-        UpdateTarget()
-        if TargetHumanoidRootPart then
-            LockCamera()
-            MoveToTarget()
-            UpdateShooting()
-            AutoReload()
-        end
+-- Create UI Toggle Button
+local function CreateUIToggleButton()
+    if UIButton then
+        UIButton:Destroy()
     end
-end)
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "UIToggleButton"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    
+    local button = Instance.new("TextButton")
+    button.Name = "UIToggle"
+    button.Size = UDim2.new(0, 50, 0, 50)
+    button.Position = UDim2.new(1, -60, 0, 10)
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.BorderSizePixel = 0
+    button.Text = "⚙"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 24
+    button.Font = Enum.Font.GothamBold
+    button.Parent = screenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+    
+    button.MouseButton1Click:Connect(function()
+        Settings.UIEnabled = not Settings.UIEnabled
+        if MainUI then
+            MainUI.Visible = Settings.UIEnabled
+        end
+    end)
+    
+    UIButton = button
+end
 
 -- Create UI
 local function CreateUI()
+    if MainUI then
+        MainUI:Destroy()
+    end
+    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "CameraLockUI"
     screenGui.ResetOnSpawn = false
@@ -399,13 +480,13 @@ local function CreateUI()
     -- Main Frame
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Size = UDim2.new(0, 320, 0, 500)
     mainFrame.Position = UDim2.new(0, 10, 0, 10)
     mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     mainFrame.BorderSizePixel = 0
+    mainFrame.Visible = Settings.UIEnabled
     mainFrame.Parent = screenGui
     
-    -- Corner
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = mainFrame
@@ -426,37 +507,35 @@ local function CreateUI()
     titleCorner.CornerRadius = UDim.new(0, 8)
     titleCorner.Parent = title
     
-    -- Toggle Button
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Name = "ToggleButton"
-    toggleButton.Size = UDim2.new(1, -20, 0, 40)
-    toggleButton.Position = UDim2.new(0, 10, 0, 50)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    toggleButton.BorderSizePixel = 0
-    toggleButton.Text = "DISABLED"
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.TextSize = 16
-    toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.Parent = mainFrame
+    -- Camera Lock Toggle Button
+    local cameraToggleButton = Instance.new("TextButton")
+    cameraToggleButton.Name = "CameraToggleButton"
+    cameraToggleButton.Size = UDim2.new(1, -20, 0, 40)
+    cameraToggleButton.Position = UDim2.new(0, 10, 0, 50)
+    cameraToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    cameraToggleButton.BorderSizePixel = 0
+    cameraToggleButton.Text = "CAMERA LOCK: OFF"
+    cameraToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cameraToggleButton.TextSize = 14
+    cameraToggleButton.Font = Enum.Font.GothamBold
+    cameraToggleButton.Parent = mainFrame
     
     local toggleCorner = Instance.new("UICorner")
     toggleCorner.CornerRadius = UDim.new(0, 6)
-    toggleCorner.Parent = toggleButton
+    toggleCorner.Parent = cameraToggleButton
     
-    toggleButton.MouseButton1Click:Connect(function()
-        Settings.Enabled = not Settings.Enabled
-        toggleButton.Text = Settings.Enabled and "ENABLED" or "DISABLED"
-        toggleButton.BackgroundColor3 = Settings.Enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    cameraToggleButton.MouseButton1Click:Connect(function()
+        Settings.CameraLockEnabled = not Settings.CameraLockEnabled
+        cameraToggleButton.Text = Settings.CameraLockEnabled and "CAMERA LOCK: ON" or "CAMERA LOCK: OFF"
+        cameraToggleButton.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
         
-        if Settings.Enabled then
+        if Settings.CameraLockEnabled then
             CreateFOVCircle()
         else
-            -- Cleanup when disabled
             if FOVCircle then
                 FOVCircle.ScreenGui:Destroy()
                 FOVCircle = nil
             end
-            -- Stop shooting
             if ShootingConnection then
                 ShootingConnection:Disconnect()
                 ShootingConnection = nil
@@ -468,21 +547,46 @@ local function CreateUI()
         end
     end)
     
+    -- Pathfinding Toggle Button
+    local pathfindingToggleButton = Instance.new("TextButton")
+    pathfindingToggleButton.Name = "PathfindingToggleButton"
+    pathfindingToggleButton.Size = UDim2.new(1, -20, 0, 40)
+    pathfindingToggleButton.Position = UDim2.new(0, 10, 0, 100)
+    pathfindingToggleButton.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    pathfindingToggleButton.BorderSizePixel = 0
+    pathfindingToggleButton.Text = Settings.PathfindingEnabled and "PATHFINDING: ON" or "PATHFINDING: OFF"
+    pathfindingToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    pathfindingToggleButton.TextSize = 14
+    pathfindingToggleButton.Font = Enum.Font.GothamBold
+    pathfindingToggleButton.Parent = mainFrame
+    
+    local pathfindingCorner = Instance.new("UICorner")
+    pathfindingCorner.CornerRadius = UDim.new(0, 6)
+    pathfindingCorner.Parent = pathfindingToggleButton
+    
+    pathfindingToggleButton.MouseButton1Click:Connect(function()
+        Settings.PathfindingEnabled = not Settings.PathfindingEnabled
+        pathfindingToggleButton.Text = Settings.PathfindingEnabled and "PATHFINDING: ON" or "PATHFINDING: OFF"
+        pathfindingToggleButton.BackgroundColor3 = Settings.PathfindingEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    end)
+    
     -- Scrolling Frame
     local scrollFrame = Instance.new("ScrollingFrame")
     scrollFrame.Name = "ScrollFrame"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -100)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 100)
+    scrollFrame.Size = UDim2.new(1, -20, 1, -160)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 150)
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.ScrollBarThickness = 8
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollFrame.Parent = mainFrame
     
     local listLayout = Instance.new("UIListLayout")
     listLayout.Padding = UDim.new(0, 5)
     listLayout.Parent = scrollFrame
     
-    -- Settings UI Helper Function
+    -- Settings UI Helper Functions
     local function CreateSlider(name, min, max, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
@@ -494,7 +598,7 @@ local function CreateUI()
         label.Name = "Label"
         label.Size = UDim2.new(1, 0, 0, 20)
         label.BackgroundTransparency = 1
-        label.Text = name .. ": " .. tostring(current)
+        label.Text = name .. ": " .. string.format("%.2f", current)
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
         label.TextSize = 14
         label.Font = Enum.Font.Gotham
@@ -530,9 +634,15 @@ local function CreateUI()
         button.Text = ""
         button.Parent = slider
         
+        local isDragging = false
         button.MouseButton1Down:Connect(function()
+            isDragging = true
             local connection
             connection = RunService.Heartbeat:Connect(function()
+                if not isDragging then
+                    connection:Disconnect()
+                    return
+                end
                 local mousePos = UserInputService:GetMouseLocation()
                 local sliderPos = slider.AbsolutePosition
                 local sliderSize = slider.AbsoluteSize
@@ -545,7 +655,7 @@ local function CreateUI()
             
             UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    connection:Disconnect()
+                    isDragging = false
                 end
             end)
         end)
@@ -636,25 +746,20 @@ local function CreateUI()
         end
     end)
     
-    CreateSlider("FOV Circle Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
-        Settings.FOVCircleTransparency = val
-        if FOVCircle then
-            FOVCircle.Stroke.Transparency = val
-            FOVCircle.Circle.BackgroundTransparency = val + 0.3
-            FOVCircle.Gradient.Transparency = NumberSequence.new({
-                NumberSequenceKeypoint.new(0, val),
-                NumberSequenceKeypoint.new(0.5, val + 0.3),
-                NumberSequenceKeypoint.new(1, val)
-            })
-        end
-    end)
-    
-    CreateSlider("Walk Speed", 0, 50, Settings.WalkSpeed, function(val)
+    CreateSlider("Walk Speed", 0, 300, Settings.WalkSpeed, function(val)
         Settings.WalkSpeed = val
     end)
     
     CreateSlider("Jump Probability", 0, 0.1, Settings.JumpProbability, function(val)
         Settings.JumpProbability = val
+    end)
+    
+    CreateSlider("Dodging Speed", 0, 50, Settings.DodgingSpeed, function(val)
+        Settings.DodgingSpeed = val
+    end)
+    
+    CreateSlider("Dodging Intensity", 0, 10, Settings.DodgingIntensity, function(val)
+        Settings.DodgingIntensity = val
     end)
     
     CreateSlider("Auto Reload Interval", 1, 5, Settings.AutoReloadInterval, function(val)
@@ -671,7 +776,7 @@ local function CreateUI()
     
     CreateToggle("Show FOV Circle", Settings.ShowFOVCircle, function(val)
         Settings.ShowFOVCircle = val
-        if val and Settings.Enabled then
+        if val and Settings.CameraLockEnabled then
             CreateFOVCircle()
         elseif FOVCircle then
             FOVCircle.ScreenGui:Destroy()
@@ -679,13 +784,36 @@ local function CreateUI()
         end
     end)
     
+    CreateToggle("Dodging Mode", Settings.DodgingEnabled, function(val)
+        Settings.DodgingEnabled = val
+    end)
+    
     -- Update scroll frame size
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
     end)
+    
+    MainUI = mainFrame
 end
 
+-- Main update loop
+RunService.Heartbeat:Connect(function()
+    if Settings.CameraLockEnabled then
+        UpdateTarget()
+        if TargetHumanoidRootPart then
+            LockCamera()
+            UpdateShooting()
+            AutoReload()
+        end
+    end
+    
+    if Settings.PathfindingEnabled and TargetHumanoidRootPart then
+        MoveToTarget()
+    end
+end)
+
 -- Initialize
+CreateUIToggleButton()
 CreateUI()
 
 print("Camera Lock System Loaded!")
