@@ -629,7 +629,7 @@ local function CreateUI()
     
     local uiScale = GetUIScale()
     -- Much wider UI
-    local baseWidth = isMobile and 600 or 550
+    local baseWidth = isMobile and 750 or 700
     local baseHeight = isMobile and 650 or 600
     
     -- Main Frame
@@ -658,12 +658,13 @@ local function CreateUI()
     shadow.ZIndex = mainFrame.ZIndex - 1
     shadow.Parent = mainFrame
     
-    -- Title Bar
+    -- Title Bar (Draggable)
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0, isMobile and 55 or 50)
     titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     titleBar.BorderSizePixel = 0
+    titleBar.Active = true
     titleBar.Parent = mainFrame
     
     local titleCorner = Instance.new("UICorner")
@@ -682,6 +683,51 @@ local function CreateUI()
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = titleBar
     
+    -- Make title bar draggable (moves the whole UI)
+    local draggingUI = false
+    local dragInputUI = nil
+    local dragStartUI = nil
+    local startPosUI = nil
+    
+    local function updateUIPosition(input)
+        if not dragStartUI then return end
+        local delta = input.Position - dragStartUI
+        local newPos = UDim2.new(
+            startPosUI.X.Scale,
+            startPosUI.X.Offset + delta.X,
+            startPosUI.Y.Scale,
+            startPosUI.Y.Offset + delta.Y
+        )
+        mainFrame.Position = newPos
+    end
+    
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragStartUI = input.Position
+            startPosUI = mainFrame.Position
+            draggingUI = false
+            
+            local moveConnection
+            moveConnection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput == input and dragStartUI then
+                    local moved = (moveInput.Position - dragStartUI).Magnitude
+                    if moved > 5 then
+                        draggingUI = true
+                        updateUIPosition(moveInput)
+                    end
+                end
+            end)
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    moveConnection:Disconnect()
+                    draggingUI = false
+                    dragStartUI = nil
+                end
+            end)
+        end
+    end)
+    
     -- Scrolling Frame (Bigger)
     local scrollFrame = Instance.new("ScrollingFrame")
     scrollFrame.Name = "ScrollFrame"
@@ -696,44 +742,44 @@ local function CreateUI()
     scrollFrame.Parent = mainFrame
     
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, isMobile and 6 or 5)
+    listLayout.Padding = UDim.new(0, isMobile and 4 or 3)
     listLayout.Parent = scrollFrame
     
     -- Settings UI Helper Functions
     local function CreateSlider(name, min, max, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, isMobile and 50 or 45)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 38 or 32)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
-        label.Size = UDim2.new(0.4, 0, 0, isMobile and 20 or 18)
+        label.Size = UDim2.new(0.35, 0, 0, isMobile and 16 or 14)
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = isMobile and 14 or 12
+        label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local valueLabel = Instance.new("TextLabel")
         valueLabel.Name = "ValueLabel"
-        valueLabel.Size = UDim2.new(0, 60, 0, isMobile and 20 or 18)
-        valueLabel.Position = UDim2.new(0.45, 0, 0, 0)
+        valueLabel.Size = UDim2.new(0, 50, 0, isMobile and 16 or 14)
+        valueLabel.Position = UDim2.new(0.37, 0, 0, 0)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = string.format("%.2f", current)
         valueLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-        valueLabel.TextSize = isMobile and 14 or 12
+        valueLabel.TextSize = isMobile and 12 or 11
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.TextXAlignment = Enum.TextXAlignment.Left
         valueLabel.Parent = container
         
         local slider = Instance.new("Frame")
         slider.Name = "Slider"
-        slider.Size = UDim2.new(0.55, 0, 0, isMobile and 8 or 6)
-        slider.Position = UDim2.new(0.45, 0, 0, isMobile and 22 or 20)
+        slider.Size = UDim2.new(0.6, 0, 0, isMobile and 6 or 5)
+        slider.Position = UDim2.new(0.37, 0, 0, isMobile and 18 or 16)
         slider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
         slider.BorderSizePixel = 0
         slider.Parent = container
@@ -831,25 +877,25 @@ local function CreateUI()
         local current = Settings[settingKey]
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, isMobile and 35 or 30)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
-        label.Size = UDim2.new(0.65, 0, 1, 0)
+        label.Size = UDim2.new(0.7, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = isMobile and 14 or 12
+        label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local toggle = Instance.new("TextButton")
         toggle.Name = "Toggle"
-        toggle.Size = UDim2.new(0, isMobile and 50 or 45, 0, isMobile and 24 or 22)
-        toggle.Position = UDim2.new(1, -(isMobile and 50 or 45), 0.5, -(isMobile and 12 or 11))
+        toggle.Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)
+        toggle.Position = UDim2.new(1, -(isMobile and 42 or 38), 0.5, -(isMobile and 10 or 9))
         toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
         toggle.BorderSizePixel = 0
         toggle.Text = ""
@@ -857,19 +903,19 @@ local function CreateUI()
         toggle.Parent = container
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 12)
+        toggleCorner.CornerRadius = UDim.new(0, 10)
         toggleCorner.Parent = toggle
         
         local indicator = Instance.new("Frame")
         indicator.Name = "Indicator"
-        indicator.Size = UDim2.new(0, isMobile and 20 or 18, 0, isMobile and 20 or 18)
-        indicator.Position = current and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))
+        indicator.Size = UDim2.new(0, isMobile and 16 or 14, 0, isMobile and 16 or 14)
+        indicator.Position = current and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))
         indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         indicator.BorderSizePixel = 0
         indicator.Parent = toggle
         
         local indicatorCorner = Instance.new("UICorner")
-        indicatorCorner.CornerRadius = UDim.new(0, 10)
+        indicatorCorner.CornerRadius = UDim.new(0, 8)
         indicatorCorner.Parent = indicator
         
         local function updateToggle(newValue)
@@ -878,7 +924,7 @@ local function CreateUI()
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                {Position = newValue and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))}
+                {Position = newValue and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))}
             )
             tween:Play()
             if callback then
@@ -903,7 +949,7 @@ local function CreateUI()
     local function CreateTextBox(name, current, callback, placeholder)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, isMobile and 35 or 30)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
@@ -913,20 +959,20 @@ local function CreateUI()
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = isMobile and 14 or 12
+        label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local textBox = Instance.new("TextBox")
         textBox.Name = "TextBox"
-        textBox.Size = UDim2.new(0, isMobile and 120 or 100, 0, isMobile and 28 or 24)
-        textBox.Position = UDim2.new(0.45, 0, 0.5, -(isMobile and 14 or 12))
+        textBox.Size = UDim2.new(0, isMobile and 100 or 90, 0, isMobile and 22 or 20)
+        textBox.Position = UDim2.new(0.45, 0, 0.5, -(isMobile and 11 or 10))
         textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
         textBox.BorderSizePixel = 0
         textBox.Text = tostring(current)
         textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-        textBox.TextSize = isMobile and 14 or 12
+        textBox.TextSize = isMobile and 12 or 11
         textBox.Font = Enum.Font.Gotham
         textBox.PlaceholderText = placeholder or "Enter value"
         textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
@@ -934,13 +980,14 @@ local function CreateUI()
         textBox.Parent = container
         
         local textBoxCorner = Instance.new("UICorner")
-        textBoxCorner.CornerRadius = UDim.new(0, 6)
+        textBoxCorner.CornerRadius = UDim.new(0, 5)
         textBoxCorner.Parent = textBox
         
         textBox.FocusLost:Connect(function(enterPressed)
             local numValue = tonumber(textBox.Text)
             if numValue then
                 callback(numValue)
+                textBox.Text = tostring(numValue) -- Update with clamped value
             else
                 textBox.Text = tostring(current)
             end
