@@ -186,7 +186,7 @@ local function FindNearestTarget()
     return nearestPlayer
 end
 
--- Update target (Automatically locks onto nearest target)
+-- Update target (Sticks to current target, only switches if current is invalid)
 local function UpdateTarget()
     if not Settings.CameraLockEnabled then
         Target = nil
@@ -195,7 +195,24 @@ local function UpdateTarget()
         return
     end
     
-    -- Automatically find and lock onto nearest target
+    -- If we have a current target, check if it's still valid
+    if Target and Target.Character then
+        local humanoid = Target.Character:FindFirstChild("Humanoid")
+        local rootPart = Target.Character:FindFirstChild("HumanoidRootPart")
+        
+        -- Check if target is still alive and valid
+        if humanoid and rootPart and humanoid.Health > 0 then
+            -- Check if target is still within reasonable range (not too far)
+            local distance = (HumanoidRootPart.Position - rootPart.Position).Magnitude
+            if distance < 500 then -- Max lock distance
+                TargetHumanoid = humanoid
+                TargetHumanoidRootPart = rootPart
+                return -- Keep current target
+            end
+        end
+    end
+    
+    -- Current target is invalid or too far, find new one
     local newTarget = FindNearestTarget()
     
     if newTarget and newTarget.Character then
@@ -524,15 +541,16 @@ local function CreateCornerButtons()
     local buttonSize = isMobile and 80 or 70
     local buttonSpacing = 20
     
-    -- Button 1: Camera Lock Toggle (Center Left)
+    -- Button 1: Camera Lock Toggle (Center Left) - Yellow/Orange theme
     local btn1 = Instance.new("TextButton")
     btn1.Name = "CameraLockToggle"
     btn1.Size = UDim2.new(0, buttonSize, 0, buttonSize)
     btn1.Position = UDim2.new(0.5, -(buttonSize + buttonSpacing/2), 0.5, -buttonSize/2)
-    btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    btn1.BorderSizePixel = 0
-    btn1.Text = Settings.CameraLockEnabled and "LOCK\nON" or "LOCK\nOFF"
-    btn1.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 140, 0)
+    btn1.BorderSizePixel = 2
+    btn1.BorderColor3 = Color3.fromRGB(255, 220, 100)
+    btn1.Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
+    btn1.TextColor3 = Color3.fromRGB(0, 0, 0)
     btn1.TextSize = isMobile and 16 or 14
     btn1.Font = Enum.Font.GothamBold
     btn1.TextWrapped = true
@@ -548,8 +566,8 @@ local function CreateCornerButtons()
     
     ConnectButton(btn1, function()
         Settings.CameraLockEnabled = not Settings.CameraLockEnabled
-        btn1.Text = Settings.CameraLockEnabled and "LOCK\nON" or "LOCK\nOFF"
-        btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+        btn1.Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
+        btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(255, 140, 0)
         
         if Settings.CameraLockEnabled then
             CreateFOVCircle()
@@ -569,14 +587,14 @@ local function CreateCornerButtons()
         end
     end)
     
-    -- Button 2: Settings UI Toggle (Center Right)
+    -- Button 2: Settings UI Toggle (Center Right) - Fixed click handling
     local btn2 = Instance.new("TextButton")
     btn2.Name = "UIToggle"
     btn2.Size = UDim2.new(0, buttonSize, 0, buttonSize)
     btn2.Position = UDim2.new(0.5, buttonSpacing/2, 0.5, -buttonSize/2)
-    btn2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn2.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Orange
     btn2.BorderSizePixel = 0
-    btn2.Text = Settings.UIEnabled and "⚙\nOPEN" or "⚙\nSETTINGS"
+    btn2.Text = Settings.UIEnabled and "⚙\nCLOSE" or "⚙\nSETTINGS"
     btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn2.TextSize = isMobile and 16 or 14
     btn2.Font = Enum.Font.GothamBold
@@ -587,9 +605,6 @@ local function CreateCornerButtons()
     local corner2 = Instance.new("UICorner")
     corner2.CornerRadius = UDim.new(0, 12)
     corner2.Parent = btn2
-    
-    -- Make draggable
-    MakeDraggable(btn2)
     
     local function toggleSettings()
         Settings.UIEnabled = not Settings.UIEnabled
@@ -602,15 +617,53 @@ local function CreateCornerButtons()
                 mainFrame.Visible = Settings.UIEnabled
             end
         end
-        -- Also update button text
+        -- Update button text
         btn2.Text = Settings.UIEnabled and "⚙\nCLOSE" or "⚙\nSETTINGS"
     end
     
-    -- Use both click methods to ensure it works
+    -- Separate click handler from drag - use Activated for better reliability
+    btn2.Activated:Connect(toggleSettings)
     btn2.MouseButton1Click:Connect(toggleSettings)
     if isMobile or isTablet then
         btn2.TouchTap:Connect(toggleSettings)
     end
+    
+    -- Make draggable but don't interfere with clicks
+    local btn2Dragging = false
+    btn2.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            local startPos = input.Position
+            local startBtnPos = btn2.Position
+            
+            local moveConnection
+            moveConnection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput == input then
+                    local moved = (moveInput.Position - startPos).Magnitude
+                    if moved > 15 then -- Only drag if moved significantly
+                        btn2Dragging = true
+                        local delta = moveInput.Position - startPos
+                        btn2.Position = UDim2.new(
+                            startBtnPos.X.Scale,
+                            startBtnPos.X.Offset + delta.X,
+                            startBtnPos.Y.Scale,
+                            startBtnPos.Y.Offset + delta.Y
+                        )
+                    end
+                end
+            end)
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    moveConnection:Disconnect()
+                    if not btn2Dragging then
+                        -- It was a click, toggle settings
+                        toggleSettings()
+                    end
+                    btn2Dragging = false
+                end
+            end)
+        end
+    end)
     
     CornerButtons = {btn1, btn2}
 end
@@ -632,14 +685,15 @@ local function CreateUI()
     local baseWidth = isMobile and 750 or 700
     local baseHeight = isMobile and 650 or 600
     
-    -- Main Frame
+    -- Main Frame (Orange theme)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, baseWidth * uiScale, 0, baseHeight * uiScale)
     mainFrame.Position = UDim2.new(0.5, -(baseWidth * uiScale / 2), 0.5, -(baseHeight * uiScale / 2))
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Visible = Settings.UIEnabled or false -- Use Settings.UIEnabled
+    mainFrame.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Orange
+    mainFrame.BorderSizePixel = 2
+    mainFrame.BorderColor3 = Color3.fromRGB(255, 200, 0) -- Yellow border
+    mainFrame.Visible = Settings.UIEnabled or false
     mainFrame.Active = true
     mainFrame.Parent = screenGui
     
@@ -658,11 +712,11 @@ local function CreateUI()
     shadow.ZIndex = mainFrame.ZIndex - 1
     shadow.Parent = mainFrame
     
-    -- Title Bar (Draggable)
+    -- Title Bar (Draggable) - Yellow theme
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0, isMobile and 55 or 50)
-    titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    titleBar.BackgroundColor3 = Color3.fromRGB(255, 200, 0) -- Yellow
     titleBar.BorderSizePixel = 0
     titleBar.Active = true
     titleBar.Parent = mainFrame
@@ -676,8 +730,8 @@ local function CreateUI()
     title.Size = UDim2.new(1, -20, 1, 0)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "Camera Lock Settings"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Text = "🎯 Camera Lock Settings"
+    title.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text on yellow
     title.TextSize = isMobile and 22 or 20
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
@@ -750,9 +804,9 @@ local function CreateUI()
         local sectionContainer = Instance.new("Frame")
         sectionContainer.Name = title .. "Section"
         sectionContainer.Size = UDim2.new(1, 0, 0, 0) -- Height will be auto
-        sectionContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+        sectionContainer.BackgroundColor3 = Color3.fromRGB(255, 180, 50) -- Light orange/yellow
         sectionContainer.BorderSizePixel = 2
-        sectionContainer.BorderColor3 = Color3.fromRGB(60, 60, 70)
+        sectionContainer.BorderColor3 = Color3.fromRGB(255, 200, 0) -- Yellow border
         sectionContainer.Parent = scrollFrame
         
         local sectionCorner = Instance.new("UICorner")
@@ -763,7 +817,7 @@ local function CreateUI()
         local header = Instance.new("Frame")
         header.Name = "Header"
         header.Size = UDim2.new(1, 0, 0, isMobile and 32 or 28)
-        header.BackgroundColor3 = Color3.fromRGB(28, 28, 33)
+        header.BackgroundColor3 = Color3.fromRGB(255, 200, 0) -- Yellow header
         header.BorderSizePixel = 0
         header.Parent = sectionContainer
         
@@ -774,9 +828,9 @@ local function CreateUI()
         -- Divider line under header
         local divider = Instance.new("Frame")
         divider.Name = "Divider"
-        divider.Size = UDim2.new(1, -10, 0, 1)
-        divider.Position = UDim2.new(0, 5, 1, -1)
-        divider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        divider.Size = UDim2.new(1, -10, 0, 2)
+        divider.Position = UDim2.new(0, 5, 1, -2)
+        divider.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Orange divider
         divider.BorderSizePixel = 0
         divider.Parent = header
         
@@ -785,8 +839,8 @@ local function CreateUI()
         headerLabel.Size = UDim2.new(1, -10, 1, 0)
         headerLabel.Position = UDim2.new(0, 8, 0, 0)
         headerLabel.BackgroundTransparency = 1
-        headerLabel.Text = "━━ " .. title .. " ━━"
-        headerLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        headerLabel.Text = "▶ " .. title
+        headerLabel.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text
         headerLabel.TextSize = isMobile and 15 or 14
         headerLabel.Font = Enum.Font.GothamBold
         headerLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -825,7 +879,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.35, 0, 0, isMobile and 16 or 14)
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text for readability
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -837,7 +891,7 @@ local function CreateUI()
         valueLabel.Position = UDim2.new(0.37, 0, 0, 0)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = string.format("%.2f", current)
-        valueLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        valueLabel.TextColor3 = Color3.fromRGB(255, 100, 0) -- Dark orange
         valueLabel.TextSize = isMobile and 12 or 11
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -847,7 +901,7 @@ local function CreateUI()
         slider.Name = "Slider"
         slider.Size = UDim2.new(0.6, 0, 0, isMobile and 6 or 5)
         slider.Position = UDim2.new(0.37, 0, 0, isMobile and 18 or 16)
-        slider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        slider.BackgroundColor3 = Color3.fromRGB(255, 220, 100) -- Light yellow
         slider.BorderSizePixel = 0
         slider.Parent = container
         
@@ -858,7 +912,7 @@ local function CreateUI()
         local fill = Instance.new("Frame")
         fill.Name = "Fill"
         fill.Size = UDim2.new((current - min) / (max - min), 0, 1, 0)
-        fill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+        fill.BackgroundColor3 = Color3.fromRGB(255, 140, 0) -- Orange fill
         fill.BorderSizePixel = 0
         fill.Parent = slider
         
@@ -953,7 +1007,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.7, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text for readability
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -963,7 +1017,7 @@ local function CreateUI()
         toggle.Name = "Toggle"
         toggle.Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)
         toggle.Position = UDim2.new(1, -(isMobile and 42 or 38), 0.5, -(isMobile and 10 or 9))
-        toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
+        toggle.BackgroundColor3 = current and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(200, 150, 50) -- Yellow when on, orange when off
         toggle.BorderSizePixel = 0
         toggle.Text = ""
         toggle.Active = true
@@ -985,9 +1039,9 @@ local function CreateUI()
         indicatorCorner.CornerRadius = UDim.new(0, 8)
         indicatorCorner.Parent = indicator
         
-        local function updateToggle(newValue)
+            local function updateToggle(newValue)
             Settings[settingKey] = newValue
-            toggle.BackgroundColor3 = newValue and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
+            toggle.BackgroundColor3 = newValue and Color3.fromRGB(255, 200, 0) or Color3.fromRGB(200, 150, 50)
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -1025,7 +1079,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.4, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text for readability
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -1035,10 +1089,10 @@ local function CreateUI()
         textBox.Name = "TextBox"
         textBox.Size = UDim2.new(0, isMobile and 100 or 90, 0, isMobile and 22 or 20)
         textBox.Position = UDim2.new(0.45, 0, 0.5, -(isMobile and 11 or 10))
-        textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        textBox.BackgroundColor3 = Color3.fromRGB(255, 220, 100) -- Light yellow background
         textBox.BorderSizePixel = 0
         textBox.Text = tostring(current)
-        textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textBox.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text
         textBox.TextSize = isMobile and 12 or 11
         textBox.Font = Enum.Font.Gotham
         textBox.PlaceholderText = placeholder or "Enter value"
@@ -1073,8 +1127,8 @@ local function CreateUI()
             CreateFOVCircle()
             -- Update corner button
             if CornerButtons[1] then
-                CornerButtons[1].Text = "LOCK\nON"
-                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+                CornerButtons[1].Text = "🔒\nLOCKED"
+                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(255, 200, 0)
             end
         else
             if FOVCircle then
@@ -1091,8 +1145,8 @@ local function CreateUI()
             TargetHumanoidRootPart = nil
             -- Update corner button
             if CornerButtons[1] then
-                CornerButtons[1].Text = "LOCK\nOFF"
-                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                CornerButtons[1].Text = "🔓\nUNLOCKED"
+                CornerButtons[1].BackgroundColor3 = Color3.fromRGB(255, 140, 0)
             end
         end
     end, camLockSection)
