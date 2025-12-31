@@ -936,64 +936,58 @@ local function CreateUI()
         local isDragging = false
         local dragConnection = nil
         
-        local function updateSlider(input)
+        -- Update slider value function - FIXED for mobile touch
+        local function updateSliderValue(inputPosition)
             local sliderPos = slider.AbsolutePosition
             local sliderSize = slider.AbsoluteSize
-            local inputPos = input.Position.X
-            local relativeX = math.clamp((inputPos - sliderPos.X) / sliderSize.X, 0, 1)
+            local relativeX = math.clamp((inputPosition.X - sliderPos.X) / sliderSize.X, 0, 1)
             local value = min + (max - min) * relativeX
             fill.Size = UDim2.new(relativeX, 0, 1, 0)
-            label.Text = name .. ": " .. string.format("%.2f", value)
+            valueLabel.Text = string.format("%.2f", value)
             callback(value)
         end
         
-        button.MouseButton1Down:Connect(function(input)
-            isDragging = true
-            updateSlider(input)
-            dragConnection = RunService.Heartbeat:Connect(function()
-                if not isDragging then
-                    dragConnection:Disconnect()
-                    return
-                end
-                local mousePos = UserInputService:GetMouseLocation()
-                local sliderPos = slider.AbsolutePosition
-                local sliderSize = slider.AbsoluteSize
-                local relativeX = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
-                local value = min + (max - min) * relativeX
-                fill.Size = UDim2.new(relativeX, 0, 1, 0)
-                valueLabel.Text = string.format("%.2f", value)
-                callback(value)
-            end)
-        end)
-        
-        if isMobile or isTablet then
-            button.TouchTap:Connect(function(input)
+        -- Mouse/Touch input handling - FIXED VERSION
+        button.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 isDragging = true
-                updateSlider(input)
+                updateSliderValue(input.Position)
+                
+                -- Continuous update while dragging
+                if dragConnection then
+                    dragConnection:Disconnect()
+                end
                 dragConnection = RunService.Heartbeat:Connect(function()
                     if not isDragging then
-                        dragConnection:Disconnect()
+                        if dragConnection then
+                            dragConnection:Disconnect()
+                            dragConnection = nil
+                        end
                         return
                     end
-                    local touchPos = UserInputService:GetMouseLocation()
-                    local sliderPos = slider.AbsolutePosition
-                    local sliderSize = slider.AbsoluteSize
-                    local relativeX = math.clamp((touchPos.X - sliderPos.X) / sliderSize.X, 0, 1)
-                    local value = min + (max - min) * relativeX
-                    fill.Size = UDim2.new(relativeX, 0, 1, 0)
-                    label.Text = name .. ": " .. string.format("%.2f", value)
-                    callback(value)
+                    
+                    -- Get current input position
+                    local currentInput = UserInputService:GetMouseLocation()
+                    updateSliderValue(currentInput)
                 end)
-            end)
-        end
+            end
+        end)
         
+        -- Stop dragging when input ends
         UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and isDragging then
                 isDragging = false
                 if dragConnection then
                     dragConnection:Disconnect()
                     dragConnection = nil
                 end
+            end
+        end)
+        
+        -- Also handle input changed for better mobile support
+        UserInputService.InputChanged:Connect(function(input)
+            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                updateSliderValue(input.Position)
             end
         end)
         
@@ -1046,29 +1040,40 @@ local function CreateUI()
         indicatorCorner.CornerRadius = UDim.new(0, 8)
         indicatorCorner.Parent = indicator
         
-            local function updateToggle(newValue)
+            -- Toggle function - FIXED VERSION
+        local function toggleSwitch()
+            local currentValue = Settings[settingKey]
+            local newValue = not currentValue
+            
+            print("Toggling", name, "from", currentValue, "to", newValue)
+            
+            -- Update settings immediately
             Settings[settingKey] = newValue
+            
+            -- Update visual appearance
             toggle.BackgroundColor3 = newValue and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
             toggle.BackgroundTransparency = newValue and 0.3 or 0.5
+            
+            -- Animate indicator
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                 {Position = newValue and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))}
             )
             tween:Play()
+            
+            -- Call callback if provided
             if callback then
                 callback(newValue)
             end
         end
         
-        toggle.MouseButton1Click:Connect(function()
-            updateToggle(not Settings[settingKey])
-        end)
+        -- Click handlers - Multiple methods for reliability
+        toggle.MouseButton1Click:Connect(toggleSwitch)
+        toggle.Activated:Connect(toggleSwitch)
         
         if isMobile or isTablet then
-            toggle.TouchTap:Connect(function()
-                updateToggle(not Settings[settingKey])
-            end)
+            toggle.TouchTap:Connect(toggleSwitch)
         end
         
         return container
@@ -1258,7 +1263,7 @@ local function CreateUI()
     MainUI = mainFrame
 end
 
--- Main update loop
+-- Main update loop - FIXED to prevent camera lock when disabled
 RunService.Heartbeat:Connect(function()
     if Settings.CameraLockEnabled then
         UpdateTarget() -- Automatically locks onto nearest target
@@ -1267,9 +1272,24 @@ RunService.Heartbeat:Connect(function()
             UpdateShooting()
             AutoReload()
         end
+    else
+        -- When camera lock is disabled, clear target and stop shooting
+        if Target then
+            Target = nil
+            TargetHumanoid = nil
+            TargetHumanoidRootPart = nil
+        end
+        if IsShooting then
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+            IsShooting = false
+        end
     end
     
-    if Settings.PathfindingEnabled and TargetHumanoidRootPart then
+    -- Pathfinding runs independently (only if enabled and has target)
+    if Settings.PathfindingEnabled and TargetHumanoidRootPart and Settings.CameraLockEnabled then
         MoveToTarget()
     end
 end)
