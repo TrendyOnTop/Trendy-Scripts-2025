@@ -568,7 +568,7 @@ local function CreateCornerButtons()
     btn2.Position = UDim2.new(0.5, buttonSpacing/2, 0.5, -buttonSize/2)
     btn2.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn2.BorderSizePixel = 0
-    btn2.Text = "⚙\nSETTINGS"
+    btn2.Text = Settings.UIEnabled and "⚙\nOPEN" or "⚙\nSETTINGS"
     btn2.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn2.TextSize = isMobile and 16 or 14
     btn2.Font = Enum.Font.GothamBold
@@ -588,6 +588,8 @@ local function CreateCornerButtons()
         if MainUI then
             MainUI.Visible = Settings.UIEnabled
         end
+        -- Also update button text
+        btn2.Text = Settings.UIEnabled and "⚙\nOPEN" or "⚙\nSETTINGS"
     end)
     
     CornerButtons = {btn1, btn2}
@@ -606,9 +608,9 @@ local function CreateUI()
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     local uiScale = GetUIScale()
-    -- Much bigger UI
-    local baseWidth = isMobile and 450 or 400
-    local baseHeight = isMobile and 700 or 650
+    -- Much wider UI
+    local baseWidth = isMobile and 600 or 550
+    local baseHeight = isMobile and 650 or 600
     
     -- Main Frame
     local mainFrame = Instance.new("Frame")
@@ -674,32 +676,44 @@ local function CreateUI()
     scrollFrame.Parent = mainFrame
     
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, isMobile and 10 or 8)
+    listLayout.Padding = UDim.new(0, isMobile and 6 or 5)
     listLayout.Parent = scrollFrame
     
     -- Settings UI Helper Functions
     local function CreateSlider(name, min, max, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, isMobile and 75 or 65)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 50 or 45)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
-        label.Size = UDim2.new(1, 0, 0, isMobile and 28 or 22)
+        label.Size = UDim2.new(0.4, 0, 0, isMobile and 20 or 18)
         label.BackgroundTransparency = 1
-        label.Text = name .. ": " .. string.format("%.2f", current)
+        label.Text = name .. ":"
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = isMobile and 18 or 16
+        label.TextSize = isMobile and 14 or 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Name = "ValueLabel"
+        valueLabel.Size = UDim2.new(0, 60, 0, isMobile and 20 or 18)
+        valueLabel.Position = UDim2.new(0.45, 0, 0, 0)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Text = string.format("%.2f", current)
+        valueLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        valueLabel.TextSize = isMobile and 14 or 12
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+        valueLabel.Parent = container
+        
         local slider = Instance.new("Frame")
         slider.Name = "Slider"
-        slider.Size = UDim2.new(1, 0, 0, isMobile and 10 or 8)
-        slider.Position = UDim2.new(0, 0, 0, isMobile and 35 or 28)
+        slider.Size = UDim2.new(0.55, 0, 0, isMobile and 8 or 6)
+        slider.Position = UDim2.new(0.45, 0, 0, isMobile and 22 or 20)
         slider.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
         slider.BorderSizePixel = 0
         slider.Parent = container
@@ -754,7 +768,7 @@ local function CreateUI()
                 local relativeX = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)
                 local value = min + (max - min) * relativeX
                 fill.Size = UDim2.new(relativeX, 0, 1, 0)
-                label.Text = name .. ": " .. string.format("%.2f", value)
+                valueLabel.Text = string.format("%.2f", value)
                 callback(value)
             end)
         end)
@@ -796,25 +810,25 @@ local function CreateUI()
     local function CreateToggle(name, current, callback)
         local container = Instance.new("Frame")
         container.Name = name .. "Container"
-        container.Size = UDim2.new(1, 0, 0, isMobile and 50 or 45)
+        container.Size = UDim2.new(1, 0, 0, isMobile and 35 or 30)
         container.BackgroundTransparency = 1
         container.Parent = scrollFrame
         
         local label = Instance.new("TextLabel")
         label.Name = "Label"
-        label.Size = UDim2.new(0.7, 0, 1, 0)
+        label.Size = UDim2.new(0.65, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name
         label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextSize = isMobile and 18 or 16
+        label.TextSize = isMobile and 14 or 12
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = container
         
         local toggle = Instance.new("TextButton")
         toggle.Name = "Toggle"
-        toggle.Size = UDim2.new(0, isMobile and 65 or 55, 0, isMobile and 32 or 28)
-        toggle.Position = UDim2.new(1, -(isMobile and 65 or 55), 0.5, -(isMobile and 16 or 14))
+        toggle.Size = UDim2.new(0, isMobile and 50 or 45, 0, isMobile and 24 or 22)
+        toggle.Position = UDim2.new(1, -(isMobile and 50 or 45), 0.5, -(isMobile and 12 or 11))
         toggle.BackgroundColor3 = current and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(60, 60, 70)
         toggle.BorderSizePixel = 0
         toggle.Text = ""
@@ -822,19 +836,19 @@ local function CreateUI()
         toggle.Parent = container
         
         local toggleCorner = Instance.new("UICorner")
-        toggleCorner.CornerRadius = UDim.new(0, 16)
+        toggleCorner.CornerRadius = UDim.new(0, 12)
         toggleCorner.Parent = toggle
         
         local indicator = Instance.new("Frame")
         indicator.Name = "Indicator"
-        indicator.Size = UDim2.new(0, isMobile and 26 or 22, 0, isMobile and 26 or 22)
-        indicator.Position = current and UDim2.new(1, -(isMobile and 29 or 26.5), 0.5, -(isMobile and 13 or 11)) or UDim2.new(0, isMobile and 3 or 2.5, 0.5, -(isMobile and 13 or 11))
+        indicator.Size = UDim2.new(0, isMobile and 20 or 18, 0, isMobile and 20 or 18)
+        indicator.Position = current and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))
         indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         indicator.BorderSizePixel = 0
         indicator.Parent = toggle
         
         local indicatorCorner = Instance.new("UICorner")
-        indicatorCorner.CornerRadius = UDim.new(0, 13)
+        indicatorCorner.CornerRadius = UDim.new(0, 10)
         indicatorCorner.Parent = indicator
         
         ConnectButton(toggle, function()
@@ -843,7 +857,7 @@ local function CreateUI()
             local tween = TweenService:Create(
                 indicator,
                 TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                {Position = current and UDim2.new(1, -(isMobile and 29 or 26.5), 0.5, -(isMobile and 13 or 11)) or UDim2.new(0, isMobile and 3 or 2.5, 0.5, -(isMobile and 13 or 11))}
+                {Position = current and UDim2.new(1, -(isMobile and 22 or 20), 0.5, -(isMobile and 10 or 9)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 10 or 9))}
             )
             tween:Play()
             callback(current)
@@ -852,7 +866,82 @@ local function CreateUI()
         return container
     end
     
-    -- Create all settings (FOV always visible)
+    -- Create text box input
+    local function CreateTextBox(name, current, callback, placeholder)
+        local container = Instance.new("Frame")
+        container.Name = name .. "Container"
+        container.Size = UDim2.new(1, 0, 0, isMobile and 35 or 30)
+        container.BackgroundTransparency = 1
+        container.Parent = scrollFrame
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Size = UDim2.new(0.4, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = name .. ":"
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextSize = isMobile and 14 or 12
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = container
+        
+        local textBox = Instance.new("TextBox")
+        textBox.Name = "TextBox"
+        textBox.Size = UDim2.new(0, isMobile and 120 or 100, 0, isMobile and 28 or 24)
+        textBox.Position = UDim2.new(0.45, 0, 0.5, -(isMobile and 14 or 12))
+        textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        textBox.BorderSizePixel = 0
+        textBox.Text = tostring(current)
+        textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textBox.TextSize = isMobile and 14 or 12
+        textBox.Font = Enum.Font.Gotham
+        textBox.PlaceholderText = placeholder or "Enter value"
+        textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+        textBox.ClearTextOnFocus = false
+        textBox.Parent = container
+        
+        local textBoxCorner = Instance.new("UICorner")
+        textBoxCorner.CornerRadius = UDim.new(0, 6)
+        textBoxCorner.Parent = textBox
+        
+        textBox.FocusLost:Connect(function(enterPressed)
+            local numValue = tonumber(textBox.Text)
+            if numValue then
+                callback(numValue)
+            else
+                textBox.Text = tostring(current)
+            end
+        end)
+        
+        return container
+    end
+    
+    -- Create all settings - Mix of toggles, sliders, and text boxes
+    CreateToggle("Camera Lock", Settings.CameraLockEnabled, function(val)
+        Settings.CameraLockEnabled = val
+        if val then
+            CreateFOVCircle()
+        else
+            if FOVCircle then
+                FOVCircle.ScreenGui:Destroy()
+                FOVCircle = nil
+            end
+        end
+    end)
+    
+    CreateToggle("Pathfinding", Settings.PathfindingEnabled, function(val)
+        Settings.PathfindingEnabled = val
+    end)
+    
+    CreateToggle("Auto Reload", Settings.AutoReload, function(val)
+        Settings.AutoReload = val
+    end)
+    
+    CreateToggle("Dodging Mode", Settings.DodgingEnabled, function(val)
+        Settings.DodgingEnabled = val
+    end)
+    
+    -- Sliders for precise values
     CreateSlider("Smoothness X", 0.01, 1, Settings.SmoothnessX, function(val)
         Settings.SmoothnessX = val
     end)
@@ -877,30 +966,6 @@ local function CreateUI()
         end
     end)
     
-    CreateSlider("Walk Speed", 0, 300, Settings.WalkSpeed, function(val)
-        Settings.WalkSpeed = val
-    end)
-    
-    CreateSlider("Jump Probability", 0, 0.1, Settings.JumpProbability, function(val)
-        Settings.JumpProbability = val
-    end)
-    
-    CreateSlider("Dodging Speed", 0, 50, Settings.DodgingSpeed, function(val)
-        Settings.DodgingSpeed = val
-    end)
-    
-    CreateSlider("Dodging Intensity", 0, 10, Settings.DodgingIntensity, function(val)
-        Settings.DodgingIntensity = val
-    end)
-    
-    CreateSlider("Auto Reload Interval", 1, 5, Settings.AutoReloadInterval, function(val)
-        Settings.AutoReloadInterval = val
-    end)
-    
-    CreateSlider("Auto Stop Shooting HP", 0, 100, Settings.AutoStopShootingHP, function(val)
-        Settings.AutoStopShootingHP = val
-    end)
-    
     CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
         Settings.FOVCircleTransparency = val
         if FOVCircle then
@@ -914,9 +979,30 @@ local function CreateUI()
         end
     end)
     
-    CreateToggle("Dodging Mode", Settings.DodgingEnabled, function(val)
-        Settings.DodgingEnabled = val
-    end)
+    -- Text boxes for quick value entry
+    CreateTextBox("Walk Speed", Settings.WalkSpeed, function(val)
+        Settings.WalkSpeed = math.clamp(val, 0, 300)
+    end, "0-300")
+    
+    CreateTextBox("Jump Probability", Settings.JumpProbability, function(val)
+        Settings.JumpProbability = math.clamp(val, 0, 0.1)
+    end, "0-0.1")
+    
+    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
+        Settings.DodgingSpeed = math.clamp(val, 0, 50)
+    end, "0-50")
+    
+    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
+        Settings.DodgingIntensity = math.clamp(val, 0, 10)
+    end, "0-10")
+    
+    CreateTextBox("Reload Interval", Settings.AutoReloadInterval, function(val)
+        Settings.AutoReloadInterval = math.clamp(val, 1, 5)
+    end, "1-5")
+    
+    CreateTextBox("Stop Shooting HP", Settings.AutoStopShootingHP, function(val)
+        Settings.AutoStopShootingHP = math.clamp(val, 0, 100)
+    end, "0-100")
     
     -- Update scroll frame size
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
