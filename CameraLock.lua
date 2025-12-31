@@ -469,59 +469,7 @@ local function ConnectButton(button, callback)
     end
 end
 
--- Make button draggable (but allow clicks) - Improved version
-local function MakeDraggable(frame, onClickCallback)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-    local hasMoved = false
-    local clickTime = 0
-    
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            clickTime = tick()
-            dragStart = input.Position
-            startPos = frame.Position
-            hasMoved = false
-            dragging = false
-            
-            local moveConnection
-            moveConnection = UserInputService.InputChanged:Connect(function(moveInput)
-                if moveInput == input and dragStart then
-                    local moved = (moveInput.Position - dragStart).Magnitude
-                    if moved > 15 then -- Only drag if moved significantly
-                        hasMoved = true
-                        dragging = true
-                        local delta = moveInput.Position - dragStart
-                        frame.Position = UDim2.new(
-                            startPos.X.Scale,
-                            startPos.X.Offset + delta.X,
-                            startPos.Y.Scale,
-                            startPos.Y.Offset + delta.Y
-                        )
-                    end
-                end
-            end)
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    moveConnection:Disconnect()
-                    local clickDuration = tick() - clickTime
-                    if not hasMoved and clickDuration < 0.3 then
-                        -- It was a click, trigger callback
-                        if onClickCallback then
-                            onClickCallback()
-                        end
-                    end
-                    dragging = false
-                    dragStart = nil
-                end
-            end)
-        end
-    end)
-end
-
--- Create Center Toggle Buttons (Draggable)
+-- Create Center Toggle Buttons (Completely Fixed Version)
 local function CreateCornerButtons()
     -- Clean up old buttons
     for _, btn in pairs(CornerButtons) do
@@ -540,7 +488,7 @@ local function CreateCornerButtons()
     local buttonSize = isMobile and 80 or 70
     local buttonSpacing = 20
     
-    -- Button 1: Camera Lock Toggle (Center Left) - Completely redone
+    -- Button 1: Camera Lock Toggle (Center Left) - FIXED VERSION
     local btn1 = Instance.new("TextButton")
     btn1.Name = "CameraLockToggle"
     btn1.Size = UDim2.new(0, buttonSize, 0, buttonSize)
@@ -561,25 +509,22 @@ local function CreateCornerButtons()
     corner1.CornerRadius = UDim.new(0, 12)
     corner1.Parent = btn1
     
-    -- Camera lock toggle function
+    -- Camera lock toggle function - SIMPLE AND DIRECT
     local function toggleCameraLock()
+        print("Camera Lock Toggle Clicked! Current state:", Settings.CameraLockEnabled)
         Settings.CameraLockEnabled = not Settings.CameraLockEnabled
+        print("New state:", Settings.CameraLockEnabled)
         
-        -- Update button appearance
+        -- Update button appearance immediately
         btn1.Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
         btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
         btn1.BackgroundTransparency = Settings.CameraLockEnabled and 0.3 or 0.5
         
-        -- Update corner button if exists
-        if CornerButtons[1] then
-            CornerButtons[1].Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
-            CornerButtons[1].BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-            CornerButtons[1].BackgroundTransparency = Settings.CameraLockEnabled and 0.3 or 0.5
-        end
-        
         if Settings.CameraLockEnabled then
+            print("Enabling camera lock...")
             CreateFOVCircle()
         else
+            print("Disabling camera lock...")
             -- Clean up when disabling
             if FOVCircle then
                 FOVCircle.ScreenGui:Destroy()
@@ -596,17 +541,49 @@ local function CreateCornerButtons()
         end
     end
     
-    -- Make draggable with click callback
-    MakeDraggable(btn1, toggleCameraLock)
+    -- Simple drag handling - separate from clicks
+    local btn1Dragging = false
+    local btn1DragStart = nil
+    local btn1StartPos = nil
     
-    -- Also add direct click handlers as backup
-    btn1.Activated:Connect(toggleCameraLock)
-    btn1.MouseButton1Click:Connect(toggleCameraLock)
-    if isMobile or isTablet then
-        btn1.TouchTap:Connect(toggleCameraLock)
-    end
+    btn1.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            btn1DragStart = input.Position
+            btn1StartPos = btn1.Position
+            btn1Dragging = false
+            
+            local dragConnection
+            dragConnection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput == input and btn1DragStart then
+                    local moved = (moveInput.Position - btn1DragStart).Magnitude
+                    if moved > 20 then
+                        btn1Dragging = true
+                        local delta = moveInput.Position - btn1DragStart
+                        btn1.Position = UDim2.new(
+                            btn1StartPos.X.Scale,
+                            btn1StartPos.X.Offset + delta.X,
+                            btn1StartPos.Y.Scale,
+                            btn1StartPos.Y.Offset + delta.Y
+                        )
+                    end
+                end
+            end)
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragConnection:Disconnect()
+                    if not btn1Dragging then
+                        -- It was a click, toggle camera lock
+                        toggleCameraLock()
+                    end
+                    btn1Dragging = false
+                    btn1DragStart = nil
+                end
+            end)
+        end
+    end)
     
-    -- Button 2: Settings UI Toggle (Center Right) - Completely redone
+    -- Button 2: Settings UI Toggle (Center Right) - FIXED VERSION
     local btn2 = Instance.new("TextButton")
     btn2.Name = "UIToggle"
     btn2.Size = UDim2.new(0, buttonSize, 0, buttonSize)
@@ -627,7 +604,7 @@ local function CreateCornerButtons()
     corner2.CornerRadius = UDim.new(0, 12)
     corner2.Parent = btn2
     
-    -- Settings toggle function
+    -- Settings toggle function - SIMPLE AND DIRECT
     local function toggleSettings()
         Settings.UIEnabled = not Settings.UIEnabled
         
@@ -645,15 +622,47 @@ local function CreateCornerButtons()
         btn2.Text = Settings.UIEnabled and "⚙\nCLOSE" or "⚙\nSETTINGS"
     end
     
-    -- Make draggable with click callback
-    MakeDraggable(btn2, toggleSettings)
+    -- Simple drag handling - separate from clicks
+    local btn2Dragging = false
+    local btn2DragStart = nil
+    local btn2StartPos = nil
     
-    -- Also add direct click handlers as backup
-    btn2.Activated:Connect(toggleSettings)
-    btn2.MouseButton1Click:Connect(toggleSettings)
-    if isMobile or isTablet then
-        btn2.TouchTap:Connect(toggleSettings)
-    end
+    btn2.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            btn2DragStart = input.Position
+            btn2StartPos = btn2.Position
+            btn2Dragging = false
+            
+            local dragConnection
+            dragConnection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput == input and btn2DragStart then
+                    local moved = (moveInput.Position - btn2DragStart).Magnitude
+                    if moved > 20 then
+                        btn2Dragging = true
+                        local delta = moveInput.Position - btn2DragStart
+                        btn2.Position = UDim2.new(
+                            btn2StartPos.X.Scale,
+                            btn2StartPos.X.Offset + delta.X,
+                            btn2StartPos.Y.Scale,
+                            btn2StartPos.Y.Offset + delta.Y
+                        )
+                    end
+                end
+            end)
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragConnection:Disconnect()
+                    if not btn2Dragging then
+                        -- It was a click, toggle settings
+                        toggleSettings()
+                    end
+                    btn2Dragging = false
+                    btn2DragStart = nil
+                end
+            end)
+        end
+    end)
     
     CornerButtons = {btn1, btn2}
 end
