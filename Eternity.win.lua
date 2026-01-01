@@ -907,7 +907,7 @@ toggle_lock = function()
     end
 end
 
--- Custom UI Creation
+-- Custom UI Creation with Tabs
 local MainGui = Instance.new("ScreenGui")
 MainGui.Name = "EternityUI"
 MainGui.Parent = game.CoreGui
@@ -919,11 +919,11 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = MainGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 0
-MainFrame.Size = UDim2.new(0, 500, 0, 600)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -300)
+MainFrame.Size = UDim2.new(0, 400, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.CornerRadius = UDim.new(0, 10)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
@@ -938,23 +938,23 @@ TitleBar.Name = "TitleBar"
 TitleBar.Parent = MainFrame
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Name = "TitleLabel"
 TitleLabel.Parent = TitleBar
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Size = UDim2.new(1, -100, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Size = UDim2.new(1, -80, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.Text = "Eternity.win"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
+TitleLabel.TextSize = 16
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local ToggleButton = Instance.new("TextButton")
@@ -962,15 +962,15 @@ ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = TitleBar
 ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.BorderSizePixel = 0
-ToggleButton.Size = UDim2.new(0, 30, 0, 30)
-ToggleButton.Position = UDim2.new(1, -70, 0, 5)
+ToggleButton.Size = UDim2.new(0, 25, 0, 25)
+ToggleButton.Position = UDim2.new(1, -60, 0, 5)
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.Text = "-"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 20
+ToggleButton.TextSize = 18
 
 local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.CornerRadius = UDim.new(0, 5)
 ToggleCorner.Parent = ToggleButton
 
 local LockButton = Instance.new("TextButton")
@@ -978,33 +978,48 @@ LockButton.Name = "LockButton"
 LockButton.Parent = TitleBar
 LockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 LockButton.BorderSizePixel = 0
-LockButton.Size = UDim2.new(0, 30, 0, 30)
-LockButton.Position = UDim2.new(1, -35, 0, 5)
+LockButton.Size = UDim2.new(0, 25, 0, 25)
+LockButton.Position = UDim2.new(1, -30, 0, 5)
 LockButton.Font = Enum.Font.GothamBold
 LockButton.Text = "🔒"
 LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-LockButton.TextSize = 14
+LockButton.TextSize = 12
 
 local LockCorner = Instance.new("UICorner")
-LockCorner.CornerRadius = UDim.new(0, 6)
+LockCorner.CornerRadius = UDim.new(0, 5)
 LockCorner.Parent = LockButton
 
--- Content Frame
+-- Tabs Container
+local TabsContainer = Instance.new("Frame")
+TabsContainer.Name = "TabsContainer"
+TabsContainer.Parent = MainFrame
+TabsContainer.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+TabsContainer.BorderSizePixel = 0
+TabsContainer.Size = UDim2.new(1, 0, 0, 35)
+TabsContainer.Position = UDim2.new(0, 0, 0, 35)
+
+local TabsLayout = Instance.new("UIListLayout")
+TabsLayout.Parent = TabsContainer
+TabsLayout.FillDirection = Enum.FillDirection.Horizontal
+TabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- Content Frame (Scrollable)
 local ContentFrame = Instance.new("ScrollingFrame")
 ContentFrame.Name = "ContentFrame"
 ContentFrame.Parent = MainFrame
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.BorderSizePixel = 0
-ContentFrame.Size = UDim2.new(1, -20, 1, -50)
-ContentFrame.Position = UDim2.new(0, 10, 0, 45)
+ContentFrame.Size = UDim2.new(1, -10, 1, -75)
+ContentFrame.Position = UDim2.new(0, 5, 0, 70)
 ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ContentFrame.ScrollBarThickness = 4
+ContentFrame.ScrollBarThickness = 6
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+ContentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ContentFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Padding = UDim.new(0, 5)
 
 -- UI Toggle Button (Top Right Corner)
 local UIToggleButton = Instance.new("TextButton")
@@ -1012,12 +1027,12 @@ UIToggleButton.Name = "UIToggleButton"
 UIToggleButton.Parent = game.CoreGui
 UIToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 UIToggleButton.BorderSizePixel = 0
-UIToggleButton.Size = UDim2.new(0, 50, 0, 50)
-UIToggleButton.Position = UDim2.new(1, -60, 0, 10)
+UIToggleButton.Size = UDim2.new(0, 45, 0, 45)
+UIToggleButton.Position = UDim2.new(1, -55, 0, 10)
 UIToggleButton.Font = Enum.Font.GothamBold
 UIToggleButton.Text = "☰"
 UIToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-UIToggleButton.TextSize = 24
+UIToggleButton.TextSize = 20
 
 local UIToggleCorner = Instance.new("UICorner")
 UIToggleCorner.CornerRadius = UDim.new(0, 8)
@@ -1028,18 +1043,18 @@ UIToggleStroke.Parent = UIToggleButton
 UIToggleStroke.Thickness = 2
 UIToggleStroke.Color = Color3.fromRGB(100, 100, 100)
 
--- Lock Button for Target Aim (Bottom Right)
+-- Lock Button for Target Aim (Draggable)
 local AimLockButton = Instance.new("TextButton")
 AimLockButton.Name = "AimLockButton"
 AimLockButton.Parent = game.CoreGui
 AimLockButton.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
 AimLockButton.BorderSizePixel = 0
-AimLockButton.Size = UDim2.new(0, 150, 0, 50)
-AimLockButton.Position = UDim2.new(0.5, -75, 1, -70)
+AimLockButton.Size = UDim2.new(0, 130, 0, 45)
+AimLockButton.Position = UDim2.new(0.5, -65, 1, -60)
 AimLockButton.Font = Enum.Font.ArialBold
 AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
 AimLockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AimLockButton.TextSize = 25
+AimLockButton.TextSize = 22
 AimLockButton.RichText = true
 AimLockButton.TextStrokeTransparency = 0.5
 
@@ -1052,11 +1067,11 @@ AimLockStroke.Parent = AimLockButton
 AimLockStroke.Thickness = 2
 AimLockStroke.Color = Color3.fromRGB(16, 16, 32)
 
--- Dragging functionality
+-- Dragging functionality for Main UI
 local dragging = false
 local dragInput, dragStart, startPos
 
-local function update(input)
+local function updateMainUI(input)
     local delta = input.Position - dragStart
     MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
@@ -1083,7 +1098,42 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
-        update(input)
+        updateMainUI(input)
+    end
+end)
+
+-- Dragging functionality for Lock Button
+local lockDragging = false
+local lockDragInput, lockDragStart, lockStartPos
+
+local function updateLockButton(input)
+    local delta = input.Position - lockDragStart
+    AimLockButton.Position = UDim2.new(lockStartPos.X.Scale, lockStartPos.X.Offset + delta.X, lockStartPos.Y.Scale, lockStartPos.Y.Offset + delta.Y)
+end
+
+AimLockButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        lockDragging = true
+        lockDragStart = input.Position
+        lockStartPos = AimLockButton.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                lockDragging = false
+            end
+        end)
+    end
+end)
+
+AimLockButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        lockDragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == lockDragInput and lockDragging then
+        updateLockButton(input)
     end
 end)
 
@@ -1098,12 +1148,14 @@ end)
 ToggleButton.MouseButton1Click:Connect(function()
     UIMinimized = not UIMinimized
     if UIMinimized then
-        MainFrame.Size = UDim2.new(0, 500, 0, 40)
+        MainFrame.Size = UDim2.new(0, 400, 0, 35)
         ContentFrame.Visible = false
+        TabsContainer.Visible = false
         ToggleButton.Text = "+"
     else
-        MainFrame.Size = UDim2.new(0, 500, 0, 600)
+        MainFrame.Size = UDim2.new(0, 400, 0, 450)
         ContentFrame.Visible = true
+        TabsContainer.Visible = true
         ToggleButton.Text = "-"
     end
 end)
@@ -1139,122 +1191,477 @@ UserInputService.InputBegan:Connect(function(input, processed)
     end
 end)
 
--- Helper function to create settings
-local function CreateSetting(parent, name, value, callback)
-    local SettingFrame = Instance.new("Frame")
-    SettingFrame.Name = name
-    SettingFrame.Parent = parent
-    SettingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    SettingFrame.BorderSizePixel = 0
-    SettingFrame.Size = UDim2.new(1, 0, 0, 35)
+-- Tab System
+local Tabs = {}
+local CurrentTab = nil
+
+local function CreateTab(name)
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = name .. "Tab"
+    TabButton.Parent = TabsContainer
+    TabButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    TabButton.BorderSizePixel = 0
+    TabButton.Size = UDim2.new(0, 100, 1, 0)
+    TabButton.Font = Enum.Font.Gotham
+    TabButton.Text = name
+    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabButton.TextSize = 12
     
-    local SettingCorner = Instance.new("UICorner")
-    SettingCorner.CornerRadius = UDim.new(0, 6)
-    SettingCorner.Parent = SettingFrame
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 5)
+    TabCorner.Parent = TabButton
     
-    local SettingLabel = Instance.new("TextLabel")
-    SettingLabel.Parent = SettingFrame
-    SettingLabel.BackgroundTransparency = 1
-    SettingLabel.Size = UDim2.new(1, -70, 1, 0)
-    SettingLabel.Position = UDim2.new(0, 10, 0, 0)
-    SettingLabel.Font = Enum.Font.Gotham
-    SettingLabel.Text = name
-    SettingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SettingLabel.TextSize = 14
-    SettingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    local TabContent = Instance.new("Frame")
+    TabContent.Name = name .. "Content"
+    TabContent.Parent = ContentFrame
+    TabContent.BackgroundTransparency = 1
+    TabContent.Size = UDim2.new(1, 0, 0, 0)
+    TabContent.Visible = false
+    
+    local TabLayout = Instance.new("UIListLayout")
+    TabLayout.Parent = TabContent
+    TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabLayout.Padding = UDim.new(0, 5)
+    
+    TabButton.MouseButton1Click:Connect(function()
+        -- Hide all tabs
+        for _, tab in pairs(Tabs) do
+            tab.Content.Visible = false
+            tab.Button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            tab.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        
+        -- Show selected tab
+        TabContent.Visible = true
+        TabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CurrentTab = TabContent
+        
+        -- Update canvas size
+        TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContent.Size = UDim2.new(1, 0, 0, TabLayout.AbsoluteContentSize.Y)
+            ContentFrame.CanvasSize = UDim2.new(0, 0, 0, TabLayout.AbsoluteContentSize.Y + 10)
+        end)
+    end)
+    
+    Tabs[name] = {
+        Button = TabButton,
+        Content = TabContent,
+        Layout = TabLayout
+    }
+    
+    return TabContent
+end
+
+-- Helper Functions for UI Elements
+local function CreateToggle(parent, name, value, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = name
+    ToggleFrame.Parent = parent
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 28)
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 5)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Size = UDim2.new(1, -60, 1, 0)
+    ToggleLabel.Position = UDim2.new(0, 8, 0, 0)
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.TextSize = 12
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local Toggle = Instance.new("TextButton")
-    Toggle.Parent = SettingFrame
-    Toggle.BackgroundColor3 = value and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    Toggle.Parent = ToggleFrame
+    Toggle.BackgroundColor3 = value and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
     Toggle.BorderSizePixel = 0
-    Toggle.Size = UDim2.new(0, 55, 0, 25)
-    Toggle.Position = UDim2.new(1, -65, 0, 5)
+    Toggle.Size = UDim2.new(0, 50, 0, 22)
+    Toggle.Position = UDim2.new(1, -58, 0, 3)
     Toggle.Font = Enum.Font.GothamBold
     Toggle.Text = value and "ON" or "OFF"
     Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Toggle.TextSize = 12
+    Toggle.TextSize = 11
     
     local ToggleCorner2 = Instance.new("UICorner")
-    ToggleCorner2.CornerRadius = UDim.new(0, 6)
+    ToggleCorner2.CornerRadius = UDim.new(0, 5)
     ToggleCorner2.Parent = Toggle
     
     local currentValue = value
     Toggle.MouseButton1Click:Connect(function()
         currentValue = not currentValue
-        Toggle.BackgroundColor3 = currentValue and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        Toggle.BackgroundColor3 = currentValue and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
         Toggle.Text = currentValue and "ON" or "OFF"
         if callback then callback(currentValue) end
     end)
+end
+
+local function CreateSlider(parent, name, min, max, current, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Name = name
+    SliderFrame.Parent = parent
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    SliderFrame.BorderSizePixel = 0
+    SliderFrame.Size = UDim2.new(1, 0, 0, 40)
     
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+    local SliderCorner = Instance.new("UICorner")
+    SliderCorner.CornerRadius = UDim.new(0, 5)
+    SliderCorner.Parent = SliderFrame
+    
+    local SliderLabel = Instance.new("TextLabel")
+    SliderLabel.Parent = SliderFrame
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.Size = UDim2.new(1, -10, 0, 18)
+    SliderLabel.Position = UDim2.new(0, 8, 0, 2)
+    SliderLabel.Font = Enum.Font.Gotham
+    SliderLabel.Text = name .. ": " .. tostring(current)
+    SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SliderLabel.TextSize = 11
+    SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local SliderTrack = Instance.new("Frame")
+    SliderTrack.Parent = SliderFrame
+    SliderTrack.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SliderTrack.BorderSizePixel = 0
+    SliderTrack.Size = UDim2.new(1, -16, 0, 4)
+    SliderTrack.Position = UDim2.new(0, 8, 0, 22)
+    
+    local SliderTrackCorner = Instance.new("UICorner")
+    SliderTrackCorner.CornerRadius = UDim.new(0, 2)
+    SliderTrackCorner.Parent = SliderTrack
+    
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Parent = SliderTrack
+    SliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    SliderFill.BorderSizePixel = 0
+    SliderFill.Size = UDim2.new((current - min) / (max - min), 0, 1, 0)
+    
+    local SliderFillCorner = Instance.new("UICorner")
+    SliderFillCorner.CornerRadius = UDim.new(0, 2)
+    SliderFillCorner.Parent = SliderFill
+    
+    local SliderButton = Instance.new("TextButton")
+    SliderButton.Parent = SliderTrack
+    SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderButton.BorderSizePixel = 0
+    SliderButton.Size = UDim2.new(0, 12, 0, 12)
+    SliderButton.Position = UDim2.new((current - min) / (max - min), -6, 0, -4)
+    SliderButton.Text = ""
+    
+    local SliderButtonCorner = Instance.new("UICorner")
+    SliderButtonCorner.CornerRadius = UDim.new(0, 6)
+    SliderButtonCorner.Parent = SliderButton
+    
+    local dragging = false
+    SliderButton.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    SliderTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            local pos = input.Position.X - SliderTrack.AbsolutePosition.X
+            local percent = math.clamp(pos / SliderTrack.AbsoluteSize.X, 0, 1)
+            local value = math.floor(min + (max - min) * percent)
+            SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            SliderButton.Position = UDim2.new(percent, -6, 0, -4)
+            SliderLabel.Text = name .. ": " .. tostring(value)
+            if callback then callback(value) end
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = input.Position.X - SliderTrack.AbsolutePosition.X
+            local percent = math.clamp(pos / SliderTrack.AbsoluteSize.X, 0, 1)
+            local value = math.floor(min + (max - min) * percent)
+            SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            SliderButton.Position = UDim2.new(percent, -6, 0, -4)
+            SliderLabel.Text = name .. ": " .. tostring(value)
+            if callback then callback(value) end
+        end
     end)
 end
 
--- Create settings
-CreateSetting(ContentFrame, "Target Aim", getgenv().Sentinel.Enabled, function(val)
+local function CreateDropdown(parent, name, options, current, callback)
+    local DropdownFrame = Instance.new("Frame")
+    DropdownFrame.Name = name
+    DropdownFrame.Parent = parent
+    DropdownFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+    DropdownFrame.BorderSizePixel = 0
+    DropdownFrame.Size = UDim2.new(1, 0, 0, 28)
+    DropdownFrame.ClipsDescendants = true
+    
+    local DropdownCorner = Instance.new("UICorner")
+    DropdownCorner.CornerRadius = UDim.new(0, 5)
+    DropdownCorner.Parent = DropdownFrame
+    
+    local DropdownLabel = Instance.new("TextLabel")
+    DropdownLabel.Parent = DropdownFrame
+    DropdownLabel.BackgroundTransparency = 1
+    DropdownLabel.Size = UDim2.new(1, -60, 1, 0)
+    DropdownLabel.Position = UDim2.new(0, 8, 0, 0)
+    DropdownLabel.Font = Enum.Font.Gotham
+    DropdownLabel.Text = name .. ": " .. current
+    DropdownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DropdownLabel.TextSize = 12
+    DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local DropdownButton = Instance.new("TextButton")
+    DropdownButton.Parent = DropdownFrame
+    DropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    DropdownButton.BorderSizePixel = 0
+    DropdownButton.Size = UDim2.new(0, 50, 0, 22)
+    DropdownButton.Position = UDim2.new(1, -58, 0, 3)
+    DropdownButton.Font = Enum.Font.GothamBold
+    DropdownButton.Text = "▼"
+    DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DropdownButton.TextSize = 10
+    
+    local DropdownButtonCorner = Instance.new("UICorner")
+    DropdownButtonCorner.CornerRadius = UDim.new(0, 5)
+    DropdownButtonCorner.Parent = DropdownButton
+    
+    local DropdownList = Instance.new("ScrollingFrame")
+    DropdownList.Parent = DropdownFrame
+    DropdownList.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    DropdownList.BorderSizePixel = 0
+    DropdownList.Size = UDim2.new(1, 0, 0, 0)
+    DropdownList.Position = UDim2.new(0, 0, 1, 2)
+    DropdownList.Visible = false
+    DropdownList.ScrollBarThickness = 4
+    
+    local DropdownListLayout = Instance.new("UIListLayout")
+    DropdownListLayout.Parent = DropdownList
+    
+    local opened = false
+    DropdownButton.MouseButton1Click:Connect(function()
+        opened = not opened
+        DropdownList.Visible = opened
+        DropdownButton.Text = opened and "▲" or "▼"
+        
+        if opened then
+            DropdownList:ClearAllChildren()
+            DropdownListLayout:ClearAllChildren()
+            
+            for _, option in ipairs(options) do
+                local OptionButton = Instance.new("TextButton")
+                OptionButton.Parent = DropdownList
+                OptionButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                OptionButton.BorderSizePixel = 0
+                OptionButton.Size = UDim2.new(1, 0, 0, 25)
+                OptionButton.Font = Enum.Font.Gotham
+                OptionButton.Text = option
+                OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                OptionButton.TextSize = 11
+                
+                OptionButton.MouseButton1Click:Connect(function()
+                    DropdownLabel.Text = name .. ": " .. option
+                    opened = false
+                    DropdownList.Visible = false
+                    DropdownButton.Text = "▼"
+                    if callback then callback(option) end
+                end)
+            end
+            
+            DropdownList.Size = UDim2.new(1, 0, 0, math.min(#options * 25, 100))
+            DropdownList.CanvasSize = UDim2.new(0, 0, 0, #options * 25)
+        end
+    end)
+end
+
+local function CreateButton(parent, name, callback)
+    local ButtonFrame = Instance.new("TextButton")
+    ButtonFrame.Name = name
+    ButtonFrame.Parent = parent
+    ButtonFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    ButtonFrame.BorderSizePixel = 0
+    ButtonFrame.Size = UDim2.new(1, 0, 0, 30)
+    ButtonFrame.Font = Enum.Font.GothamBold
+    ButtonFrame.Text = name
+    ButtonFrame.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ButtonFrame.TextSize = 12
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 5)
+    ButtonCorner.Parent = ButtonFrame
+    
+    ButtonFrame.MouseButton1Click:Connect(function()
+        if callback then callback() end
+    end)
+end
+
+-- Create Tabs
+local MainTab = CreateTab("Main")
+local VisualsTab = CreateTab("Visuals")
+local HvHTab = CreateTab("HvH")
+local MiscTab = CreateTab("Misc")
+
+-- Main Tab Settings
+CreateToggle(MainTab, "Target Aim", getgenv().Sentinel.Enabled, function(val)
     getgenv().Sentinel.Enabled = val
 end)
 
-CreateSetting(ContentFrame, "Look At", getgenv().Sentinel.LookAt, function(val)
+CreateToggle(MainTab, "Look At", getgenv().Sentinel.LookAt, function(val)
     getgenv().Sentinel.LookAt = val
 end)
 
-CreateSetting(ContentFrame, "Highlight", Highlight, function(val)
+CreateToggle(MainTab, "Highlight", Highlight, function(val)
     Highlight = val
 end)
 
-CreateSetting(ContentFrame, "Auto Air", getgenv().Sentinel.AutoAir, function(val)
+CreateToggle(MainTab, "Auto Air", getgenv().Sentinel.AutoAir, function(val)
     getgenv().Sentinel.AutoAir = val
 end)
 
-CreateSetting(ContentFrame, "Resolver", getgenv().Sentinel.ResolverEnabled, function(val)
+CreateToggle(MainTab, "Resolver", getgenv().Sentinel.ResolverEnabled, function(val)
     getgenv().Sentinel.ResolverEnabled = val
 end)
 
-CreateSetting(ContentFrame, "Grenade TP", Script.Locals.GrenadeTP.Enabled, function(val)
-    Script.Locals.GrenadeTP.Enabled = val
+CreateToggle(MainTab, "Nearest Part", getgenv().Sentinel.NearestPart, function(val)
+    getgenv().Sentinel.NearestPart = val
 end)
 
-CreateSetting(ContentFrame, "Rocket TP", Script.Locals.RocketTP.Enabled, function(val)
-    Script.Locals.RocketTP.Enabled = val
+CreateToggle(MainTab, "Auto Prediction", getgenv().Sentinel.AutoPrediction, function(val)
+    getgenv().Sentinel.AutoPrediction = val
 end)
 
-CreateSetting(ContentFrame, "Bullet TP", Script.Locals.GunTP.Enabled, function(val)
-    Script.Locals.GunTP.Enabled = val
+CreateSlider(MainTab, "Horizontal Prediction", 0, 200, getgenv().Sentinel.HorizontalPrediction * 1000, function(val)
+    getgenv().Sentinel.HorizontalPrediction = val / 1000
 end)
 
-CreateSetting(ContentFrame, "Camera", getgenv().Sentinel.Camera, function(val)
-    getgenv().Sentinel.Camera = val
+CreateSlider(MainTab, "Smoothness", 0, 100, getgenv().Sentinel.smoothness * 100, function(val)
+    getgenv().Sentinel.smoothness = val / 100
 end)
 
-CreateSetting(ContentFrame, "Network Anti", getgenv().Sentinel.network, function(val)
-    getgenv().Sentinel.network = val
+CreateDropdown(MainTab, "Hit Part", {"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart", "LeftUpperArm", "RightUpperArm"}, getgenv().Sentinel.SelectedPart, function(val)
+    getgenv().Sentinel.SelectedPart = val
 end)
 
-CreateSetting(ContentFrame, "Jump Break", getgenv().Sentinel.JumpBreak, function(val)
-    getgenv().Sentinel.JumpBreak = val
+CreateDropdown(MainTab, "Lock Type", {"Namecall", "Index"}, getgenv().Sentinel.LockType, function(val)
+    getgenv().Sentinel.LockType = val
 end)
 
-CreateSetting(ContentFrame, "Anti Lock", getgenv().Desync, function(val)
-    getgenv().Desync = val
-end)
-
-CreateSetting(ContentFrame, "Hit Effect", TargetAimbot.HitEffect, function(val)
+-- Visuals Tab Settings
+CreateToggle(VisualsTab, "Hit Effect", TargetAimbot.HitEffect, function(val)
     TargetAimbot.HitEffect = val
 end)
 
-CreateSetting(ContentFrame, "Hit Sound", TargetAimbot.HitSounds, function(val)
+CreateToggle(VisualsTab, "Hit Sound", TargetAimbot.HitSounds, function(val)
     TargetAimbot.HitSounds = val
 end)
 
-CreateSetting(ContentFrame, "Hit Chams", TargetAimbot.HitChams, function(val)
+CreateToggle(VisualsTab, "Hit Chams", TargetAimbot.HitChams, function(val)
     TargetAimbot.HitChams = val
 end)
 
-CreateSetting(ContentFrame, "CSync", TargetAimbot.CSync.Enabled, function(val)
+CreateDropdown(VisualsTab, "Hit Effect Type", {"Nova", "Crescent Slash", "Coom", "Cosmic Explosion", "Atomic Slash"}, TargetAimbot.HitEffectType, function(val)
+    TargetAimbot.HitEffectType = val
+end)
+
+CreateDropdown(VisualsTab, "Hit Sound Type", {"RIFK7", "Bubble", "Minecraft", "Cod", "Bameware", "Neverlose", "Gamesense", "Rust", "BlackPencil"}, TargetAimbot.HitSound, function(val)
+    TargetAimbot.HitSound = val
+end)
+
+CreateSlider(VisualsTab, "Hit Chams Duration", 0, 500, TargetAimbot.HitChamsDuration * 100, function(val)
+    TargetAimbot.HitChamsDuration = val / 100
+end)
+
+-- HvH Tab Settings
+CreateToggle(HvHTab, "Grenade TP", Script.Locals.GrenadeTP.Enabled, function(val)
+    Script.Locals.GrenadeTP.Enabled = val
+end)
+
+CreateToggle(HvHTab, "Rocket TP", Script.Locals.RocketTP.Enabled, function(val)
+    Script.Locals.RocketTP.Enabled = val
+end)
+
+CreateToggle(HvHTab, "Bullet TP", Script.Locals.GunTP.Enabled, function(val)
+    Script.Locals.GunTP.Enabled = val
+end)
+
+CreateToggle(HvHTab, "CSync", TargetAimbot.CSync.Enabled, function(val)
     TargetAimbot.CSync.Enabled = val
 end)
+
+CreateDropdown(HvHTab, "CSync Type", {"Orbit", "Random"}, TargetAimbot.CSync.Type, function(val)
+    TargetAimbot.CSync.Type = val
+end)
+
+CreateSlider(HvHTab, "CSync Distance", 0, 200, TargetAimbot.CSync.Distance * 10, function(val)
+    TargetAimbot.CSync.Distance = val / 10
+end)
+
+CreateSlider(HvHTab, "CSync Height", 0, 100, TargetAimbot.CSync.Height * 10, function(val)
+    TargetAimbot.CSync.Height = val / 10
+end)
+
+CreateSlider(HvHTab, "CSync Speed", 0, 200, TargetAimbot.CSync.Speed * 10, function(val)
+    TargetAimbot.CSync.Speed = val / 10
+end)
+
+-- Misc Tab Settings
+CreateToggle(MiscTab, "Camera", getgenv().Sentinel.Camera, function(val)
+    getgenv().Sentinel.Camera = val
+end)
+
+CreateToggle(MiscTab, "Network Anti", getgenv().Sentinel.network, function(val)
+    getgenv().Sentinel.network = val
+end)
+
+CreateToggle(MiscTab, "Jump Break", getgenv().Sentinel.JumpBreak, function(val)
+    getgenv().Sentinel.JumpBreak = val
+end)
+
+CreateToggle(MiscTab, "Anti Lock", getgenv().Desync, function(val)
+    getgenv().Desync = val
+end)
+
+CreateDropdown(MiscTab, "Anti Lock Type", {"Behind", "Down", "ForWard", "Left", "One", "Right", "Up", "Zero"}, getgenv().AntiLockType, function(val)
+    getgenv().AntiLockType = val
+end)
+
+CreateSlider(MiscTab, "CFrame Speed", 0, 100, getgenv().Sentinel.speedvalue * 10, function(val)
+    getgenv().Sentinel.speedvalue = val / 10
+end)
+
+CreateToggle(MiscTab, "CFrame Speed Toggle", getgenv().Sentinel.cframespeedtoggle, function(val)
+    getgenv().Sentinel.cframespeedtoggle = val
+end)
+
+CreateDropdown(MiscTab, "Easing Style", {"Linear", "Quad", "Cubic", "Quart", "Quint", "Sine", "Exponential", "Circular", "Back", "Bounce", "Elastic"}, getgenv().Sentinel.easingStyle, function(val)
+    getgenv().Sentinel.easingStyle = val
+end)
+
+CreateDropdown(MiscTab, "Easing Direction", {"In", "Out", "InOut"}, getgenv().Sentinel.easingDirection, function(val)
+    getgenv().Sentinel.easingDirection = val
+end)
+
+-- Set first tab as active
+if Tabs["Main"] then
+    Tabs["Main"].Button.MouseButton1Click:Fire()
+end
+
+-- Update canvas size on layout change
+for tabName, tab in pairs(Tabs) do
+    tab.Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tab.Content.Size = UDim2.new(1, 0, 0, tab.Layout.AbsoluteContentSize.Y)
+        if CurrentTab == tab.Content then
+            ContentFrame.CanvasSize = UDim2.new(0, 0, 0, tab.Layout.AbsoluteContentSize.Y + 10)
+        end
+    end)
+end
 
 -- Game Support
 local game_support = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/script-khen/refs/heads/main/Argument.txt",true))()
