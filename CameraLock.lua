@@ -12,16 +12,29 @@ local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Character handling
+-- Character handling with proper respawn support
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Handle character respawning
+-- Handle character respawning - Improved version
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     Humanoid = newCharacter:WaitForChild("Humanoid")
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    
+    -- Reset state on respawn
+    Target = nil
+    TargetHumanoid = nil
+    TargetHumanoidRootPart = nil
+    PathfindingPath = nil
+    CurrentWaypointIndex = 1
+    
+    if IsShooting and ShootingConnection then
+        ShootingConnection:Disconnect()
+        ShootingConnection = nil
+        IsShooting = false
+    end
 end)
 
 -- Detect if mobile
@@ -150,8 +163,12 @@ local function CreateFOVCircle()
     end)
 end
 
--- Find nearest target
+-- Find nearest target - Improved with better error handling
 local function FindNearestTarget()
+    if not HumanoidRootPart or not Camera then
+        return nil
+    end
+    
     local nearestPlayer = nil
     local nearestDistance = math.huge
     
@@ -161,22 +178,29 @@ local function FindNearestTarget()
             local humanoid = character:FindFirstChild("Humanoid")
             local rootPart = character:FindFirstChild("HumanoidRootPart")
             
-            if humanoid and rootPart and humanoid.Health > 0 then
-                local distance = (HumanoidRootPart.Position - rootPart.Position).Magnitude
+            if humanoid and rootPart and humanoid.Health > 0 and HumanoidRootPart then
+                local success, distance = pcall(function()
+                    return (HumanoidRootPart.Position - rootPart.Position).Magnitude
+                end)
                 
-                -- Check if target is within FOV
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                if onScreen then
-                    local centerX = Camera.ViewportSize.X / 2
-                    local centerY = Camera.ViewportSize.Y / 2
-                    local distanceFromCenter = math.sqrt(
-                        math.pow(screenPoint.X - centerX, 2) + 
-                        math.pow(screenPoint.Y - centerY, 2)
-                    )
+                if success and distance then
+                    -- Check if target is within FOV
+                    local screenSuccess, screenPoint, onScreen = pcall(function()
+                        return Camera:WorldToViewportPoint(rootPart.Position)
+                    end)
                     
-                    if distanceFromCenter <= Settings.FOV and distance < nearestDistance then
-                        nearestDistance = distance
-                        nearestPlayer = player
+                    if screenSuccess and screenPoint and onScreen then
+                        local centerX = Camera.ViewportSize.X / 2
+                        local centerY = Camera.ViewportSize.Y / 2
+                        local distanceFromCenter = math.sqrt(
+                            math.pow(screenPoint.X - centerX, 2) + 
+                            math.pow(screenPoint.Y - centerY, 2)
+                        )
+                        
+                        if distanceFromCenter <= Settings.FOV and distance < nearestDistance then
+                            nearestDistance = distance
+                            nearestPlayer = player
+                        end
                     end
                 end
             end
@@ -306,9 +330,14 @@ local function ApplyDodgingMovement()
     return dodgeMovement
 end
 
--- Move to target using pathfinding with approach then strafe behavior
+-- Move to target using pathfinding with approach then strafe behavior - Improved
 local function MoveToTarget()
-    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
+    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart or not Humanoid then
+        return
+    end
+    
+    -- Safety check
+    if not pcall(function() return HumanoidRootPart.Position end) then
         return
     end
     
@@ -420,22 +449,33 @@ local function MoveToTarget()
     HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + moveVector * (1/60)
 end
 
--- Camera lock function
+-- Camera lock function - Improved with better error handling
 local function LockCamera()
-    if not Settings.CameraLockEnabled or not TargetHumanoidRootPart then
+    if not Settings.CameraLockEnabled or not TargetHumanoidRootPart or not Camera then
         return
     end
     
-    local targetPosition = TargetHumanoidRootPart.Position
+    local success, targetPosition = pcall(function()
+        return TargetHumanoidRootPart.Position
+    end)
+    
+    if not success or not targetPosition then
+        return
+    end
     
     -- Apply prediction
     if TargetHumanoid then
-        local velocity = TargetHumanoidRootPart.AssemblyLinearVelocity
-        targetPosition = targetPosition + Vector3.new(
-            velocity.X * Settings.PredictionX,
-            velocity.Y * Settings.PredictionY,
-            velocity.Z * Settings.PredictionX
-        )
+        local success, vel = pcall(function()
+            return TargetHumanoidRootPart.AssemblyLinearVelocity
+        end)
+        
+        if success and vel then
+            targetPosition = targetPosition + Vector3.new(
+                vel.X * Settings.PredictionX,
+                vel.Y * Settings.PredictionY,
+                vel.Z * Settings.PredictionX
+            )
+        end
     end
     
     -- Calculate camera direction
@@ -737,7 +777,7 @@ local function CreateCornerButtons()
     CornerButtons = {btn1, btn2}
 end
 
--- Create UI (Bigger and Mobile Compatible)
+-- Create UI with Tabs (Completely Redesigned)
 local function CreateUI()
     if MainUI then
         MainUI.Parent:Destroy()
@@ -750,9 +790,9 @@ local function CreateUI()
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
     local uiScale = GetUIScale()
-    -- Much wider UI
-    local baseWidth = isMobile and 750 or 700
-    local baseHeight = isMobile and 650 or 600
+    -- Optimized UI size to fit everything
+    local baseWidth = isMobile and 800 or 750
+    local baseHeight = isMobile and 700 or 650
     
     -- Main Frame (Black/Yellow theme with transparency)
     local mainFrame = Instance.new("Frame")
@@ -853,25 +893,118 @@ local function CreateUI()
         end
     end)
     
-    -- Scrolling Frame (Bigger)
+    -- Tab System
+    local tabBar = Instance.new("Frame")
+    tabBar.Name = "TabBar"
+    tabBar.Size = UDim2.new(1, -20, 0, isMobile and 40 or 35)
+    tabBar.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 10)
+    tabBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    tabBar.BackgroundTransparency = 0.5
+    tabBar.BorderSizePixel = 0
+    tabBar.Parent = mainFrame
+    
+    local tabBarCorner = Instance.new("UICorner")
+    tabBarCorner.CornerRadius = UDim.new(0, 8)
+    tabBarCorner.Parent = tabBar
+    
+    local tabLayout = Instance.new("UIListLayout")
+    tabLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabLayout.Padding = UDim.new(0, 5)
+    tabLayout.Parent = tabBar
+    
+    -- Tab content area
+    local tabContentFrame = Instance.new("Frame")
+    tabContentFrame.Name = "TabContent"
+    tabContentFrame.Size = UDim2.new(1, -20, 1, -titleBar.Size.Y.Offset - tabBar.Size.Y.Offset - 20)
+    tabContentFrame.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + tabBar.Size.Y.Offset + 10)
+    tabContentFrame.BackgroundTransparency = 1
+    tabContentFrame.Parent = mainFrame
+    
+    -- Scrolling Frame for tab content
     local scrollFrame = Instance.new("ScrollingFrame")
     scrollFrame.Name = "ScrollFrame"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -titleBar.Size.Y.Offset - 20)
-    scrollFrame.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 10)
+    scrollFrame.Size = UDim2.new(1, 0, 1, 0)
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = isMobile and 12 or 10
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 0) -- Yellow scrollbar
+    scrollFrame.ScrollBarThickness = isMobile and 10 or 8
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 0)
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollFrame.ScrollingEnabled = true
-    scrollFrame.Parent = mainFrame
+    scrollFrame.Parent = tabContentFrame
     
     local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, isMobile and 4 or 3)
+    listLayout.Padding = UDim.new(0, isMobile and 3 or 2)
     listLayout.Parent = scrollFrame
     
+    -- Tab management
+    local currentTab = "Aiming"
+    local tabs = {}
+    
+    -- Create tab button
+    local function CreateTab(name)
+        local tabButton = Instance.new("TextButton")
+        tabButton.Name = name .. "Tab"
+        tabButton.Size = UDim2.new(0, isMobile and 100 or 90, 1, 0)
+        tabButton.BackgroundColor3 = (currentTab == name) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
+        tabButton.BackgroundTransparency = (currentTab == name) and 0.3 or 0.6
+        tabButton.BorderSizePixel = 0
+        tabButton.Text = name
+        tabButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+        tabButton.TextSize = isMobile and 13 or 12
+        tabButton.Font = Enum.Font.GothamBold
+        tabButton.Active = true
+        tabButton.Parent = tabBar
+        
+        local tabCorner = Instance.new("UICorner")
+        tabCorner.CornerRadius = UDim.new(0, 6)
+        tabCorner.Parent = tabButton
+        
+        -- Tab content container
+        local tabContent = Instance.new("Frame")
+        tabContent.Name = name .. "Content"
+        tabContent.Size = UDim2.new(1, 0, 0, 0)
+        tabContent.BackgroundTransparency = 1
+        tabContent.Visible = (currentTab == name)
+        tabContent.Parent = scrollFrame
+        
+        local tabContentLayout = Instance.new("UIListLayout")
+        tabContentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+        tabContentLayout.Parent = tabContent
+        
+        tabContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            tabContent.Size = UDim2.new(1, 0, 0, tabContentLayout.AbsoluteContentSize.Y)
+        end)
+        
+        -- Tab click handler
+        local function switchToTab()
+            currentTab = name
+            -- Update all tab buttons
+            for tabName, tabData in pairs(tabs) do
+                tabData.Button.BackgroundColor3 = (tabName == name) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
+                tabData.Button.BackgroundTransparency = (tabName == name) and 0.3 or 0.6
+                tabData.Content.Visible = (tabName == name)
+            end
+            -- Update scroll size for new tab
+            updateScrollSize()
+        end
+        
+        tabButton.MouseButton1Click:Connect(switchToTab)
+        tabButton.Activated:Connect(switchToTab)
+        if isMobile or isTablet then
+            tabButton.TouchTap:Connect(switchToTab)
+        end
+        
+        tabs[name] = {
+            Button = tabButton,
+            Content = tabContent,
+            Layout = tabContentLayout
+        }
+        
+        return tabContent, tabContentLayout
+    end
+    
     -- Create section divider/box with collapse functionality
-    local function CreateSection(title)
+    local function CreateSection(title, parent)
         local isCollapsed = false
         local sectionContainer = Instance.new("Frame")
         sectionContainer.Name = title .. "Section"
@@ -880,7 +1013,7 @@ local function CreateUI()
         sectionContainer.BackgroundTransparency = 0.4 -- Transparent
         sectionContainer.BorderSizePixel = 2
         sectionContainer.BorderColor3 = Color3.fromRGB(255, 255, 0) -- Yellow border
-        sectionContainer.Parent = scrollFrame
+        sectionContainer.Parent = parent or scrollFrame
         
         local sectionCorner = Instance.new("UICorner")
         sectionCorner.CornerRadius = UDim.new(0, 10)
@@ -981,6 +1114,14 @@ local function CreateUI()
         end)
         
         return contentFrame, sectionContainer
+    end
+    
+    -- Helper to update scroll frame size based on current tab
+    local function updateScrollSize()
+        local currentTabContent = tabs[currentTab]
+        if currentTabContent then
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, currentTabContent.Layout.AbsoluteContentSize.Y + 20)
+        end
     end
     
     -- Settings UI Helper Functions
@@ -1244,18 +1385,21 @@ local function CreateUI()
         return container
     end
     
-    -- Create all settings organized into sections
+    -- Create tabs and organize features
+    local aimingTab, aimingLayout = CreateTab("Aiming")
+    local movementTab, movementLayout = CreateTab("Movement")
+    local combatTab, combatLayout = CreateTab("Combat")
+    local visualTab, visualLayout = CreateTab("Visual")
     
-    -- Section 1: Camera Lock (Camera Lock toggle, Smoothness, Prediction)
-    local camLockSection, camLockBox = CreateSection("Camera Lock")
+    -- Tab 1: Aiming Settings
+    local aimingSection, aimingSectionBox = CreateSection("Camera Lock", aimingTab)
     
     CreateToggle("Camera Lock", "CameraLockEnabled", function(val)
-        Settings.CameraLockEnabled = val -- Ensure it's set
+        Settings.CameraLockEnabled = val
         
         if val then
             CreateFOVCircle()
         else
-            -- Clean up when disabling
             if FOVCircle then
                 FOVCircle.ScreenGui:Destroy()
                 FOVCircle = nil
@@ -1270,7 +1414,7 @@ local function CreateUI()
             TargetHumanoidRootPart = nil
         end
         
-        -- Update center button (btn1) if it exists
+        -- Update center button
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         local cornerGui = playerGui:FindFirstChild("CornerButtons")
         if cornerGui then
@@ -1281,26 +1425,68 @@ local function CreateUI()
                 centerBtn.BackgroundTransparency = val and 0.3 or 0.5
             end
         end
-    end, camLockSection)
+    end, aimingSection)
     
     CreateSlider("Smoothness X", 0.01, 1, Settings.SmoothnessX, function(val)
         Settings.SmoothnessX = val
-    end, camLockSection)
+    end, aimingSection)
     
     CreateSlider("Smoothness Y", 0.01, 1, Settings.SmoothnessY, function(val)
         Settings.SmoothnessY = val
-    end, camLockSection)
+    end, aimingSection)
     
     CreateSlider("Prediction X", 0, 2, Settings.PredictionX, function(val)
         Settings.PredictionX = val
-    end, camLockSection)
+    end, aimingSection)
     
     CreateSlider("Prediction Y", 0, 2, Settings.PredictionY, function(val)
         Settings.PredictionY = val
-    end, camLockSection)
+    end, aimingSection)
     
-    -- Section 2: FOV Settings
-    local fovSection, fovBox = CreateSection("FOV Settings")
+    -- Tab 2: Movement Settings
+    local movementSection, movementSectionBox = CreateSection("Pathfinding & Movement", movementTab)
+    
+    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
+        Settings.PathfindingEnabled = val
+    end, movementSection)
+    
+    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
+        Settings.DodgingEnabled = val
+    end, movementSection)
+    
+    CreateTextBox("Walk Speed", Settings.WalkSpeed, function(val)
+        Settings.WalkSpeed = math.clamp(val, 0, 300)
+    end, "0-300", movementSection)
+    
+    CreateTextBox("Jump Probability", Settings.JumpProbability, function(val)
+        Settings.JumpProbability = math.clamp(val, 0, 0.1)
+    end, "0-0.1", movementSection)
+    
+    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
+        Settings.DodgingSpeed = math.clamp(val, 0, 50)
+    end, "0-50", movementSection)
+    
+    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
+        Settings.DodgingIntensity = math.clamp(val, 0, 10)
+    end, "0-10", movementSection)
+    
+    -- Tab 3: Combat Settings
+    local combatSection, combatSectionBox = CreateSection("Combat & Shooting", combatTab)
+    
+    CreateToggle("Auto Reload", "AutoReload", function(val)
+        Settings.AutoReload = val
+    end, combatSection)
+    
+    CreateTextBox("Reload Interval", Settings.AutoReloadInterval, function(val)
+        Settings.AutoReloadInterval = math.clamp(val, 1, 5)
+    end, "1-5", combatSection)
+    
+    CreateTextBox("Stop Shooting HP", Settings.AutoStopShootingHP, function(val)
+        Settings.AutoStopShootingHP = math.clamp(val, 0, 100)
+    end, "0-100", combatSection)
+    
+    -- Tab 4: Visual Settings
+    local visualSection, visualSectionBox = CreateSection("FOV & Visual", visualTab)
     
     CreateSlider("FOV", 50, 200, Settings.FOV, function(val)
         Settings.FOV = val
@@ -1308,7 +1494,7 @@ local function CreateUI()
             FOVCircle.Circle.Size = UDim2.new(0, val * 2, 0, val * 2)
             FOVCircle.Circle.Position = UDim2.new(0.5, -val, 0.5, -val)
         end
-    end, fovSection)
+    end, visualSection)
     
     CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
         Settings.FOVCircleTransparency = val
@@ -1321,57 +1507,16 @@ local function CreateUI()
                 NumberSequenceKeypoint.new(1, val)
             })
         end
-    end, fovSection)
+    end, visualSection)
     
-    -- Section 3: Movement
-    local movementSection, movementBox = CreateSection("Movement")
+    -- Update scroll frame size when any tab content changes
+    aimingLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    movementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    combatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    visualLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
     
-    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
-        -- Pathfinding toggle works automatically
-    end, movementSection)
-    
-    CreateTextBox("Walk Speed", Settings.WalkSpeed, function(val)
-        Settings.WalkSpeed = math.clamp(val, 0, 300)
-    end, "0-300", movementSection)
-    
-    CreateTextBox("Jump Probability", Settings.JumpProbability, function(val)
-        Settings.JumpProbability = math.clamp(val, 0, 0.1)
-    end, "0-0.1", movementSection)
-    
-    -- Section 4: Combat
-    local combatSection, combatBox = CreateSection("Combat")
-    
-    CreateToggle("Auto Reload", "AutoReload", function(val)
-        -- Auto reload toggle works automatically
-    end, combatSection)
-    
-    CreateTextBox("Reload Interval", Settings.AutoReloadInterval, function(val)
-        Settings.AutoReloadInterval = math.clamp(val, 1, 5)
-    end, "1-5", combatSection)
-    
-    CreateTextBox("Stop Shooting HP", Settings.AutoStopShootingHP, function(val)
-        Settings.AutoStopShootingHP = math.clamp(val, 0, 100)
-    end, "0-100", combatSection)
-    
-    -- Section 5: Dodging
-    local dodgingSection, dodgingBox = CreateSection("Dodging")
-    
-    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
-        -- Dodging toggle works automatically
-    end, dodgingSection)
-    
-    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
-        Settings.DodgingSpeed = math.clamp(val, 0, 50)
-    end, "0-50", dodgingSection)
-    
-    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
-        Settings.DodgingIntensity = math.clamp(val, 0, 10)
-    end, "0-10", dodgingSection)
-    
-    -- Update scroll frame size
-    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 20)
-    end)
+    -- Initial scroll size update
+    updateScrollSize()
     
     MainUI = mainFrame
 end
