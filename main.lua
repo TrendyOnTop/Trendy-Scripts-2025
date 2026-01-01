@@ -522,10 +522,10 @@ ContentFrame.ScrollBarThickness = 2
 ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 50)
 local ContentLayout = Instance.new("UIListLayout")
 ContentLayout.Parent = ContentFrame
-ContentLayout.Padding = UDim.new(0, 5)
+ContentLayout.Padding = UDim.new(0, 8)
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 8)
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 10)
 end)
 
 -- UI Helper Functions
@@ -586,8 +586,8 @@ local function CreateSection(name, tabName, order)
     
     local secTitle = Instance.new("TextLabel")
     secTitle.Parent = section
-    secTitle.Size = UDim2.new(1, -12, 0, 22)
-    secTitle.Position = UDim2.new(0, 6, 0, 3)
+    secTitle.Size = UDim2.new(1, -12, 0, 20)
+    secTitle.Position = UDim2.new(0, 6, 0, 4)
     secTitle.BackgroundTransparency = 1
     secTitle.Text = name
     secTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -599,14 +599,17 @@ local function CreateSection(name, tabName, order)
     secContent.Name = "Items"
     secContent.Parent = section
     secContent.Size = UDim2.new(1, -12, 0, 0)
-    secContent.Position = UDim2.new(0, 6, 0, 25)
+    secContent.Position = UDim2.new(0, 6, 0, 24)
     secContent.BackgroundTransparency = 1
+    secContent.BorderSizePixel = 0
+    
     local secLayout = Instance.new("UIListLayout")
     secLayout.Parent = secContent
-    secLayout.Padding = UDim.new(0, 5)
+    secLayout.Padding = UDim.new(0, 6)
+    secLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
     secLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        section.Size = UDim2.new(1, 0, 0, secContent.AbsoluteContentSize.Y + 28)
+        section.Size = UDim2.new(1, 0, 0, secContent.AbsoluteContentSize.Y + 30)
     end)
     
     return secContent
@@ -615,13 +618,14 @@ end
 local function CreateCheckbox(parent, text, defaultValue, callback)
     local frame = Instance.new("Frame")
     frame.Parent = parent
-    frame.Size = UDim2.new(1, 0, 0, 22)
+    frame.Size = UDim2.new(1, 0, 0, 20)
     frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
     
     local box = Instance.new("TextButton")
     box.Parent = frame
     box.Size = UDim2.new(0, 16, 0, 16)
-    box.Position = UDim2.new(0, 0, 0, 3)
+    box.Position = UDim2.new(0, 0, 0, 2)
     box.BackgroundColor3 = defaultValue and Color3.fromRGB(100, 150, 255) or Color3.fromRGB(45, 45, 45)
     box.Text = ""
     box.BorderSizePixel = 0
@@ -653,8 +657,9 @@ end
 local function CreateSlider(parent, text, min, max, defaultValue, callback)
     local frame = Instance.new("Frame")
     frame.Parent = parent
-    frame.Size = UDim2.new(1, 0, 0, 32)
+    frame.Size = UDim2.new(1, 0, 0, 28)
     frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
     
     local label = Instance.new("TextLabel")
     label.Parent = frame
@@ -721,8 +726,9 @@ end
 local function CreateDropdown(parent, text, options, defaultValue, callback)
     local frame = Instance.new("Frame")
     frame.Parent = parent
-    frame.Size = UDim2.new(1, 0, 0, 22)
+    frame.Size = UDim2.new(1, 0, 0, 20)
     frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
     
     local label = Instance.new("TextLabel")
     label.Parent = frame
@@ -767,8 +773,9 @@ end
 local function CreateTextBox(parent, text, defaultValue, callback)
     local frame = Instance.new("Frame")
     frame.Parent = parent
-    frame.Size = UDim2.new(1, 0, 0, 22)
+    frame.Size = UDim2.new(1, 0, 0, 20)
     frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
     
     local label = Instance.new("TextLabel")
     label.Parent = frame
@@ -804,7 +811,7 @@ end
 local function CreateButton(parent, text, callback)
     local button = Instance.new("TextButton")
     button.Parent = parent
-    button.Size = UDim2.new(1, 0, 0, 24)
+    button.Size = UDim2.new(1, 0, 0, 22)
     button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
     button.Text = text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
