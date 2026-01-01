@@ -438,6 +438,8 @@ Toggle.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
 Toggle.BackgroundTransparency = 0.15
 Toggle.Image = "rbxassetid://126818107683779"
 Toggle.ImageTransparency = 0
+Toggle.Visible = true
+Toggle.Active = true
 local ToggleCorner = Instance.new("UICorner")
 ToggleCorner.CornerRadius = UDim.new(0, 9)
 ToggleCorner.Parent = Toggle
@@ -526,7 +528,44 @@ ScrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 12)
 end)
 
--- UI Helper Functions
+-- UI Component Functions
+local function NewTab(name)
+    local tab = Instance.new("TextButton")
+    tab.Name = name .. "Tab"
+    tab.Parent = TabBar
+    tab.Size = UDim2.new(0, 70, 1, 0)
+    tab.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    tab.Text = name
+    tab.TextColor3 = Color3.fromRGB(170, 170, 170)
+    tab.TextSize = 12
+    tab.Font = Enum.Font.Gotham
+    tab.BorderSizePixel = 0
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 4)
+    tabCorner.Parent = tab
+    
+    tab.MouseButton1Click:Connect(function()
+        UIData.ActiveTab = name
+        for _, child in pairs(TabBar:GetChildren()) do
+            if child:IsA("TextButton") then
+                if child == tab then
+                    child.BackgroundColor3 = Color3.fromRGB(36, 36, 36)
+                    child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    child.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    child.TextColor3 = Color3.fromRGB(170, 170, 170)
+                end
+            end
+        end
+        for _, child in pairs(ScrollFrame:GetChildren()) do
+            if child:IsA("Frame") and child.Name:find("_") then
+                child.Visible = child.Name:find("^" .. name .. "_") ~= nil
+            end
+        end
+    end)
+    
+    return tab
+end
 
 local function NewSection(name, tabName, order)
     local section = Instance.new("Frame")
@@ -797,6 +836,7 @@ local function ToggleUI()
     Blur.Enabled = UIData.Open
     
     if UIData.Open then
+        -- Set Main tab as active
         for _, child in pairs(TabBar:GetChildren()) do
             if child:IsA("TextButton") then
                 if child.Name == "MainTab" then
@@ -808,6 +848,8 @@ local function ToggleUI()
                 end
             end
         end
+        -- Show Main tab content
+        UIData.ActiveTab = "Main"
         for _, child in pairs(ScrollFrame:GetChildren()) do
             if child:IsA("Frame") and child.Name:find("_") then
                 child.Visible = child.Name:find("^Main_") ~= nil
@@ -815,6 +857,9 @@ local function ToggleUI()
         end
     end
 end
+
+-- Initialize UI - Make toggle button visible
+Toggle.Visible = true
 
 Toggle.MouseButton1Click:Connect(ToggleUI)
 CloseBtn.MouseButton1Click:Connect(ToggleUI)
@@ -1447,8 +1492,12 @@ NewTextBox(macroSection, "Speed", getgenv().Sentinel.MacroSpeed, function(a) get
 local networkAntiSection = NewSection("Network Anti", "Misc", 4)
 NewCheckbox(networkAntiSection, "Enabled", getgenv().Sentinel.network, function(a) getgenv().Sentinel.network = a end)
 
--- Notification
+-- Initialize UI on load
 task.spawn(function()
-    task.wait(0.5)
-    print("Script Loaded - Cactus.GG [khen.cc]")
+    task.wait(0.1)
+    print("Cactus.GG UI Loaded - Click the toggle button to open!")
+    -- Ensure toggle button is visible
+    if Toggle then
+        Toggle.Visible = true
+    end
 end)
