@@ -79,8 +79,17 @@ local RandomMovementTimer = 0
 -- Walk Speed System
 local function updateSpeed()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        -- Don't override if pathfinding is managing walkspeed
+        if Settings.PathfindingEnabled then
+            -- Pathfinding manages its own walkspeed (500)
+            return
+        end
+        
         if isSpeedEnabled and getgenv().walkSpeedSettings.WalkSpeed.Enabled then
-            LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+            humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+        elseif not isSpeedEnabled then
+            humanoid.WalkSpeed = defaultSpeed
         end
     end
 end
@@ -102,6 +111,7 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     TargetHumanoidRootPart = nil
     PathfindingPath = nil
     CurrentWaypointIndex = 1
+    LastPathfindingUpdate = 0
     
     if IsShooting and ShootingConnection then
         ShootingConnection:Disconnect()
@@ -109,13 +119,23 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
         IsShooting = false
     end
     
-    updateSpeed()
+    -- Reset walkspeed based on current state
+    if Settings.PathfindingEnabled then
+        Humanoid.WalkSpeed = 500
+    else
+        updateSpeed()
+    end
 end)
 
 -- Walk Speed Toggle
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode[getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey] then
+        -- Don't allow walk speed toggle when pathfinding is enabled
+        if Settings.PathfindingEnabled then
+            return
+        end
+        
         isSpeedEnabled = not isSpeedEnabled
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             if isSpeedEnabled then
@@ -405,17 +425,13 @@ local function UpdatePathfinding()
     end)
     
     if success and path.Status == Enum.PathStatus.Success then
+        -- Reset waypoint index when we get a new path
         PathfindingPath = path
-        -- Only reset waypoint index if we got a completely new path
-        if not PathfindingPath or PathfindingPath ~= path then
-            CurrentWaypointIndex = 1
-        end
+        CurrentWaypointIndex = 1
     else
-        -- If pathfinding fails, try to continue with current path or reset
-        if not PathfindingPath or PathfindingPath.Status ~= Enum.PathStatus.Success then
-            PathfindingPath = nil
-            CurrentWaypointIndex = 1
-        end
+        -- If pathfinding fails, clear the path
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
     end
 end
 
@@ -467,11 +483,9 @@ local function MoveToTarget()
         return
     end
     
-    -- Set walk speed to 500 when pathfinding is enabled (unless walk speed toggle is active)
+    -- Set walk speed to 500 when pathfinding is enabled (pathfinding takes priority over walk speed toggle)
     if Humanoid then
-        if not isSpeedEnabled then
-            Humanoid.WalkSpeed = 500
-        end
+        Humanoid.WalkSpeed = 500
         if Humanoid.UseJumpPower then
             Humanoid.JumpPower = Settings.JumpPower
         end
@@ -514,11 +528,29 @@ local function MoveToTarget()
     local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
     
     -- Update pathfinding less frequently to prevent stuttering (only when far or path invalid)
-    if not PathfindingPath or PathfindingPath.Status ~= Enum.PathStatus.Success or distanceToTarget > 100 or CurrentWaypointIndex > #(PathfindingPath:GetWaypoints()) then
-        if currentTime - LastPathfindingUpdate > 1 then
-            UpdatePathfinding()
-            LastPathfindingUpdate = currentTime
+    local shouldUpdate = false
+    if not PathfindingPath then
+        shouldUpdate = true
+    elseif PathfindingPath.Status ~= Enum.PathStatus.Success then
+        shouldUpdate = true
+    elseif distanceToTarget > 100 then
+        shouldUpdate = true
+    else
+        local success, waypoints = pcall(function()
+            return PathfindingPath:GetWaypoints()
+        end)
+        if success and waypoints then
+            if CurrentWaypointIndex > #waypoints then
+                shouldUpdate = true
+            end
+        else
+            shouldUpdate = true
         end
+    end
+    
+    if shouldUpdate and (currentTime - LastPathfindingUpdate > 1) then
+        UpdatePathfinding()
+        LastPathfindingUpdate = currentTime
     end
     
     local targetPosition = TargetHumanoidRootPart.Position
@@ -526,8 +558,11 @@ local function MoveToTarget()
     
     -- Use pathfinding to navigate around obstacles
     if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
-        local waypoints = PathfindingPath:GetWaypoints()
-        if #waypoints > 1 and CurrentWaypointIndex <= #waypoints then
+        local success, waypoints = pcall(function()
+            return PathfindingPath:GetWaypoints()
+        end)
+        
+        if success and waypoints and #waypoints > 1 and CurrentWaypointIndex <= #waypoints then
             local currentWaypoint = waypoints[CurrentWaypointIndex]
             local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
             
@@ -537,22 +572,30 @@ local function MoveToTarget()
             end
             
             -- Check for obstacles and jump over them
-            if distanceToWaypoint > 2 then
+            if distanceToWaypoint > 3 then
                 local directionToWaypoint = (currentWaypoint.Position - HumanoidRootPart.Position)
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {Character}
-                
-                local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), directionToWaypoint.Unit * 8, raycastParams)
-                if raycast and raycast.Instance then
-                    -- Obstacle detected, jump over it
-                    Humanoid.Jump = true
+                if directionToWaypoint.Magnitude > 0 then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    raycastParams.FilterDescendantsInstances = {Character}
+                    
+                    local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), directionToWaypoint.Unit * 8, raycastParams)
+                    if raycast and raycast.Instance then
+                        -- Obstacle detected, jump over it
+                        Humanoid.Jump = true
+                    end
                 end
             end
             
             -- Move to waypoint (increased threshold to prevent stuttering)
-            if distanceToWaypoint < 8 then
+            if distanceToWaypoint < 6 then
                 CurrentWaypointIndex = CurrentWaypointIndex + 1
+                -- If we've reached the last waypoint, target the actual target position
+                if CurrentWaypointIndex > #waypoints then
+                    targetPosition = TargetHumanoidRootPart.Position
+                else
+                    targetPosition = waypoints[CurrentWaypointIndex].Position
+                end
             else
                 targetPosition = currentWaypoint.Position
             end
@@ -1749,13 +1792,14 @@ RunService.Heartbeat:Connect(function()
             MoveToTarget()
         end
     else
-        -- Reset walk speed when pathfinding is disabled
-        if Humanoid and not isSpeedEnabled then
-            Humanoid.WalkSpeed = defaultSpeed
-        end
+        -- Reset walk speed when pathfinding is disabled (let updateSpeed handle it)
         -- Reset pathfinding state
         PathfindingPath = nil
         CurrentWaypointIndex = 1
+        -- Stop movement
+        if Humanoid then
+            Humanoid:Move(Vector3.new(0, 0, 0), false)
+        end
     end
 end)
 
