@@ -790,12 +790,15 @@ local function CreateUI()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
-    local baseWidth = isMobile and 800 or 750
-    local baseHeight = isMobile and 700 or 650
+    -- Use responsive sizing based on screen size
+    local viewportSize = Camera.ViewportSize
+    local baseWidth = math.min(viewportSize.X * 0.8, isMobile and 550 or 500)
+    local baseHeight = math.min(viewportSize.Y * 0.7, isMobile and 500 or 450)
     
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, baseWidth, 0, baseHeight)
+    -- Center the UI properly
     mainFrame.Position = UDim2.new(0.5, -baseWidth/2, 0.5, -baseHeight/2)
     mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     mainFrame.BackgroundTransparency = 0.2
@@ -812,7 +815,7 @@ local function CreateUI()
     -- Title Bar
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, isMobile and 55 or 50)
+    titleBar.Size = UDim2.new(1, 0, 0, isMobile and 45 or 40)
     titleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
     titleBar.BackgroundTransparency = 0.3
     titleBar.BorderSizePixel = 0
@@ -820,7 +823,7 @@ local function CreateUI()
     titleBar.Parent = mainFrame
     
     local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 15)
+    titleCorner.CornerRadius = UDim.new(0, 10)
     titleCorner.Parent = titleBar
     
     local title = Instance.new("TextLabel")
@@ -830,12 +833,12 @@ local function CreateUI()
     title.BackgroundTransparency = 1
     title.Text = "🎯 Camera Lock Settings"
     title.TextColor3 = Color3.fromRGB(255, 255, 0)
-    title.TextSize = isMobile and 22 or 20
+    title.TextSize = isMobile and 18 or 16
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = titleBar
     
-    -- Make title bar draggable
+    -- Make title bar draggable with screen bounds
     local draggingUI = false
     titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -850,11 +853,21 @@ local function CreateUI()
                     if moved > 5 then
                         draggingUI = true
                         local delta = moveInput.Position - dragStart
+                        local newX = startPos.X.Offset + delta.X
+                        local newY = startPos.Y.Offset + delta.Y
+                        
+                        -- Keep UI within screen bounds
+                        local viewportSize = Camera.ViewportSize
+                        local frameSize = mainFrame.AbsoluteSize
+                        -- Ensure UI stays fully visible
+                        newX = math.clamp(newX, 0, viewportSize.X - frameSize.X)
+                        newY = math.clamp(newY, 0, viewportSize.Y - frameSize.Y)
+                        
                         mainFrame.Position = UDim2.new(
-                            startPos.X.Scale,
-                            startPos.X.Offset + delta.X,
-                            startPos.Y.Scale,
-                            startPos.Y.Offset + delta.Y
+                            0,
+                            newX,
+                            0,
+                            newY
                         )
                     end
                 end
@@ -862,7 +875,9 @@ local function CreateUI()
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
-                    moveConnection:Disconnect()
+                    if moveConnection then
+                        moveConnection:Disconnect()
+                    end
                     draggingUI = false
                 end
             end)
@@ -872,8 +887,8 @@ local function CreateUI()
     -- Tab Bar
     local tabBar = Instance.new("Frame")
     tabBar.Name = "TabBar"
-    tabBar.Size = UDim2.new(1, -20, 0, isMobile and 40 or 35)
-    tabBar.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 10)
+    tabBar.Size = UDim2.new(1, -20, 0, isMobile and 35 or 30)
+    tabBar.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 8)
     tabBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     tabBar.BackgroundTransparency = 0.5
     tabBar.BorderSizePixel = 0
@@ -891,8 +906,9 @@ local function CreateUI()
     -- Tab content area
     local tabContentFrame = Instance.new("Frame")
     tabContentFrame.Name = "TabContent"
-    tabContentFrame.Size = UDim2.new(1, -20, 1, -titleBar.Size.Y.Offset - tabBar.Size.Y.Offset - 20)
-    tabContentFrame.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + tabBar.Size.Y.Offset + 10)
+    local contentTopOffset = titleBar.Size.Y.Offset + tabBar.Size.Y.Offset + 8
+    tabContentFrame.Size = UDim2.new(1, -20, 1, -contentTopOffset - 10)
+    tabContentFrame.Position = UDim2.new(0, 10, 0, contentTopOffset)
     tabContentFrame.BackgroundTransparency = 1
     tabContentFrame.Parent = mainFrame
     
@@ -1000,38 +1016,38 @@ local function CreateUI()
         
         local header = Instance.new("Frame")
         header.Name = "Header"
-        header.Size = UDim2.new(1, 0, 0, isMobile and 32 or 28)
+        header.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
         header.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
         header.BackgroundTransparency = 0.3
         header.BorderSizePixel = 0
         header.Parent = sectionContainer
         
         local headerCorner = Instance.new("UICorner")
-        headerCorner.CornerRadius = UDim.new(0, 10)
+        headerCorner.CornerRadius = UDim.new(0, 8)
         headerCorner.Parent = header
         
         local collapseButton = Instance.new("TextButton")
         collapseButton.Name = "CollapseButton"
-        collapseButton.Size = UDim2.new(0, isMobile and 28 or 24, 0, isMobile and 28 or 24)
-        collapseButton.Position = UDim2.new(0, 5, 0.5, -(isMobile and 14 or 12))
+        collapseButton.Size = UDim2.new(0, isMobile and 24 or 20, 0, isMobile and 24 or 20)
+        collapseButton.Position = UDim2.new(0, 4, 0.5, -(isMobile and 12 or 10))
         collapseButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
         collapseButton.BackgroundTransparency = 0.5
         collapseButton.BorderSizePixel = 0
         collapseButton.Text = "▼"
         collapseButton.TextColor3 = Color3.fromRGB(255, 255, 0)
-        collapseButton.TextSize = isMobile and 14 or 12
+        collapseButton.TextSize = isMobile and 12 or 10
         collapseButton.Font = Enum.Font.GothamBold
         collapseButton.Active = true
         collapseButton.Parent = header
         
         local collapseCorner = Instance.new("UICorner")
-        collapseCorner.CornerRadius = UDim.new(0, 6)
+        collapseCorner.CornerRadius = UDim.new(0, 5)
         collapseCorner.Parent = collapseButton
         
         local divider = Instance.new("Frame")
         divider.Name = "Divider"
-        divider.Size = UDim2.new(1, -10, 0, 2)
-        divider.Position = UDim2.new(0, 5, 1, -2)
+        divider.Size = UDim2.new(1, -8, 0, 1)
+        divider.Position = UDim2.new(0, 4, 1, -1)
         divider.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
         divider.BackgroundTransparency = 0.5
         divider.BorderSizePixel = 0
@@ -1039,26 +1055,26 @@ local function CreateUI()
         
         local headerLabel = Instance.new("TextLabel")
         headerLabel.Name = "Title"
-        headerLabel.Size = UDim2.new(1, -(isMobile and 40 or 35), 1, 0)
-        headerLabel.Position = UDim2.new(0, isMobile and 35 or 30, 0, 0)
+        headerLabel.Size = UDim2.new(1, -(isMobile and 35 or 30), 1, 0)
+        headerLabel.Position = UDim2.new(0, isMobile and 30 or 26, 0, 0)
         headerLabel.BackgroundTransparency = 1
         headerLabel.Text = title
         headerLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-        headerLabel.TextSize = isMobile and 15 or 14
+        headerLabel.TextSize = isMobile and 13 or 12
         headerLabel.Font = Enum.Font.GothamBold
         headerLabel.TextXAlignment = Enum.TextXAlignment.Left
         headerLabel.Parent = header
         
         local contentFrame = Instance.new("Frame")
         contentFrame.Name = "Content"
-        contentFrame.Size = UDim2.new(1, -16, 0, 0)
-        contentFrame.Position = UDim2.new(0, 8, 0, header.Size.Y.Offset + 5)
+        contentFrame.Size = UDim2.new(1, -12, 0, 0)
+        contentFrame.Position = UDim2.new(0, 6, 0, header.Size.Y.Offset + 4)
         contentFrame.BackgroundTransparency = 1
         contentFrame.Visible = true
         contentFrame.Parent = sectionContainer
         
         local contentLayout = Instance.new("UIListLayout")
-        contentLayout.Padding = UDim.new(0, isMobile and 4 or 3)
+        contentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
         contentLayout.Parent = contentFrame
         
         local function toggleCollapse()
@@ -1069,7 +1085,7 @@ local function CreateUI()
             if isCollapsed then
                 sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset)
             else
-                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 8)
             end
         end
         
@@ -1081,7 +1097,7 @@ local function CreateUI()
         
         contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             if not isCollapsed then
-                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 15)
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 8)
             end
         end)
         
