@@ -219,14 +219,16 @@ local function CreateFOVCircle()
     circleCorner.Parent = circle
     
     circle.BackgroundColor3 = Settings.FOVCircleColor
-    circle.BackgroundTransparency = Settings.FOVCircleTransparency + 0.4
+    circle.BackgroundTransparency = math.max(0.1, Settings.FOVCircleTransparency + 0.2) -- Make gradient more visible
     
-    -- Animated gradient
+    -- Animated gradient - use current color settings
+    local currentColor = Settings.FOVCircleColor
+    local r, g, b = math.floor(currentColor.R * 255), math.floor(currentColor.G * 255), math.floor(currentColor.B * 255)
     local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 50, 50)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+        ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, r + 50), math.min(255, g + 50), math.min(255, b + 50))),
+        ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
     })
     gradient.Rotation = 0
     gradient.Transparency = NumberSequence.new({
@@ -252,8 +254,8 @@ local function CreateFOVCircle()
     
     local innerGlowGradient = Instance.new("UIGradient")
     innerGlowGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 0))
+        ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, r - 55), math.max(0, g - 55), math.max(0, b - 55)))
     })
     innerGlowGradient.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.7),
@@ -273,12 +275,22 @@ local function CreateFOVCircle()
     
     -- Beautiful rotating animation
     task.spawn(function()
-        local rotationSpeed = 1
+        local rotationSpeed = 2
         while FOVCircle and Settings.CameraLockEnabled do
             for i = 0, 360, rotationSpeed do
                 if not FOVCircle or not Settings.CameraLockEnabled then break end
+                -- Rotate gradients
                 FOVCircle.Gradient.Rotation = i
                 FOVCircle.InnerGlowGradient.Rotation = -i * 0.5
+                
+                -- Update stroke colors based on gradient rotation for gradient effect
+                local angle = math.rad(i)
+                local r, g, b = math.floor(Settings.FOVCircleColor.R * 255), math.floor(Settings.FOVCircleColor.G * 255), math.floor(Settings.FOVCircleColor.B * 255)
+                local brightR = math.min(255, r + math.floor(math.sin(angle) * 50))
+                local brightG = math.min(255, g + math.floor(math.sin(angle) * 50))
+                local brightB = math.min(255, b + math.floor(math.sin(angle) * 50))
+                FOVCircle.Stroke.Color = Color3.fromRGB(brightR, brightG, brightB)
+                
                 -- Pulse effect
                 local pulse = math.sin(math.rad(i)) * 0.1 + 1
                 FOVCircle.Circle.Size = UDim2.new(0, Settings.FOV * 2 * pulse, 0, Settings.FOV * 2 * pulse)
@@ -1044,7 +1056,7 @@ local function CreateCornerButtons()
     CornerButtons = {btn1, btn2}
 end
 
--- Create UI with Tabs (simplified version - full UI code would be too long, keeping essential parts)
+-- Create UI with Tabs - COMPLETE VERSION
 local function CreateUI()
     if MainUI then
         pcall(function()
@@ -1111,7 +1123,7 @@ local function CreateUI()
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = titleBar
     
-    -- Make title bar draggable with screen bounds
+    -- Make title bar draggable
     local draggingUI = false
     titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -1128,13 +1140,10 @@ local function CreateUI()
                         local delta = moveInput.Position - dragStart
                         local newX = startPos.X.Offset + delta.X
                         local newY = startPos.Y.Offset + delta.Y
-                        
-                        -- Keep UI within screen bounds
                         local viewportSize = Camera.ViewportSize
                         local frameSize = mainFrame.AbsoluteSize
                         newX = math.clamp(newX, 0, viewportSize.X - frameSize.X)
                         newY = math.clamp(newY, 0, viewportSize.Y - frameSize.Y)
-                        
                         mainFrame.Position = UDim2.new(0, newX, 0, newY)
                     end
                 end
@@ -1142,14 +1151,693 @@ local function CreateUI()
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
-                    if moveConnection then
-                        moveConnection:Disconnect()
-                    end
+                    if moveConnection then moveConnection:Disconnect() end
                     draggingUI = false
                 end
             end)
         end
     end)
+    
+    -- Tab Bar
+    local tabBar = Instance.new("Frame")
+    tabBar.Name = "TabBar"
+    tabBar.Size = UDim2.new(1, -20, 0, isMobile and 35 or 30)
+    tabBar.Position = UDim2.new(0, 10, 0, titleBar.Size.Y.Offset + 8)
+    tabBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    tabBar.BackgroundTransparency = 0.5
+    tabBar.BorderSizePixel = 0
+    tabBar.Parent = mainFrame
+    
+    local tabBarCorner = Instance.new("UICorner")
+    tabBarCorner.CornerRadius = UDim.new(0, 8)
+    tabBarCorner.Parent = tabBar
+    
+    local tabLayout = Instance.new("UIListLayout")
+    tabLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabLayout.Padding = UDim.new(0, 5)
+    tabLayout.Parent = tabBar
+    
+    -- Tab content area
+    local tabContentFrame = Instance.new("Frame")
+    tabContentFrame.Name = "TabContent"
+    local contentTopOffset = titleBar.Size.Y.Offset + tabBar.Size.Y.Offset + 8
+    tabContentFrame.Size = UDim2.new(1, -20, 1, -contentTopOffset - 10)
+    tabContentFrame.Position = UDim2.new(0, 10, 0, contentTopOffset)
+    tabContentFrame.BackgroundTransparency = 1
+    tabContentFrame.Parent = mainFrame
+    
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Name = "ScrollFrame"
+    scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = isMobile and 10 or 8
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scrollFrame.ScrollingEnabled = true
+    scrollFrame.Parent = tabContentFrame
+    
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+    listLayout.Parent = scrollFrame
+    
+    -- Tab management
+    local currentTab = "Aiming"
+    local tabs = {}
+    
+    -- Create tab
+    local function CreateTab(name)
+        local tabButton = Instance.new("TextButton")
+        tabButton.Name = name .. "Tab"
+        tabButton.Size = UDim2.new(0, isMobile and 100 or 90, 1, 0)
+        tabButton.BackgroundColor3 = (currentTab == name) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        tabButton.BackgroundTransparency = (currentTab == name) and 0.2 or 0.6
+        tabButton.BorderSizePixel = 0
+        tabButton.Text = name
+        tabButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+        tabButton.TextSize = isMobile and 13 or 12
+        tabButton.Font = Enum.Font.GothamBold
+        tabButton.Active = true
+        tabButton.Parent = tabBar
+        
+        local tabCorner = Instance.new("UICorner")
+        tabCorner.CornerRadius = UDim.new(0, 6)
+        tabCorner.Parent = tabButton
+        
+        local tabContent = Instance.new("Frame")
+        tabContent.Name = name .. "Content"
+        tabContent.Size = UDim2.new(1, 0, 0, 0)
+        tabContent.BackgroundTransparency = 1
+        tabContent.Visible = (currentTab == name)
+        tabContent.Parent = scrollFrame
+        
+        local tabContentLayout = Instance.new("UIListLayout")
+        tabContentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+        tabContentLayout.Parent = tabContent
+        
+        tabContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            tabContent.Size = UDim2.new(1, 0, 0, tabContentLayout.AbsoluteContentSize.Y)
+        end)
+        
+        local function switchToTab()
+            currentTab = name
+            for tabName, tabData in pairs(tabs) do
+                tabData.Button.BackgroundColor3 = (tabName == name) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+                tabData.Button.BackgroundTransparency = (tabName == name) and 0.2 or 0.6
+                tabData.Content.Visible = (tabName == name)
+            end
+            updateScrollSize()
+        end
+        
+        tabButton.MouseButton1Click:Connect(switchToTab)
+        tabButton.Activated:Connect(switchToTab)
+        if isMobile or isTablet then
+            tabButton.TouchTap:Connect(switchToTab)
+        end
+        
+        tabs[name] = {
+            Button = tabButton,
+            Content = tabContent,
+            Layout = tabContentLayout
+        }
+        
+        return tabContent, tabContentLayout
+    end
+    
+    -- Update scroll size
+    local function updateScrollSize()
+        local currentTabContent = tabs[currentTab]
+        if currentTabContent then
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, currentTabContent.Layout.AbsoluteContentSize.Y + 20)
+        end
+    end
+    
+    -- Create section
+    local function CreateSection(title, parent)
+        local isCollapsed = false
+        local sectionContainer = Instance.new("Frame")
+        sectionContainer.Name = title .. "Section"
+        sectionContainer.Size = UDim2.new(1, 0, 0, 0)
+        sectionContainer.BackgroundColor3 = Color3.fromRGB(10, 0, 0)
+        sectionContainer.BackgroundTransparency = 0.4
+        sectionContainer.BorderSizePixel = 2
+        sectionContainer.BorderColor3 = Color3.fromRGB(255, 0, 0)
+        sectionContainer.Parent = parent
+        
+        local sectionCorner = Instance.new("UICorner")
+        sectionCorner.CornerRadius = UDim.new(0, 10)
+        sectionCorner.Parent = sectionContainer
+        
+        local header = Instance.new("Frame")
+        header.Name = "Header"
+        header.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
+        header.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        header.BackgroundTransparency = 0.2
+        header.BorderSizePixel = 0
+        header.Parent = sectionContainer
+        
+        local headerCorner = Instance.new("UICorner")
+        headerCorner.CornerRadius = UDim.new(0, 8)
+        headerCorner.Parent = header
+        
+        local collapseButton = Instance.new("TextButton")
+        collapseButton.Name = "CollapseButton"
+        collapseButton.Size = UDim2.new(0, isMobile and 24 or 20, 0, isMobile and 24 or 20)
+        collapseButton.Position = UDim2.new(0, 4, 0.5, -(isMobile and 12 or 10))
+        collapseButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        collapseButton.BackgroundTransparency = 0.5
+        collapseButton.BorderSizePixel = 0
+        collapseButton.Text = "▼"
+        collapseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+        collapseButton.TextSize = isMobile and 12 or 10
+        collapseButton.Font = Enum.Font.GothamBold
+        collapseButton.Active = true
+        collapseButton.Parent = header
+        
+        local collapseCorner = Instance.new("UICorner")
+        collapseCorner.CornerRadius = UDim.new(0, 5)
+        collapseCorner.Parent = collapseButton
+        
+        local divider = Instance.new("Frame")
+        divider.Name = "Divider"
+        divider.Size = UDim2.new(1, -8, 0, 1)
+        divider.Position = UDim2.new(0, 4, 1, -1)
+        divider.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        divider.BackgroundTransparency = 0.4
+        divider.BorderSizePixel = 0
+        divider.Parent = header
+        
+        local headerLabel = Instance.new("TextLabel")
+        headerLabel.Name = "Title"
+        headerLabel.Size = UDim2.new(1, -(isMobile and 35 or 30), 1, 0)
+        headerLabel.Position = UDim2.new(0, isMobile and 30 or 26, 0, 0)
+        headerLabel.BackgroundTransparency = 1
+        headerLabel.Text = title
+        headerLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        headerLabel.TextSize = isMobile and 13 or 12
+        headerLabel.Font = Enum.Font.GothamBold
+        headerLabel.TextXAlignment = Enum.TextXAlignment.Left
+        headerLabel.Parent = header
+        
+        local contentFrame = Instance.new("Frame")
+        contentFrame.Name = "Content"
+        contentFrame.Size = UDim2.new(1, -12, 0, 0)
+        contentFrame.Position = UDim2.new(0, 6, 0, header.Size.Y.Offset + 4)
+        contentFrame.BackgroundTransparency = 1
+        contentFrame.Visible = true
+        contentFrame.Parent = sectionContainer
+        
+        local contentLayout = Instance.new("UIListLayout")
+        contentLayout.Padding = UDim.new(0, isMobile and 3 or 2)
+        contentLayout.Parent = contentFrame
+        
+        local function toggleCollapse()
+            isCollapsed = not isCollapsed
+            contentFrame.Visible = not isCollapsed
+            collapseButton.Text = isCollapsed and "▶" or "▼"
+            
+            if isCollapsed then
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset)
+            else
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 8)
+            end
+        end
+        
+        collapseButton.MouseButton1Click:Connect(toggleCollapse)
+        collapseButton.Activated:Connect(toggleCollapse)
+        if isMobile or isTablet then
+            collapseButton.TouchTap:Connect(toggleCollapse)
+        end
+        
+        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            if not isCollapsed then
+                sectionContainer.Size = UDim2.new(1, 0, 0, header.Size.Y.Offset + contentLayout.AbsoluteContentSize.Y + 8)
+            end
+        end)
+        
+        return contentFrame, sectionContainer
+    end
+    
+    -- Create slider
+    local function CreateSlider(name, min, max, current, callback, parent)
+        local container = Instance.new("Frame")
+        container.Name = name .. "Container"
+        container.Size = UDim2.new(1, 0, 0, isMobile and 38 or 32)
+        container.BackgroundTransparency = 1
+        container.Parent = parent
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Size = UDim2.new(0.35, 0, 0, isMobile and 16 or 14)
+        label.BackgroundTransparency = 1
+        label.Text = name .. ":"
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
+        label.TextSize = isMobile and 12 or 11
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = container
+        
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Name = "ValueLabel"
+        valueLabel.Size = UDim2.new(0, 50, 0, isMobile and 16 or 14)
+        valueLabel.Position = UDim2.new(0.37, 0, 0, 0)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Text = string.format("%.2f", current)
+        valueLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
+        valueLabel.TextSize = isMobile and 12 or 11
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+        valueLabel.Parent = container
+        
+        local slider = Instance.new("Frame")
+        slider.Name = "Slider"
+        slider.Size = UDim2.new(0.6, 0, 0, isMobile and 6 or 5)
+        slider.Position = UDim2.new(0.37, 0, 0, isMobile and 18 or 16)
+        slider.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        slider.BackgroundTransparency = 0.5
+        slider.BorderSizePixel = 0
+        slider.Parent = container
+        
+        local sliderCorner = Instance.new("UICorner")
+        sliderCorner.CornerRadius = UDim.new(0, 5)
+        sliderCorner.Parent = slider
+        
+        local fill = Instance.new("Frame")
+        fill.Name = "Fill"
+        fill.Size = UDim2.new((current - min) / (max - min), 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        fill.BackgroundTransparency = 0.2
+        fill.BorderSizePixel = 0
+        fill.Parent = slider
+        
+        local fillCorner = Instance.new("UICorner")
+        fillCorner.CornerRadius = UDim.new(0, 5)
+        fillCorner.Parent = fill
+        
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, 0, 1, 0)
+        button.BackgroundTransparency = 1
+        button.Text = ""
+        button.Active = true
+        button.Parent = slider
+        
+        local isDragging = false
+        local dragConnection = nil
+        
+        local function updateSliderValue(inputPosition)
+            local sliderPos = slider.AbsolutePosition
+            local sliderSize = slider.AbsoluteSize
+            local relativeX = math.clamp((inputPosition.X - sliderPos.X) / sliderSize.X, 0, 1)
+            local value = min + (max - min) * relativeX
+            fill.Size = UDim2.new(relativeX, 0, 1, 0)
+            valueLabel.Text = string.format("%.2f", value)
+            callback(value)
+        end
+        
+        button.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDragging = true
+                updateSliderValue(input.Position)
+                
+                if dragConnection then dragConnection:Disconnect() end
+                dragConnection = RunService.Heartbeat:Connect(function()
+                    if not isDragging then
+                        if dragConnection then dragConnection:Disconnect() dragConnection = nil end
+                        return
+                    end
+                    local currentInput = UserInputService:GetMouseLocation()
+                    updateSliderValue(currentInput)
+                end)
+            end
+        end)
+        
+        UserInputService.InputEnded:Connect(function(input)
+            if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and isDragging then
+                isDragging = false
+                if dragConnection then dragConnection:Disconnect() dragConnection = nil end
+            end
+        end)
+        
+        UserInputService.InputChanged:Connect(function(input)
+            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                updateSliderValue(input.Position)
+            end
+        end)
+        
+        return container
+    end
+    
+    -- Create toggle
+    local function CreateToggle(name, settingKey, callback, parent)
+        local current = Settings[settingKey]
+        local container = Instance.new("Frame")
+        container.Name = name .. "Container"
+        container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
+        container.BackgroundTransparency = 1
+        container.Parent = parent
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Size = UDim2.new(0.7, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = name
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
+        label.TextSize = isMobile and 12 or 11
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = container
+        
+        local toggle = Instance.new("TextButton")
+        toggle.Name = "Toggle"
+        toggle.Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)
+        toggle.Position = UDim2.new(1, -(isMobile and 42 or 38), 0.5, -(isMobile and 10 or 9))
+        toggle.BackgroundColor3 = current and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        toggle.BackgroundTransparency = current and 0.2 or 0.5
+        toggle.BorderSizePixel = 0
+        toggle.Text = ""
+        toggle.Active = true
+        toggle.Parent = container
+        
+        local toggleCorner = Instance.new("UICorner")
+        toggleCorner.CornerRadius = UDim.new(0, 10)
+        toggleCorner.Parent = toggle
+        
+        local indicator = Instance.new("Frame")
+        indicator.Name = "Indicator"
+        indicator.Size = UDim2.new(0, isMobile and 16 or 14, 0, isMobile and 16 or 14)
+        indicator.Position = current and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        indicator.BorderSizePixel = 0
+        indicator.Parent = toggle
+        
+        local indicatorCorner = Instance.new("UICorner")
+        indicatorCorner.CornerRadius = UDim.new(0, 8)
+        indicatorCorner.Parent = indicator
+        
+        local function toggleSwitch()
+            local currentValue = Settings[settingKey]
+            local newValue = not currentValue
+            Settings[settingKey] = newValue
+            
+            TweenService:Create(toggle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = newValue and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0),
+                BackgroundTransparency = newValue and 0.2 or 0.5
+            }):Play()
+            
+            local tween = TweenService:Create(indicator, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Position = newValue and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))
+            })
+            tween:Play()
+            
+            TweenService:Create(toggle, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(0, (isMobile and 42 or 38) + 4, 0, isMobile and 20 or 18)
+            }):Play()
+            task.wait(0.15)
+            TweenService:Create(toggle, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)
+            }):Play()
+            
+            if callback then callback(newValue) end
+        end
+        
+        toggle.MouseButton1Click:Connect(toggleSwitch)
+        toggle.Activated:Connect(toggleSwitch)
+        if isMobile or isTablet then
+            toggle.TouchTap:Connect(toggleSwitch)
+        end
+        
+        return container
+    end
+    
+    -- Create text box
+    local function CreateTextBox(name, current, callback, placeholder, parent)
+        local container = Instance.new("Frame")
+        container.Name = name .. "Container"
+        container.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
+        container.BackgroundTransparency = 1
+        container.Parent = parent
+        
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Size = UDim2.new(0.4, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = name .. ":"
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
+        label.TextSize = isMobile and 12 or 11
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = container
+        
+        local textBox = Instance.new("TextBox")
+        textBox.Name = "TextBox"
+        textBox.Size = UDim2.new(0, isMobile and 100 or 90, 0, isMobile and 22 or 20)
+        textBox.Position = UDim2.new(0.45, 0, 0.5, -(isMobile and 11 or 10))
+        textBox.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        textBox.BackgroundTransparency = 0.5
+        textBox.BorderSizePixel = 0
+        textBox.Text = tostring(current)
+        textBox.TextColor3 = Color3.fromRGB(255, 100, 100)
+        textBox.TextSize = isMobile and 12 or 11
+        textBox.Font = Enum.Font.Gotham
+        textBox.PlaceholderText = placeholder or "Enter value"
+        textBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+        textBox.ClearTextOnFocus = false
+        textBox.Parent = container
+        
+        local textBoxCorner = Instance.new("UICorner")
+        textBoxCorner.CornerRadius = UDim.new(0, 5)
+        textBoxCorner.Parent = textBox
+        
+        textBox.FocusLost:Connect(function(enterPressed)
+            local numValue = tonumber(textBox.Text)
+            if numValue then
+                callback(numValue)
+                textBox.Text = tostring(numValue)
+            else
+                textBox.Text = tostring(current)
+            end
+        end)
+        
+        return container
+    end
+    
+    -- Create tabs
+    local aimingTab, aimingLayout = CreateTab("Aiming")
+    local movementTab, movementLayout = CreateTab("Movement")
+    local combatTab, combatLayout = CreateTab("Combat")
+    local visualTab, visualLayout = CreateTab("Visual")
+    
+    -- Aiming Tab
+    local aimingSection, _ = CreateSection("Camera Lock", aimingTab)
+    
+    CreateToggle("Camera Lock", "CameraLockEnabled", function(val)
+        Settings.CameraLockEnabled = val
+        if val then
+            CreateFOVCircle()
+        else
+            if FOVCircle then
+                pcall(function() FOVCircle.ScreenGui:Destroy() end)
+                FOVCircle = nil
+            end
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+            IsShooting = false
+            if not Settings.PathfindingEnabled then
+                Target = nil
+                TargetHumanoid = nil
+                TargetHumanoidRootPart = nil
+            end
+        end
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local cornerGui = playerGui:FindFirstChild("CornerButtons")
+            if cornerGui then
+                local centerBtn = cornerGui:FindFirstChild("CameraLockToggle")
+                if centerBtn then
+                    centerBtn.Text = val and "🔒\nLOCKED" or "🔓\nUNLOCKED"
+                    centerBtn.BackgroundColor3 = val and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+                    centerBtn.BackgroundTransparency = val and 0.2 or 0.5
+                end
+            end
+        end
+    end, aimingSection)
+    
+    CreateSlider("Smoothness X", 0.01, 1, Settings.SmoothnessX, function(val)
+        Settings.SmoothnessX = val
+    end, aimingSection)
+    
+    CreateSlider("Smoothness Y", 0.01, 1, Settings.SmoothnessY, function(val)
+        Settings.SmoothnessY = val
+    end, aimingSection)
+    
+    CreateSlider("Prediction X", 0, 2, Settings.PredictionX, function(val)
+        Settings.PredictionX = val
+    end, aimingSection)
+    
+    CreateSlider("Prediction Y", 0, 2, Settings.PredictionY, function(val)
+        Settings.PredictionY = val
+    end, aimingSection)
+    
+    -- Movement Tab
+    local movementSection, _ = CreateSection("Pathfinding & Movement", movementTab)
+    
+    CreateToggle("Pathfinding", "PathfindingEnabled", function(val)
+        Settings.PathfindingEnabled = val
+    end, movementSection)
+    
+    CreateToggle("Dodging Mode", "DodgingEnabled", function(val)
+        Settings.DodgingEnabled = val
+    end, movementSection)
+    
+    CreateTextBox("Walk Speed", Settings.WalkSpeed, function(val)
+        Settings.WalkSpeed = math.clamp(val, 0, 300)
+    end, "0-300", movementSection)
+    
+    CreateTextBox("Jump Probability", Settings.JumpProbability, function(val)
+        Settings.JumpProbability = math.clamp(val, 0, 0.1)
+    end, "0-0.1", movementSection)
+    
+    CreateTextBox("Jump Power", Settings.JumpPower, function(val)
+        Settings.JumpPower = math.clamp(val, 0, 200)
+        if Humanoid and Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+    end, "0-200", movementSection)
+    
+    CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
+        Settings.DodgingSpeed = math.clamp(val, 0, 50)
+    end, "0-50", movementSection)
+    
+    CreateTextBox("Dodging Intensity", Settings.DodgingIntensity, function(val)
+        Settings.DodgingIntensity = math.clamp(val, 0, 10)
+    end, "0-10", movementSection)
+    
+    -- Combat Tab
+    local combatSection, _ = CreateSection("Combat & Shooting", combatTab)
+    
+    CreateToggle("Auto Reload", "AutoReload", function(val)
+        Settings.AutoReload = val
+    end, combatSection)
+    
+    CreateTextBox("Reload Interval", Settings.AutoReloadInterval, function(val)
+        Settings.AutoReloadInterval = math.clamp(val, 1, 5)
+    end, "1-5", combatSection)
+    
+    CreateTextBox("Stop Shooting HP", Settings.AutoStopShootingHP, function(val)
+        Settings.AutoStopShootingHP = math.clamp(val, 0, 100)
+    end, "0-100", combatSection)
+    
+    -- Visual Tab - FULL FOV CONFIGURATION
+    local visualSection, _ = CreateSection("FOV & Visual", visualTab)
+    
+    CreateSlider("FOV Size", 50, 200, Settings.FOV, function(val)
+        Settings.FOV = val
+        if FOVCircle then
+            FOVCircle.Circle.Size = UDim2.new(0, val * 2, 0, val * 2)
+            FOVCircle.Circle.Position = UDim2.new(0.5, -val, 0.5, -val)
+        end
+    end, visualSection)
+    
+    CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
+        Settings.FOVCircleTransparency = val
+        if FOVCircle then
+            FOVCircle.Stroke.Transparency = val
+            FOVCircle.GlowStroke.Transparency = val + 0.2
+            FOVCircle.Circle.BackgroundTransparency = val + 0.4
+            FOVCircle.Gradient.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, val),
+                NumberSequenceKeypoint.new(0.5, val + 0.2),
+                NumberSequenceKeypoint.new(1, val)
+            })
+            if FOVCircle.InnerGlow then
+                FOVCircle.InnerGlow.BackgroundTransparency = val + 0.4
+            end
+        end
+    end, visualSection)
+    
+    CreateSlider("FOV Thickness", 1, 10, Settings.FOVCircleThickness, function(val)
+        Settings.FOVCircleThickness = val
+        if FOVCircle then
+            FOVCircle.Stroke.Thickness = val
+            FOVCircle.GlowStroke.Thickness = val + 4
+        end
+    end, visualSection)
+    
+    CreateTextBox("FOV Red", math.floor(Settings.FOVCircleColor.R * 255), function(val)
+        local r = math.clamp(val, 0, 255)
+        Settings.FOVCircleColor = Color3.fromRGB(r, Settings.FOVCircleColor.G * 255, Settings.FOVCircleColor.B * 255)
+        if FOVCircle then
+            FOVCircle.Stroke.Color = Settings.FOVCircleColor
+            FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
+            FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
+            FOVCircle.Gradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, r + 50), math.min(255, Settings.FOVCircleColor.G * 255 + 50), math.min(255, Settings.FOVCircleColor.B * 255 + 50))),
+                ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
+            })
+            if FOVCircle.InnerGlow then
+                FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
+                FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, r - 55), math.max(0, Settings.FOVCircleColor.G * 255 - 55), math.max(0, Settings.FOVCircleColor.B * 255 - 55)))
+                })
+            end
+        end
+    end, "0-255", visualSection)
+    
+    CreateTextBox("FOV Green", math.floor(Settings.FOVCircleColor.G * 255), function(val)
+        local g = math.clamp(val, 0, 255)
+        Settings.FOVCircleColor = Color3.fromRGB(Settings.FOVCircleColor.R * 255, g, Settings.FOVCircleColor.B * 255)
+        if FOVCircle then
+            FOVCircle.Stroke.Color = Settings.FOVCircleColor
+            FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
+            FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
+            FOVCircle.Gradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, Settings.FOVCircleColor.R * 255 + 50), math.min(255, g + 50), math.min(255, Settings.FOVCircleColor.B * 255 + 50))),
+                ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
+            })
+            if FOVCircle.InnerGlow then
+                FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
+                FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, Settings.FOVCircleColor.R * 255 - 55), math.max(0, g - 55), math.max(0, Settings.FOVCircleColor.B * 255 - 55)))
+                })
+            end
+        end
+    end, "0-255", visualSection)
+    
+    CreateTextBox("FOV Blue", math.floor(Settings.FOVCircleColor.B * 255), function(val)
+        local b = math.clamp(val, 0, 255)
+        Settings.FOVCircleColor = Color3.fromRGB(Settings.FOVCircleColor.R * 255, Settings.FOVCircleColor.G * 255, b)
+        if FOVCircle then
+            FOVCircle.Stroke.Color = Settings.FOVCircleColor
+            FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
+            FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
+            FOVCircle.Gradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, Settings.FOVCircleColor.R * 255 + 50), math.min(255, Settings.FOVCircleColor.G * 255 + 50), math.min(255, b + 50))),
+                ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
+            })
+            if FOVCircle.InnerGlow then
+                FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
+                FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, Settings.FOVCircleColor.R * 255 - 55), math.max(0, Settings.FOVCircleColor.G * 255 - 55), math.max(0, b - 55)))
+                })
+            end
+        end
+    end, "0-255", visualSection)
+    
+    -- Update scroll size
+    aimingLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    movementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    combatLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    visualLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
+    
+    updateScrollSize()
     
     MainUI = mainFrame
 end
