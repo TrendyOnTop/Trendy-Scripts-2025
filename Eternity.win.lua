@@ -1,6 +1,23 @@
 -- Eternity.win
--- Simple Draggable UI Script
+-- Custom UI Script with All Features
 
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Stats = game:GetService("Stats")
+local CoreGui = game:GetService("CoreGui")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Wait for character
+local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Script Tables
 local Script = {
     Functions = {},
     Folders = {},
@@ -43,7 +60,6 @@ local Script = {
         HitEffect = {
             ["Nova Impact"] = nil,
             ["Crescent Slash"] = nil,
-            ["Crescent Slash"] = nil,
             ["Coom"] = nil,
             ["Cosmic Explosion"] = nil,
             ["Slash"] = nil,
@@ -78,7 +94,7 @@ local Script = {
     Connections = {
         GunConnections = {}
     },
-    AuraIgnoreFolder = Instance.new("Folder", game:GetService("Workspace"))
+    AuraIgnoreFolder = Instance.new("Folder", Workspace)
 }
 
 local Settings = {
@@ -105,7 +121,6 @@ local Settings = {
         EasingDirection = "Out",
         Alerts = true,
         LookAt = false,
-        Spectate = false,
         PingBased = false,
         UseIndex = false,
         AntiAimViewer = false,
@@ -339,6 +354,7 @@ local Settings = {
     }
 }
 
+-- Sentinel Configuration
 getgenv().Sentinel = {
     Enabled = true,
     HorizontalPrediction = 0.045,
@@ -362,7 +378,10 @@ getgenv().Sentinel = {
     easingStyle = "Sine",
     easingDirection = "Out",
     JumpBreak = false,
-    network = false
+    network = false,
+    LockType = "Namecall",
+    RESOLVER = "MoveDirection",
+    cframespeedtoggle = false
 }
 
 local GrenadeTP = false
@@ -371,10 +390,7 @@ getgenv().Desync = false
 getgenv().AntiLockType = "Behind"
 getgenv().Direction = Vector3.new(0, 0, -1)
 
-local player = game.Players.LocalPlayer
-local character = player.Character
-local hrp = character and character:FindFirstChild("HumanoidRootPart")
-
+-- Trail Effect
 if hrp then
     local a0 = Instance.new("Attachment", hrp)
     local a1 = Instance.new("Attachment", hrp)
@@ -395,310 +411,7 @@ if hrp then
     trail.Attachment1 = a1
 end
 
--- Simple Draggable UI
-local UIS = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local MainGui = Instance.new("ScreenGui")
-MainGui.Name = "EternityUI"
-MainGui.Parent = game.CoreGui
-MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-MainGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = MainGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BorderSizePixel = 0
-MainFrame.Size = UDim2.new(0, 400, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
-
-local TitleBar = Instance.new("Frame")
-TitleBar.Name = "TitleBar"
-TitleBar.Parent = MainFrame
-TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.Position = UDim2.new(0, 0, 0, 0)
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = TitleBar
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "TitleLabel"
-TitleLabel.Parent = TitleBar
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Size = UDim2.new(1, -60, 1, 0)
-TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "Eternity.win"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 14
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Parent = TitleBar
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.BorderSizePixel = 0
-ToggleButton.Size = UDim2.new(0, 25, 0, 25)
-ToggleButton.Position = UDim2.new(1, -55, 0, 2.5)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "-"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleButton.TextSize = 18
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 4)
-ToggleCorner.Parent = ToggleButton
-
-local LockButton = Instance.new("TextButton")
-LockButton.Name = "LockButton"
-LockButton.Parent = TitleBar
-LockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-LockButton.BorderSizePixel = 0
-LockButton.Size = UDim2.new(0, 25, 0, 25)
-LockButton.Position = UDim2.new(1, -30, 0, 2.5)
-LockButton.Font = Enum.Font.GothamBold
-LockButton.Text = "🔒"
-LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-LockButton.TextSize = 14
-
-local LockCorner = Instance.new("UICorner")
-LockCorner.CornerRadius = UDim.new(0, 4)
-LockCorner.Parent = LockButton
-
-local ContentFrame = Instance.new("ScrollingFrame")
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Parent = MainFrame
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Size = UDim2.new(1, -10, 1, -40)
-ContentFrame.Position = UDim2.new(0, 5, 0, 35)
-ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ContentFrame.ScrollBarThickness = 4
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ContentFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 5)
-
--- UI Toggle Button (Top Right Corner)
-local UIToggleButton = Instance.new("TextButton")
-UIToggleButton.Name = "UIToggleButton"
-UIToggleButton.Parent = game.CoreGui
-UIToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-UIToggleButton.BorderSizePixel = 0
-UIToggleButton.Size = UDim2.new(0, 50, 0, 50)
-UIToggleButton.Position = UDim2.new(1, -60, 0, 10)
-UIToggleButton.Font = Enum.Font.GothamBold
-UIToggleButton.Text = "☰"
-UIToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-UIToggleButton.TextSize = 20
-
-local UIToggleCorner = Instance.new("UICorner")
-UIToggleCorner.CornerRadius = UDim.new(0, 8)
-UIToggleCorner.Parent = UIToggleButton
-
-local UIToggleStroke = Instance.new("UIStroke")
-UIToggleStroke.Parent = UIToggleButton
-UIToggleStroke.Thickness = 2
-UIToggleStroke.Color = Color3.fromRGB(100, 100, 100)
-
--- Lock Button for Target Aim (Bottom Right)
-local AimLockButton = Instance.new("TextButton")
-AimLockButton.Name = "AimLockButton"
-AimLockButton.Parent = game.CoreGui
-AimLockButton.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
-AimLockButton.BorderSizePixel = 0
-AimLockButton.Size = UDim2.new(0, 150, 0, 50)
-AimLockButton.Position = UDim2.new(0.5, -75, 1, -70)
-AimLockButton.Font = Enum.Font.ArialBold
-AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
-AimLockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AimLockButton.TextSize = 25
-AimLockButton.RichText = true
-AimLockButton.TextStrokeTransparency = 0.5
-
-local AimLockCorner = Instance.new("UICorner")
-AimLockCorner.CornerRadius = UDim.new(0, 8)
-AimLockCorner.Parent = AimLockButton
-
-local AimLockStroke = Instance.new("UIStroke")
-AimLockStroke.Parent = AimLockButton
-AimLockStroke.Thickness = 2
-AimLockStroke.Color = Color3.fromRGB(16, 16, 32)
-
--- Dragging functionality
-local dragging = false
-local dragInput, dragStart, startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and not FrameLocked then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
--- UI Toggle
-local UIVisible = true
-local UIMinimized = false
-UIToggleButton.MouseButton1Click:Connect(function()
-    UIMinimized = not UIMinimized
-    if UIMinimized then
-        MainFrame.Size = UDim2.new(0, 400, 0, 30)
-        ContentFrame.Visible = false
-        ToggleButton.Text = "+"
-    else
-        MainFrame.Size = UDim2.new(0, 400, 0, 500)
-        ContentFrame.Visible = true
-        ToggleButton.Text = "-"
-    end
-end)
-
--- Frame Lock
-local FrameLocked = false
-LockButton.MouseButton1Click:Connect(function()
-    FrameLocked = not FrameLocked
-    if FrameLocked then
-        LockButton.Text = "🔓"
-        LockButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    else
-        LockButton.Text = "🔒"
-        LockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    end
-end)
-
--- Helper function to create settings
-local function CreateSetting(parent, name, value, callback)
-    local SettingFrame = Instance.new("Frame")
-    SettingFrame.Name = name
-    SettingFrame.Parent = parent
-    SettingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    SettingFrame.BorderSizePixel = 0
-    SettingFrame.Size = UDim2.new(1, 0, 0, 30)
-    
-    local SettingCorner = Instance.new("UICorner")
-    SettingCorner.CornerRadius = UDim.new(0, 4)
-    SettingCorner.Parent = SettingFrame
-    
-    local SettingLabel = Instance.new("TextLabel")
-    SettingLabel.Parent = SettingFrame
-    SettingLabel.BackgroundTransparency = 1
-    SettingLabel.Size = UDim2.new(1, -60, 1, 0)
-    SettingLabel.Position = UDim2.new(0, 10, 0, 0)
-    SettingLabel.Font = Enum.Font.Gotham
-    SettingLabel.Text = name
-    SettingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SettingLabel.TextSize = 12
-    SettingLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local Toggle = Instance.new("TextButton")
-    Toggle.Parent = SettingFrame
-    Toggle.BackgroundColor3 = value and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-    Toggle.BorderSizePixel = 0
-    Toggle.Size = UDim2.new(0, 50, 0, 20)
-    Toggle.Position = UDim2.new(1, -60, 0, 5)
-    Toggle.Font = Enum.Font.GothamBold
-    Toggle.Text = value and "ON" or "OFF"
-    Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Toggle.TextSize = 10
-    
-    local ToggleCorner2 = Instance.new("UICorner")
-    ToggleCorner2.CornerRadius = UDim.new(0, 4)
-    ToggleCorner2.Parent = Toggle
-    
-    Toggle.MouseButton1Click:Connect(function()
-        value = not value
-        Toggle.BackgroundColor3 = value and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-        Toggle.Text = value and "ON" or "OFF"
-        if callback then callback(value) end
-    end)
-    
-    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
-    end)
-end
-
--- Create settings
-CreateSetting(ContentFrame, "Target Aim", getgenv().Sentinel.Enabled, function(val)
-    getgenv().Sentinel.Enabled = val
-end)
-
-CreateSetting(ContentFrame, "Look At", getgenv().Sentinel.LookAt, function(val)
-    getgenv().Sentinel.LookAt = val
-end)
-
-CreateSetting(ContentFrame, "Auto Air", getgenv().Sentinel.AutoAir, function(val)
-    getgenv().Sentinel.AutoAir = val
-end)
-
-CreateSetting(ContentFrame, "Resolver", getgenv().Sentinel.ResolverEnabled, function(val)
-    getgenv().Sentinel.ResolverEnabled = val
-end)
-
-CreateSetting(ContentFrame, "Grenade TP", Script.Locals.GrenadeTP.Enabled, function(val)
-    Script.Locals.GrenadeTP.Enabled = val
-end)
-
-CreateSetting(ContentFrame, "Rocket TP", Script.Locals.RocketTP.Enabled, function(val)
-    Script.Locals.RocketTP.Enabled = val
-end)
-
-CreateSetting(ContentFrame, "Bullet TP", Script.Locals.GunTP.Enabled, function(val)
-    Script.Locals.GunTP.Enabled = val
-end)
-
-CreateSetting(ContentFrame, "Camera", getgenv().Sentinel.Camera, function(val)
-    getgenv().Sentinel.Camera = val
-end)
-
-CreateSetting(ContentFrame, "Network Anti", getgenv().Sentinel.network, function(val)
-    getgenv().Sentinel.network = val
-end)
-
-CreateSetting(ContentFrame, "Jump Break", getgenv().Sentinel.JumpBreak, function(val)
-    getgenv().Sentinel.JumpBreak = val
-end)
-
-CreateSetting(ContentFrame, "Anti Lock", getgenv().Desync, function(val)
-    getgenv().Desync = val
-end)
-
--- Rest of the script continues below...
--- [All the hit effects, particle emitters, and core functionality code would go here]
-
+-- Hit Sounds
 local hitsounds = {
     ["RIFK7"] = "rbxassetid://9102080552",
     ["Bubble"] = "rbxassetid://9102092728",
@@ -711,6 +424,7 @@ local hitsounds = {
     ["BlackPencil"] = "https://github.com/khenn791/script-khen/raw/refs/heads/main/bananapencil.mp3%20(1).mp3"
 }
 
+-- Target Aimbot Configuration
 local TargetAimbot = {
     Enabled = true, 
     Keybind = Enum.KeyCode.Q,
@@ -749,32 +463,17 @@ local TargetAimbot = {
     HitChams = true,
     HitChamsMaterial = Enum.Material.Neon,
     HitChamsDuration = 1,
-    HitChamsColor = Color3.fromRGB(173, 216, 230)
+    HitChamsColor = Color3.fromRGB(173, 216, 230),
+    HitChamsTransparency = 0.5
 }
 
 local Highlight = false
-
-local Players = game:GetService("Players")
-local Attachment = Instance.new("Attachment")
-
--- [Include all particle emitter code, hit effects, etc. from original script]
--- For brevity, I'll include the key parts but you'd need to copy all the particle emitter code
-
-local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
-local CoreGui = game:GetService("CoreGui")
-local StarterGui = game:GetService("StarterGui")
-local SoundService = game:GetService("SoundService")
-local Stas = game:GetService("Stats")
-local LocalPlayer = Players.LocalPlayer
-
 local TargBindEnabled = true
-local TargetPlr
-local TargResolvePos
+local TargetPlr = nil
+local TargResolvePos = nil
+local target_health = nil
 
+-- Highlight Setup
 local TargHighlight = Instance.new("Highlight")
 TargHighlight.Parent = CoreGui
 TargHighlight.FillColor = TargetAimbot.HighlightColor1
@@ -789,8 +488,7 @@ Tracer.Color = Color3.fromRGB(154, 7, 250)
 Tracer.Thickness = 1
 Tracer.Transparency = 1
 
--- [All HitEffectModule code would go here - keeping structure but removing Menu references]
-
+-- Hit Effect Module
 local HitEffectModule = {
     Locals = {
         Type = {
@@ -800,13 +498,6 @@ local HitEffectModule = {
             ["Cosmic Explosion"] = nil,
             ["Slash"] = nil,
             ["Atomic Slash"] = nil,
-            ["Aura"] = nil,
-            ["Electric"] = nil,
-            ["swirl"] = nil,
-            ["AuraBurst"] = nil,
-            ["Shock3"] = nil,
-            ["Thunder"] = nil,
-            ["Circle"] = nil,
         },
     },
     Functions = {},
@@ -835,40 +526,6 @@ do
     Glow.Rate = 50
     Glow.Texture = "rbxassetid://8708637750"
     Glow.Parent = Attachment
-
-    local Gradient1 = Instance.new("ParticleEmitter")
-    Gradient1.Name = "Gradient1"
-    Gradient1.Lifetime = NumberRange.new(0.3, 0.3)
-    Gradient1.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.15, 0.3), NumberSequenceKeypoint.new(1, 1)})
-    Gradient1.Color = ColorSequence.new(Color3.fromRGB(115, 201, 255))
-    Gradient1.Speed = NumberRange.new(0, 0)
-    Gradient1.Brightness = 6
-    Gradient1.Size = NumberSequence.new(0, 11.6261358)
-    Gradient1.Enabled = false
-    Gradient1.ZOffset = 0.9187313
-    Gradient1.Rate = 50
-    Gradient1.Texture = "rbxassetid://8196169974"
-    Gradient1.Parent = Attachment
-
-    local Shards = Instance.new("ParticleEmitter")
-    Shards.Name = "Shards"
-    Shards.Lifetime = NumberRange.new(0.19, 0.7)
-    Shards.SpreadAngle = Vector2.new(-90, 90)
-    Shards.Color = ColorSequence.new(Color3.fromRGB(108, 184, 255))
-    Shards.Drag = 10
-    Shards.VelocitySpread = -90
-    Shards.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5705521, 0.4125001), NumberSequenceKeypoint.new(1, -0.9375)})
-    Shards.Speed = NumberRange.new(97.7530136, 146.9970093)
-    Shards.Brightness = 4
-    Shards.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.284774, 1.2389833, 0.1534118), NumberSequenceKeypoint.new(1, 0)})
-    Shards.Enabled = false
-    Shards.Acceleration = Vector3.new(0, -56.961341857910156, 0)
-    Shards.ZOffset = 0.5705321
-    Shards.Rate = 50
-    Shards.Texture = "rbxassetid://8030734851"
-    Shards.Rotation = NumberRange.new(90, 90)
-    Shards.Orientation = Enum.ParticleOrientation.VelocityParallel
-    Shards.Parent = Attachment
 
     local Crescents = Instance.new("ParticleEmitter")
     Crescents.Name = "Crescents"
@@ -915,30 +572,6 @@ do
     Glow.Rate = 50
     Glow.Texture = "rbxassetid://8708637750"
     Glow.Parent = Attachment
-
-    local Effect = Instance.new("ParticleEmitter")
-    Effect.Name = "Effect"
-    Effect.Lifetime = NumberRange.new(0.4, 0.7)
-    Effect.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
-    Effect.SpreadAngle = Vector2.new(360, -360)
-    Effect.LockedToPart = true
-    Effect.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.1070999, 0.19375), NumberSequenceKeypoint.new(0.7761194, 0.88125), NumberSequenceKeypoint.new(1, 1)})
-    Effect.LightEmission = 1
-    Effect.Color = ColorSequence.new(Color3.fromRGB(173, 82, 252))
-    Effect.Drag = 1
-    Effect.VelocitySpread = 360
-    Effect.Speed = NumberRange.new(0.0036749, 0.0036749)
-    Effect.Brightness = 2.0999999
-    Effect.Size = NumberSequence.new(6.9680691, 9.9213123)
-    Effect.Enabled = false
-    Effect.ZOffset = 0.4777403
-    Effect.Rate = 50
-    Effect.Texture = "rbxassetid://9484012464"
-    Effect.RotSpeed = NumberRange.new(-150, -150)
-    Effect.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
-    Effect.Rotation = NumberRange.new(50, 50)
-    Effect.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
-    Effect.Parent = Attachment
 
     Part.Parent = workspace
 end
@@ -1054,85 +687,16 @@ local HitChamsFolder = Instance.new("Folder")
 HitChamsFolder.Name = "HitChamsFolder"
 HitChamsFolder.Parent = Workspace
 
--- Target lock functionality
-local FOV43 = Drawing.new("Circle")
-FOV43.Transparency = 0.5
-FOV43.Thickness = 2
-FOV43.Color = Color3.new(1, 0, 0)
-FOV43.Filled = false
-FOV43.Radius = 250
-FOV43.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
-FOV43.Visible = false
-
-function SigmaOhioPlayer()
-    local closestPlayer
-    local shortestDistance = math.huge
-    local player = game.Players.LocalPlayer
-    local CC = game:GetService("Workspace").CurrentCamera
-    local screenCenter = Vector2.new(CC.ViewportSize.X / 2, CC.ViewportSize.Y / 2)
-    local fovRadius = FOV43.Radius
-    local viewportSize = CC.ViewportSize
-
-    for i, v in pairs(game.Players:GetPlayers()) do
-        if v ~= player and v.Character and v.Character:FindFirstChild("Humanoid") 
-           and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = CC:WorldToViewportPoint(v.Character.PrimaryPart.Position)
-            
-            if onScreen and pos.X > 0 and pos.Y > 0 
-               and pos.X < viewportSize.X and pos.Y < viewportSize.Y then
-                local magnitude = (Vector2.new(pos.X, pos.Y) - screenCenter).magnitude
-                if magnitude < fovRadius and magnitude < shortestDistance then
-                    closestPlayer = v
-                    shortestDistance = magnitude
-                end
-            end
-        end
-    end
-    
-    return closestPlayer
-end
-
-local target_health = nil
-
-toggle_lock = function()
-    if TargetAimbot.Enabled then
-        local closest = SigmaOhioPlayer()
-        if TargBindEnabled and TargetPlr then
-            TargBindEnabled = false
-            target_health = nil
-            TargetPlr = nil
-            Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
-            if TargetAimbot.LookAt then
-                LocalPlayer.Character.Humanoid.AutoRotate = true
-            end
-            AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
-        else
-            TargBindEnabled = true
-            TargetPlr = closest
-            if TargetPlr.Character and TargetPlr.Character:FindFirstChild("Humanoid") then
-                target_health = TargetPlr.Character.Humanoid.Health
-            else
-                return
-            end
-            AimLockButton.Text = "Lock: " .. "<font color='rgb(0, 255, 0)'>ON</font>"
-        end
-    end
-end
-
-AimLockButton.MouseButton1Click:Connect(toggle_lock)
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.DPadDown then
-        toggle_lock()
-    end
-end)
-
+-- Hit Effect Function
 HitEffectModule.Functions.Effect = function(character, color)
     if not character then return end
     local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
     if not humanoidRootPart then return end
 
-    local effectAttachment = HitEffectModule.Locals.Type[TargetAimbot.HitEffectType]:Clone()
+    local effectType = HitEffectModule.Locals.Type[TargetAimbot.HitEffectType]
+    if not effectType then return end
+    
+    local effectAttachment = effectType:Clone()
     effectAttachment.Parent = humanoidRootPart
 
     for _, emitter in pairs(effectAttachment:GetChildren()) do
@@ -1150,7 +714,9 @@ HitEffectModule.Functions.Effect = function(character, color)
     end
 
     task.delay(2, function()
-        effectAttachment:Destroy()
+        if effectAttachment and effectAttachment.Parent then
+            effectAttachment:Destroy()
+        end
     end)
 end
 
@@ -1165,8 +731,6 @@ local function PlayHitSound()
         end)
     end
 end
-
-local TweenService = game:GetService("TweenService")
 
 local function HitChams(Player)
     if not TargetAimbot.HitChams then return end
@@ -1210,7 +774,7 @@ local function HitChams(Player)
             if BodyPart:IsA("BasePart") then
                 BodyPart.CanCollide = false
                 BodyPart.Anchored = true
-                BodyPart.Transparency = 0.5
+                BodyPart.Transparency = TargetAimbot.HitChamsTransparency
                 BodyPart.Color = TargetAimbot.HitChamsColor
                 BodyPart.Material = TargetAimbot.HitChamsMaterial
             end
@@ -1218,7 +782,7 @@ local function HitChams(Player)
 
         if Cloned:FindFirstChild("Head") then
             local Head = Cloned.Head
-            Head.Transparency = 0.5
+            Head.Transparency = TargetAimbot.HitChamsTransparency
             Head.Color = TargetAimbot.HitChamsColor
             Head.Material = TargetAimbot.HitChamsMaterial
 
@@ -1257,7 +821,7 @@ local function updatetarget_health()
         local humanoid = TargetPlr.Character:FindFirstChild("Humanoid")
         if humanoid then
             local currentHealth = humanoid.Health
-            if currentHealth < target_health then
+            if target_health and currentHealth < target_health then
                 PlayHitSound()
                 HitEffectModule.Functions.Effect(TargetPlr.Character)
                 HitChams(TargetPlr)
@@ -1279,9 +843,420 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-getgenv().Sentinel.LockType = "Namecall"
-getgenv().Sentinel.RESOLVER = "MoveDirection"
+-- FOV Circle
+local FOV43 = Drawing.new("Circle")
+FOV43.Transparency = 0.5
+FOV43.Thickness = 2
+FOV43.Color = Color3.new(1, 0, 0)
+FOV43.Filled = false
+FOV43.Radius = 250
+FOV43.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+FOV43.Visible = false
 
+function SigmaOhioPlayer()
+    local closestPlayer
+    local shortestDistance = math.huge
+    local player = game.Players.LocalPlayer
+    local CC = workspace.CurrentCamera
+    local screenCenter = Vector2.new(CC.ViewportSize.X / 2, CC.ViewportSize.Y / 2)
+    local fovRadius = FOV43.Radius
+    local viewportSize = CC.ViewportSize
+
+    for i, v in pairs(game.Players:GetPlayers()) do
+        if v ~= player and v.Character and v.Character:FindFirstChild("Humanoid") 
+           and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("HumanoidRootPart") then
+            local primaryPart = v.Character.PrimaryPart or v.Character:FindFirstChild("HumanoidRootPart")
+            if primaryPart then
+                local pos, onScreen = CC:WorldToViewportPoint(primaryPart.Position)
+                
+                if onScreen and pos.X > 0 and pos.Y > 0 
+                   and pos.X < viewportSize.X and pos.Y < viewportSize.Y then
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - screenCenter).magnitude
+                    if magnitude < fovRadius and magnitude < shortestDistance then
+                        closestPlayer = v
+                        shortestDistance = magnitude
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+toggle_lock = function()
+    if TargetAimbot.Enabled then
+        local closest = SigmaOhioPlayer()
+        if TargBindEnabled and TargetPlr then
+            TargBindEnabled = false
+            target_health = nil
+            TargetPlr = nil
+            Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+            if TargetAimbot.LookAt then
+                LocalPlayer.Character.Humanoid.AutoRotate = true
+            end
+        else
+            TargBindEnabled = true
+            TargetPlr = closest
+            if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("Humanoid") then
+                target_health = TargetPlr.Character.Humanoid.Health
+            else
+                return
+            end
+        end
+    end
+end
+
+-- Custom UI Creation
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "EternityUI"
+MainGui.Parent = game.CoreGui
+MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+MainGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = MainGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Size = UDim2.new(0, 500, 0, 600)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -300)
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = MainFrame
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(100, 100, 100)
+UIStroke.Transparency = 0.5
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.BorderSizePixel = 0
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = TitleBar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "Eternity.win"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = TitleBar
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Size = UDim2.new(0, 30, 0, 30)
+ToggleButton.Position = UDim2.new(1, -70, 0, 5)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "-"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 20
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleButton
+
+local LockButton = Instance.new("TextButton")
+LockButton.Name = "LockButton"
+LockButton.Parent = TitleBar
+LockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+LockButton.BorderSizePixel = 0
+LockButton.Size = UDim2.new(0, 30, 0, 30)
+LockButton.Position = UDim2.new(1, -35, 0, 5)
+LockButton.Font = Enum.Font.GothamBold
+LockButton.Text = "🔒"
+LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+LockButton.TextSize = 14
+
+local LockCorner = Instance.new("UICorner")
+LockCorner.CornerRadius = UDim.new(0, 6)
+LockCorner.Parent = LockButton
+
+-- Content Frame
+local ContentFrame = Instance.new("ScrollingFrame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Parent = MainFrame
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Size = UDim2.new(1, -20, 1, -50)
+ContentFrame.Position = UDim2.new(0, 10, 0, 45)
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ContentFrame.ScrollBarThickness = 4
+ContentFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ContentFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+
+-- UI Toggle Button (Top Right Corner)
+local UIToggleButton = Instance.new("TextButton")
+UIToggleButton.Name = "UIToggleButton"
+UIToggleButton.Parent = game.CoreGui
+UIToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+UIToggleButton.BorderSizePixel = 0
+UIToggleButton.Size = UDim2.new(0, 50, 0, 50)
+UIToggleButton.Position = UDim2.new(1, -60, 0, 10)
+UIToggleButton.Font = Enum.Font.GothamBold
+UIToggleButton.Text = "☰"
+UIToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+UIToggleButton.TextSize = 24
+
+local UIToggleCorner = Instance.new("UICorner")
+UIToggleCorner.CornerRadius = UDim.new(0, 8)
+UIToggleCorner.Parent = UIToggleButton
+
+local UIToggleStroke = Instance.new("UIStroke")
+UIToggleStroke.Parent = UIToggleButton
+UIToggleStroke.Thickness = 2
+UIToggleStroke.Color = Color3.fromRGB(100, 100, 100)
+
+-- Lock Button for Target Aim (Bottom Right)
+local AimLockButton = Instance.new("TextButton")
+AimLockButton.Name = "AimLockButton"
+AimLockButton.Parent = game.CoreGui
+AimLockButton.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
+AimLockButton.BorderSizePixel = 0
+AimLockButton.Size = UDim2.new(0, 150, 0, 50)
+AimLockButton.Position = UDim2.new(0.5, -75, 1, -70)
+AimLockButton.Font = Enum.Font.ArialBold
+AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
+AimLockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AimLockButton.TextSize = 25
+AimLockButton.RichText = true
+AimLockButton.TextStrokeTransparency = 0.5
+
+local AimLockCorner = Instance.new("UICorner")
+AimLockCorner.CornerRadius = UDim.new(0, 8)
+AimLockCorner.Parent = AimLockButton
+
+local AimLockStroke = Instance.new("UIStroke")
+AimLockStroke.Parent = AimLockButton
+AimLockStroke.Thickness = 2
+AimLockStroke.Color = Color3.fromRGB(16, 16, 32)
+
+-- Dragging functionality
+local dragging = false
+local dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and not FrameLocked then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- UI Toggle
+local FrameLocked = false
+local UIMinimized = false
+
+UIToggleButton.MouseButton1Click:Connect(function()
+    MainGui.Enabled = not MainGui.Enabled
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    UIMinimized = not UIMinimized
+    if UIMinimized then
+        MainFrame.Size = UDim2.new(0, 500, 0, 40)
+        ContentFrame.Visible = false
+        ToggleButton.Text = "+"
+    else
+        MainFrame.Size = UDim2.new(0, 500, 0, 600)
+        ContentFrame.Visible = true
+        ToggleButton.Text = "-"
+    end
+end)
+
+LockButton.MouseButton1Click:Connect(function()
+    FrameLocked = not FrameLocked
+    if FrameLocked then
+        LockButton.Text = "🔓"
+        LockButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    else
+        LockButton.Text = "🔒"
+        LockButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    end
+end)
+
+AimLockButton.MouseButton1Click:Connect(function()
+    toggle_lock()
+    if TargBindEnabled then
+        AimLockButton.Text = "Lock: " .. "<font color='rgb(0, 255, 0)'>ON</font>"
+    else
+        AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.DPadDown then
+        toggle_lock()
+        if TargBindEnabled then
+            AimLockButton.Text = "Lock: " .. "<font color='rgb(0, 255, 0)'>ON</font>"
+        else
+            AimLockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
+        end
+    end
+end)
+
+-- Helper function to create settings
+local function CreateSetting(parent, name, value, callback)
+    local SettingFrame = Instance.new("Frame")
+    SettingFrame.Name = name
+    SettingFrame.Parent = parent
+    SettingFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    SettingFrame.BorderSizePixel = 0
+    SettingFrame.Size = UDim2.new(1, 0, 0, 35)
+    
+    local SettingCorner = Instance.new("UICorner")
+    SettingCorner.CornerRadius = UDim.new(0, 6)
+    SettingCorner.Parent = SettingFrame
+    
+    local SettingLabel = Instance.new("TextLabel")
+    SettingLabel.Parent = SettingFrame
+    SettingLabel.BackgroundTransparency = 1
+    SettingLabel.Size = UDim2.new(1, -70, 1, 0)
+    SettingLabel.Position = UDim2.new(0, 10, 0, 0)
+    SettingLabel.Font = Enum.Font.Gotham
+    SettingLabel.Text = name
+    SettingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SettingLabel.TextSize = 14
+    SettingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local Toggle = Instance.new("TextButton")
+    Toggle.Parent = SettingFrame
+    Toggle.BackgroundColor3 = value and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    Toggle.BorderSizePixel = 0
+    Toggle.Size = UDim2.new(0, 55, 0, 25)
+    Toggle.Position = UDim2.new(1, -65, 0, 5)
+    Toggle.Font = Enum.Font.GothamBold
+    Toggle.Text = value and "ON" or "OFF"
+    Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Toggle.TextSize = 12
+    
+    local ToggleCorner2 = Instance.new("UICorner")
+    ToggleCorner2.CornerRadius = UDim.new(0, 6)
+    ToggleCorner2.Parent = Toggle
+    
+    local currentValue = value
+    Toggle.MouseButton1Click:Connect(function()
+        currentValue = not currentValue
+        Toggle.BackgroundColor3 = currentValue and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        Toggle.Text = currentValue and "ON" or "OFF"
+        if callback then callback(currentValue) end
+    end)
+    
+    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        ContentFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+    end)
+end
+
+-- Create settings
+CreateSetting(ContentFrame, "Target Aim", getgenv().Sentinel.Enabled, function(val)
+    getgenv().Sentinel.Enabled = val
+end)
+
+CreateSetting(ContentFrame, "Look At", getgenv().Sentinel.LookAt, function(val)
+    getgenv().Sentinel.LookAt = val
+end)
+
+CreateSetting(ContentFrame, "Highlight", Highlight, function(val)
+    Highlight = val
+end)
+
+CreateSetting(ContentFrame, "Auto Air", getgenv().Sentinel.AutoAir, function(val)
+    getgenv().Sentinel.AutoAir = val
+end)
+
+CreateSetting(ContentFrame, "Resolver", getgenv().Sentinel.ResolverEnabled, function(val)
+    getgenv().Sentinel.ResolverEnabled = val
+end)
+
+CreateSetting(ContentFrame, "Grenade TP", Script.Locals.GrenadeTP.Enabled, function(val)
+    Script.Locals.GrenadeTP.Enabled = val
+end)
+
+CreateSetting(ContentFrame, "Rocket TP", Script.Locals.RocketTP.Enabled, function(val)
+    Script.Locals.RocketTP.Enabled = val
+end)
+
+CreateSetting(ContentFrame, "Bullet TP", Script.Locals.GunTP.Enabled, function(val)
+    Script.Locals.GunTP.Enabled = val
+end)
+
+CreateSetting(ContentFrame, "Camera", getgenv().Sentinel.Camera, function(val)
+    getgenv().Sentinel.Camera = val
+end)
+
+CreateSetting(ContentFrame, "Network Anti", getgenv().Sentinel.network, function(val)
+    getgenv().Sentinel.network = val
+end)
+
+CreateSetting(ContentFrame, "Jump Break", getgenv().Sentinel.JumpBreak, function(val)
+    getgenv().Sentinel.JumpBreak = val
+end)
+
+CreateSetting(ContentFrame, "Anti Lock", getgenv().Desync, function(val)
+    getgenv().Desync = val
+end)
+
+CreateSetting(ContentFrame, "Hit Effect", TargetAimbot.HitEffect, function(val)
+    TargetAimbot.HitEffect = val
+end)
+
+CreateSetting(ContentFrame, "Hit Sound", TargetAimbot.HitSounds, function(val)
+    TargetAimbot.HitSounds = val
+end)
+
+CreateSetting(ContentFrame, "Hit Chams", TargetAimbot.HitChams, function(val)
+    TargetAimbot.HitChams = val
+end)
+
+CreateSetting(ContentFrame, "CSync", TargetAimbot.CSync.Enabled, function(val)
+    TargetAimbot.CSync.Enabled = val
+end)
+
+-- Game Support
 local game_support = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/script-khen/refs/heads/main/Argument.txt",true))()
 
 local function getRemoteInfo()
@@ -1290,51 +1265,41 @@ local function getRemoteInfo()
 end
 
 local function predictedposition()
+    if not TargetPlr or not TargetPlr.Character then return nil end
     local selectedPart = getgenv().Sentinel.SelectedPart
-    local targetPart = TargetPlr.Character[selectedPart]
+    local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
+    if not targetPart then return nil end
 
-    if targetPart then
-        local velocity
-        if not getgenv().Sentinel.ResolverEnabled then
-            velocity = targetPart.Velocity
+    local velocity
+    if not getgenv().Sentinel.ResolverEnabled then
+        velocity = targetPart.Velocity
+    else
+        if getgenv().Sentinel.RESOLVER == "MoveDirection" then
+            velocity = TargetPlr.Character.Humanoid.MoveDirection * TargetPlr.Character.Humanoid.WalkSpeed
+        elseif getgenv().Sentinel.RESOLVER == "LookVector" then
+            velocity = targetPart.CFrame.LookVector * getgenv().Sentinel.HorizontalPrediction * 1.2
         else
-            if getgenv().Sentinel.RESOLVER == "MoveDirection" then
-                velocity = TargetPlr.Character.Humanoid.MoveDirection * TargetPlr.Character.Humanoid.WalkSpeed
-            elseif getgenv().Sentinel.RESOLVER == "LookVector" then
-                velocity = targetPart.CFrame.LookVector * getgenv().Sentinel.HorizontalPrediction * 1.2
-            else
-                velocity = targetPart.Velocity
-            end
+            velocity = targetPart.Velocity
         end
-
-        local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-
-        local predictedPosition = Vector3.new(
-            targetPart.Position.X + (velocity.X * horizontalPrediction),
-            targetPart.Position.Y,
-            targetPart.Position.Z + (velocity.Z * horizontalPrediction)
-        )
-
-        return predictedPosition
     end
-end
 
-local game_support = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/script-khen/refs/heads/main/Argument.txt",true))()
+    local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
 
-local function getRemoteInfo()
-    local placeId = game.PlaceId
-    return game_support[placeId] or {Remote = "MainEvent", Argument = "UpdateMousePos"}
+    local predictedPosition = Vector3.new(
+        targetPart.Position.X + (velocity.X * horizontalPrediction),
+        targetPart.Position.Y,
+        targetPart.Position.Z + (velocity.Z * horizontalPrediction)
+    )
+
+    return predictedPosition
 end
 
 RunService.PostSimulation:Connect(function(DeltaTime)
     if getgenv().Sentinel.Enabled then
         if getgenv().Sentinel.LockType == "Index" then
-            local LocalPlayer = game.Players.LocalPlayer
-            local LocalFramework = LocalPlayer.PlayerGui:WaitForChild("Framework", 1e9)
-
+            local LocalFramework = LocalPlayer.PlayerGui:FindFirstChild("Framework")
             if LocalFramework then
                 local FrameworkEnvironment = getsenv(LocalFramework)
-
                 if FrameworkEnvironment._G and FrameworkEnvironment._G.MOUSE_POSITION then
                     if TargetPlr then
                         FrameworkEnvironment._G.MOUSE_POSITION = predictedposition() 
@@ -1345,12 +1310,12 @@ RunService.PostSimulation:Connect(function(DeltaTime)
     end
 end)
 
-local remoteInfo = getRemoteInfo()
+-- Hooking
 local mt = getrawmetatable(game)
 local old = mt.__namecall
 setreadonly(mt, false)
 
-do -- // Hooking
+do
     __namecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
         local args, method = {...}, tostring(getnamecallmethod())
 
@@ -1359,7 +1324,7 @@ do -- // Hooking
                 if typeof(arg) == "Vector3" then
                     if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
                         local selectedPart = getgenv().Sentinel.SelectedPart
-                        local targetPart = TargetPlr.Character[selectedPart]
+                        local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
 
                         if targetPart then
                             local velocity
@@ -1376,8 +1341,7 @@ do -- // Hooking
                             end
 
                             local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-
-                            args[i] = targetPart.Position + (targetPart.Velocity * horizontalPrediction)
+                            args[i] = targetPart.Position + (velocity * horizontalPrediction)
                         end
                     end
                     return __namecall(Self, unpack(args))
@@ -1386,7 +1350,7 @@ do -- // Hooking
                         if typeof(element) == "Vector3" then
                             if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
                                 local selectedPart = getgenv().Sentinel.SelectedPart
-                                local targetPart = TargetPlr.Character[selectedPart]
+                                local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
 
                                 if targetPart then
                                     local velocity
@@ -1403,8 +1367,7 @@ do -- // Hooking
                                     end
 
                                     local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
-
-                                    arg[index] = targetPart.Position + (targetPart.Velocity * horizontalPrediction)
+                                    arg[index] = targetPart.Position + (velocity * horizontalPrediction)
                                 end
                             end
                         end
@@ -1418,11 +1381,10 @@ do -- // Hooking
     end))
 end
 
-local players = game:GetService("Players")
-local client = players.LocalPlayer
+-- Auto Shoot
 local function AutoShoot()
     if TargetPlr then
-        local character = client.Character
+        local character = LocalPlayer.Character
         if character then
             local tool = character:FindFirstChildOfClass("Tool")
             if tool and tool:IsA("Tool") then
@@ -1508,7 +1470,7 @@ local predictionTable = {
 
 local function updatePredictionValue()
     if getgenv().Sentinel.AutoPrediction then
-        local pingValue = Stas.Network.ServerStatsItem["Data Ping"]:GetValueString()
+        local pingValue = Stats.Network.ServerStatsItem["Data Ping"]:GetValueString()
         local split = string.split(pingValue, '(')
         local ping = tonumber(split[1])
 
@@ -1539,29 +1501,33 @@ local function updatePredictionValue()
 end
 
 function LookAtPlayer(Target)
-    local localChar = game.Players.LocalPlayer.Character or game.Players.LocalPlayer.CharacterAdded:Wait()
+    local localChar = LocalPlayer.Character
+    if not localChar then return end
     local localHumanoidRootPart = localChar:FindFirstChild("HumanoidRootPart")
+    if not localHumanoidRootPart then return end
 
-    if localHumanoidRootPart then
-        if getgenv().Sentinel and getgenv().Sentinel.LookAt then
-            if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
-                local targetHumanoidRootPart = Target.Character.HumanoidRootPart
-                
-                local targetPosition = targetHumanoidRootPart.Position
-                local localPosition = localHumanoidRootPart.Position
-                
-                local horizontalDirection = Vector3.new(targetPosition.X - localPosition.X, 0, targetPosition.Z - localPosition.Z).unit
-                
-                localHumanoidRootPart.CFrame = CFrame.new(localPosition, localPosition + horizontalDirection)
-                localChar.Humanoid.AutoRotate = false
-            end
-        else
+    if getgenv().Sentinel and getgenv().Sentinel.LookAt then
+        if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHumanoidRootPart = Target.Character.HumanoidRootPart
+            
+            local targetPosition = targetHumanoidRootPart.Position
+            local localPosition = localHumanoidRootPart.Position
+            
+            local horizontalDirection = Vector3.new(targetPosition.X - localPosition.X, 0, targetPosition.Z - localPosition.Z).unit
+            
+            localHumanoidRootPart.CFrame = CFrame.new(localPosition, localPosition + horizontalDirection)
+            localChar.Humanoid.AutoRotate = false
+        end
+    else
+        if localChar.Humanoid then
             localChar.Humanoid.AutoRotate = true
         end
     end
     
     if not (Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart")) then
-        localChar.Humanoid.AutoRotate = true
+        if localChar.Humanoid then
+            localChar.Humanoid.AutoRotate = true
+        end
     end
 end
 
@@ -1576,7 +1542,7 @@ local function NearestPart(TargetPlr)
 
     local selectedPartName = getgenv().Sentinel.SelectedPart
 
-    if TargetPlr and TargetPlr.Character then
+    if TargetPlr and TargetPlr.Character and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         if getgenv().Sentinel.NearestPart then
             local minDistance = math.huge
             local nearestPart = nil
@@ -1584,7 +1550,7 @@ local function NearestPart(TargetPlr)
             for _, partName in pairs(BodyParts) do
                 local part = TargetPlr.Character:FindFirstChild(partName)
                 if part then
-                    local distance = (part.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    local distance = (part.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
                     if distance < minDistance then
                         minDistance = distance
                         nearestPart = part
@@ -1619,10 +1585,6 @@ RunService.Stepped:Connect(function()
     LookAtPlayer(TargetPlr)
     NearestPart(TargetPlr)
     inAir()
-    if not getgenv().Sentinel.AutoPrediction then
-        getgenv().Sentinel.HorizontalPrediction2 = getgenv().Sentinel.HorizontalPrediction2
-        getgenv().Sentinel.VerticalPrediction = getgenv().Sentinel.HorizontalPrediction2
-    end
 end)
 
 RunService.Heartbeat:Connect(function()
@@ -1643,24 +1605,26 @@ if workspace:FindFirstChild("Ignored") then
             local SkibidiGrenadeLauncher = object.Name == "GrenadeLauncherAmmo"
             local part = SkibidiGrenadeLauncher and object:WaitForChild("Main") or object:WaitForChild("Launcher")
             
-            part.CFrame = CFrame.new(1, 1, 1)
-            
-            if not SkibidiGrenadeLauncher then
-                part.BodyVelocity:Destroy()
-                part.TouchInterest:Destroy()
-            end
-            
-            local connection
-            connection = RunService.PostSimulation:Connect(function()
-                if TargetPlr and TargetPlr.Character then
-                    part.CFrame = TargetPlr.Character.HumanoidRootPart.CFrame
-                    part.Velocity = Vector3.new(0, 0.001, 0)
+            if part then
+                part.CFrame = CFrame.new(1, 1, 1)
+                
+                if not SkibidiGrenadeLauncher then
+                    if part:FindFirstChild("BodyVelocity") then part.BodyVelocity:Destroy() end
+                    if part:FindFirstChild("TouchInterest") then part.TouchInterest:Destroy() end
                 end
-            end)
-            
-            object.Destroying:Connect(function()
-                connection:Disconnect()
-            end)
+                
+                local connection
+                connection = RunService.PostSimulation:Connect(function()
+                    if TargetPlr and TargetPlr.Character then
+                        part.CFrame = TargetPlr.Character.HumanoidRootPart.CFrame
+                        part.Velocity = Vector3.new(0, 0.001, 0)
+                    end
+                end)
+                
+                object.Destroying:Connect(function()
+                    if connection then connection:Disconnect() end
+                end)
+            end
         end
     end)
 end
@@ -1669,7 +1633,7 @@ RunService.Heartbeat:Connect(function()
     if getgenv().Sentinel.Camera and TargetPlr and TargetPlr.Character and getgenv().Sentinel.SelectedPart then
         local camera = Workspace.CurrentCamera
         local selectedPart = getgenv().Sentinel.SelectedPart
-        local targetPart = TargetPlr.Character[selectedPart]
+        local targetPart = TargetPlr.Character:FindFirstChild(selectedPart)
 
         if targetPart then
             local velocity
@@ -1686,7 +1650,6 @@ RunService.Heartbeat:Connect(function()
             end
 
             local jumpOffset = getgenv().Sentinel.jumpoffset or 0
-
             local verticalVelocity = velocity.Y
             local appliedVerticalOffset = verticalVelocity > 0 and jumpOffset or 0
 
@@ -1708,9 +1671,9 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-game:GetService("RunService").heartbeat:Connect(function()
-    if getgenv().Desync == true then
-        local abc = game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity
+RunService.Heartbeat:Connect(function()
+    if getgenv().Desync == true and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local abc = LocalPlayer.Character.HumanoidRootPart.Velocity
 
         if getgenv().AntiLockType == "Behind" then
             getgenv().Direction = Vector3.new(0, 0, -1)
@@ -1730,70 +1693,75 @@ game:GetService("RunService").heartbeat:Connect(function()
             getgenv().Direction = Vector3.new(0, 0, 0)
         end
         
-        game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity = getgenv().Direction * (2^16)
-        game:GetService("RunService").RenderStepped:Wait()
-        game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity = abc
+        LocalPlayer.Character.HumanoidRootPart.Velocity = getgenv().Direction * (2^16)
+        RunService.RenderStepped:Wait()
+        LocalPlayer.Character.HumanoidRootPart.Velocity = abc
     end
 end)
 
-local Plr = game.Players.LocalPlayer
-
-Plr.Character:WaitForChild("Humanoid").StateChanged:Connect(function(old, new)
-    if getgenv().Sentinel.JumpBreak and new == Enum.HumanoidStateType.Freefall then
-        wait(0.27)
-        Plr.Character.HumanoidRootPart.Velocity = Vector3.new(0, -15, 0)
-    end
+LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid").StateChanged:Connect(function(old, new)
+        if getgenv().Sentinel.JumpBreak and new == Enum.HumanoidStateType.Freefall then
+            wait(0.27)
+            if character:FindFirstChild("HumanoidRootPart") then
+                character.HumanoidRootPart.Velocity = Vector3.new(0, -15, 0)
+            end
+        end
+    end)
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function()
     if Settings.Combat.Spectate and TargetPlr then
-        game.Workspace.CurrentCamera.CameraSubject = TargetPlr.Character
+        Workspace.CurrentCamera.CameraSubject = TargetPlr.Character
     else
-        game.Workspace.CurrentCamera.CameraSubject = game.Players.LocalPlayer.Character.Humanoid
-    end
-end)
-
-RunService.Heartbeat:Connect(function()
-    if Plr.Character and Plr.Character:FindFirstChild("HumanoidRootPart") then
-        if getgenv().Sentinel and getgenv().Sentinel.network then
-            sethiddenproperty(Plr.Character.HumanoidRootPart, "NetworkIsSleeping", true)
-            task.wait()
-            sethiddenproperty(Plr.Character.HumanoidRootPart, "NetworkIsSleeping", false)
-            setfflag("S2PhysicsSenderRate", 2)
-        else
-            setfflag("S2PhysicsSenderRate", 13)
-            sethiddenproperty(Plr.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
         end
     end
 end)
 
-game:GetService("RunService").Heartbeat:Connect(function()
-    if getgenv().Sentinel.cframespeedtoggle then
-        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame +
-            game.Players.LocalPlayer.Character.Humanoid.MoveDirection * getgenv().Sentinel.speedvalue / 0.5
+RunService.Heartbeat:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if getgenv().Sentinel and getgenv().Sentinel.network then
+            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
+            task.wait()
+            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+            setfflag("S2PhysicsSenderRate", 2)
+        else
+            setfflag("S2PhysicsSenderRate", 13)
+            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+        end
     end
 end)
 
-local Client = game.Players.LocalPlayer
+RunService.Heartbeat:Connect(function()
+    if getgenv().Sentinel.cframespeedtoggle and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame =
+            LocalPlayer.Character.HumanoidRootPart.CFrame +
+            LocalPlayer.Character.Humanoid.MoveDirection * getgenv().Sentinel.speedvalue / 0.5
+    end
+end)
+
+-- Bullet TP
 local cframe_to_offset = function(origin, target)
     local actual_origin = origin * CFrame.new(Script.Locals.GunTP.Offset[1], Script.Locals.GunTP.Offset[2], Script.Locals.GunTP.Offset[3], 1, 0, 0, 0, 0, 1, 0, -1, 0)
     return actual_origin:ToObjectSpace(target):inverse();
 end
 
 local something_tp = function(Tool)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("RightHand") then return end
     local old_grip = Tool.Grip
     if TargetPlr and TargetPlr.Character then
-        Tool.Parent = Client.Backpack
-        Client.Character.RightHand.Anchored = false
-        Tool.Grip = cframe_to_offset(Client.Character.RightHand.CFrame, TargetPlr.Character.HumanoidRootPart.CFrame)
-        Client.Character.RightHand.Anchored = true
-        Tool.Parent = Client.Character
+        Tool.Parent = LocalPlayer.Backpack
+        LocalPlayer.Character.RightHand.Anchored = false
+        Tool.Grip = cframe_to_offset(LocalPlayer.Character.RightHand.CFrame, TargetPlr.Character.HumanoidRootPart.CFrame)
+        LocalPlayer.Character.RightHand.Anchored = true
+        Tool.Parent = LocalPlayer.Character
         RunService.RenderStepped:Wait()
-        Tool.Parent = Client.Backpack
-        Client.Character.RightHand.Anchored = false
+        Tool.Parent = LocalPlayer.Backpack
+        LocalPlayer.Character.RightHand.Anchored = false
         Tool.Grip = old_grip
-        Tool.Parent = Client.Character
+        Tool.Parent = LocalPlayer.Character
     end
 end
 
@@ -1807,7 +1775,7 @@ local bullet_teleport = function(Character)
                 end)
 
                 Character.ChildRemoved:Connect(function(RemovedChild)
-                    if RemovedChild == Child then
+                    if RemovedChild == Child and Connection then
                         Connection:Disconnect()
                     end
                 end)
@@ -1816,66 +1784,12 @@ local bullet_teleport = function(Character)
     end)
 end
 
-bullet_teleport(Client.Character)
-
-Client.CharacterAdded:Connect(function()
-    bullet_teleport(Client.Character)
-end)
-
--- CSync Visualization
-local Saved
-local IgnoreFolder = Instance.new("Folder", game:GetService("Workspace"))
-local Camera = workspace.CurrentCamera
-local desync_setback = Instance.new("Part")
-desync_setback.Name = "im a skibidi rizzler"
-desync_setback.Parent = workspace
-desync_setback.Size = Client.Character.Humanoid.RootPart.Size
-desync_setback.CanCollide = false
-desync_setback.Anchored = true
-desync_setback.Transparency = 1
-
-local nigga = {}
-nigga["CFrameVisualize"] = game:GetObjects("rbxassetid://9474737816")[1]
-nigga["CFrameVisualize"].Head.Face:Destroy()
-for _, v in pairs(nigga["CFrameVisualize"]:GetChildren()) do 
-    v.Transparency = v.Name == "HumanoidRootPart" and 1 or 0.70
-    v.Material = "Neon"
-    v.Color = Color3.fromRGB(153,0,153)
-    v.CanCollide = false
-    v.Anchored = false 
+if LocalPlayer.Character then
+    bullet_teleport(LocalPlayer.Character)
 end
 
-game:GetService('RunService').Heartbeat:Connect(function()
-    nigga["CFrameVisualize"].Parent = TargetAimbot.CSync.Enabled and IgnoreFolder or nil
-    if TargetAimbot.CSync.Enabled and TargetPlr then
-        local FakeCFrame = Client.Character.HumanoidRootPart.CFrame
-        Saved = Client.Character.HumanoidRootPart.CFrame
-        if TargBindEnabled and TargetAimbot.CSync.Type == "Random" then
-            FakeCFrame = CFrame.new(TargetPlr.Character.HumanoidRootPart.Position + Vector3.new(math.random(-TargetAimbot.CSync.RandomAmount, TargetAimbot.CSync.RandomAmount), math.random(-0, TargetAimbot.CSync.RandomAmount), math.random(-TargetAimbot.CSync.RandomAmount, TargetAimbot.CSync.RandomAmount))) * CFrame.Angles(math.rad(math.random(0, 360)), math.rad(math.random(0, 360)), math.rad(math.random(0, 360)))
-        elseif TargBindEnabled and TargetAimbot.CSync.Type == "Orbit" then
-            local CurrentTime = tick()
-            FakeCFrame = CFrame.new(TargetPlr.Character.HumanoidRootPart.Position) * CFrame.Angles(0, 2 * math.pi * CurrentTime * TargetAimbot.CSync.Speed % (2 * math.pi), 0) * CFrame.new(0, TargetAimbot.CSync.Height, TargetAimbot.CSync.Distance)
-        end
-
-        nigga["CFrameVisualize"]:SetPrimaryPartCFrame(FakeCFrame)
-
-        for _, Part in pairs(nigga["CFrameVisualize"]:GetChildren()) do
-            Part.Color = TargetAimbot.CSync.Color
-        end
-
-        Client.Character.HumanoidRootPart.CFrame = FakeCFrame
-
-        game:GetService("RunService").RenderStepped:Wait()
-
-        desync_setback.Position = Saved.Position + Vector3.new(0, 1.5, 0)
-        
-        if TargBindEnabled then
-            Camera.CameraSubject = desync_setback
-        else
-            Camera.CameraSubject = LocalPlayer.Character.Humanoid
-        end
-        Client.Character.HumanoidRootPart.CFrame = Saved
-    end
+LocalPlayer.CharacterAdded:Connect(function()
+    bullet_teleport(LocalPlayer.Character)
 end)
 
-print("Eternity.win Loaded")
+print("Eternity.win Loaded Successfully!")
