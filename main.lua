@@ -1,30 +1,4 @@
--- Fixed Menu loading - loads from local file instead of remote URL
--- Make sure you have the Menu library file saved locally as "Menu.lua" in the same directory
-local Menu = (function()
-    -- First, try to load from local file
-    local menuFile = loadfile("Menu.lua")
-    if menuFile then
-        local success, result = pcall(menuFile)
-        if success and result then
-            return result
-        end
-    end
-    
-    -- Fallback: Try loading from remote if local file doesn't exist or failed
-    local success, result = pcall(function()
-        local httpContent = game:HttpGetAsync("https://raw.githubusercontent.com/khenn791/library/refs/heads/main/cuh.txt", true)
-        return load(httpContent)()
-    end)
-    if success and result then
-        return result
-    else
-        error("Failed to load Menu library. Please ensure Menu.lua exists locally or check your internet connection.")
-    end
-end)()
-
-task.spawn(function()
-    Menu:NameUpdate(0.6, 'Cactus', '.GG [khen.cc]')
-end)
+-- New UI System - No external Menu library needed
 
 
 local Script = {
@@ -426,103 +400,501 @@ if hrp then
     trail.Attachment1 = a1
 end
 
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local TextButton = Instance.new("TextButton")
-local UITextSizeConstraint = Instance.new("UITextSizeConstraint")
+-- New UI System
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
 
---Properties:
-
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local Ui22 = Instance.new("ScreenGui")
-Ui22.Name = "Ui22"
-Ui22.Parent = game.CoreGui
-Ui22.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Ui22.ResetOnSpawn = false
-
-local Image3 = Instance.new("ImageButton")
-Image3.Name = "Image3"
-Image3.Parent = Ui22
-Image3.Active = false
-Image3.Draggable = true
-Image3.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Image3.BackgroundTransparency = 1
-Image3.Size = UDim2.new(0, 90, 0, 90)
-Image3.Image = "rbxassetid://126818107683779"
-Image3.Position = UDim2.new(1, -95, 0, 5)
-
-local Ui2corner = Instance.new("UICorner")
-Ui2corner.CornerRadius = UDim.new(0.2, 0)
-Ui2corner.Parent = Image3
-
+-- Blur Effect
 local Blur = Instance.new("BlurEffect", game:GetService("Lighting"))
 Blur.Enabled = false
+Blur.Size = 24
 
-local butj = Instance.new("ImageLabel")
-butj.Size = UDim2.new(0, 200, 0, 200)
+-- UI Variables
+local UIEnabled = false
+local currentTab = "Main"
+local dragging = false
+local dragInput, dragStart, startPos
 
-local elementWidth = butj.Size.X.Offset
-local elementHeight = butj.Size.Y.Offset
+-- Create Main ScreenGui
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "NewUI"
+MainGui.Parent = game.CoreGui
+MainGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+MainGui.ResetOnSpawn = false
 
-butj.Position = UDim2.new(0.5, -elementWidth / 2, 0.5, -elementHeight / 2)
-butj.Active = false
-butj.BackgroundTransparency = 1
-butj.ImageTransparency = 1
-butj.Parent = Ui22
-butj.Image = "rbxassetid://126818107683779"
+-- Toggle Button
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = MainGui
+ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+ToggleButton.Position = UDim2.new(1, -70, 0, 10)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleButton.BackgroundTransparency = 0.3
+ToggleButton.Image = "rbxassetid://126818107683779"
+ToggleButton.ImageTransparency = 0
 
-local Open = true
-Menu:SetVisible(false)
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 12)
+ToggleCorner.Parent = ToggleButton
 
-local function ToggleMenu()
-    if Open == true then
-        Blur.Enabled = true
-        butj.ImageTransparency = 0
-        Menu:SetVisible(true)
-    else
-        Blur.Enabled = false
-        Menu:SetVisible(false)
-        for i = 0, 1, 0.1 do
-            butj.ImageTransparency = i
-            task.wait(0.05)
+-- Main Window
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Parent = MainGui
+MainWindow.Size = UDim2.new(0, 600, 0, 500)
+MainWindow.Position = UDim2.new(0.5, -300, 0.5, -250)
+MainWindow.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainWindow.BorderSizePixel = 0
+MainWindow.Visible = false
+
+local WindowCorner = Instance.new("UICorner")
+WindowCorner.CornerRadius = UDim.new(0, 8)
+WindowCorner.Parent = MainWindow
+
+local WindowStroke = Instance.new("UIStroke")
+WindowStroke.Parent = MainWindow
+WindowStroke.Color = Color3.fromRGB(50, 50, 50)
+WindowStroke.Thickness = 1
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainWindow
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.BorderSizePixel = 0
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = TitleBar
+TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Cactus.GG [khen.cc]"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = TitleBar
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 16
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.BorderSizePixel = 0
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseButton
+
+-- Tabs Container
+local TabsContainer = Instance.new("Frame")
+TabsContainer.Name = "TabsContainer"
+TabsContainer.Parent = MainWindow
+TabsContainer.Size = UDim2.new(1, 0, 0, 40)
+TabsContainer.Position = UDim2.new(0, 0, 0, 40)
+TabsContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TabsContainer.BorderSizePixel = 0
+
+local TabsList = Instance.new("UIListLayout")
+TabsList.Parent = TabsContainer
+TabsList.FillDirection = Enum.FillDirection.Horizontal
+TabsList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- Content Area
+local ContentArea = Instance.new("ScrollingFrame")
+ContentArea.Name = "ContentArea"
+ContentArea.Parent = MainWindow
+ContentArea.Size = UDim2.new(1, -20, 1, -90)
+ContentArea.Position = UDim2.new(0, 10, 0, 80)
+ContentArea.BackgroundTransparency = 1
+ContentArea.BorderSizePixel = 0
+ContentArea.ScrollBarThickness = 4
+ContentArea.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 50)
+
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Parent = ContentArea
+ContentLayout.Padding = UDim.new(0, 10)
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ContentArea.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+end)
+
+-- UI Helper Functions
+local function CreateTab(name)
+    local tab = Instance.new("TextButton")
+    tab.Name = name .. "Tab"
+    tab.Parent = TabsContainer
+    tab.Size = UDim2.new(0, 100, 1, 0)
+    tab.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    tab.Text = name
+    tab.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tab.TextSize = 14
+    tab.Font = Enum.Font.Gotham
+    tab.BorderSizePixel = 0
+    
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 4)
+    tabCorner.Parent = tab
+    
+    tab.MouseButton1Click:Connect(function()
+        currentTab = name
+        -- Update tab visuals
+        for _, child in pairs(TabsContainer:GetChildren()) do
+            if child:IsA("TextButton") then
+                if child.Name == name .. "Tab" then
+                    child.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                    child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    child.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    child.TextColor3 = Color3.fromRGB(200, 200, 200)
+                end
+            end
+        end
+        -- Show/hide content sections
+        for _, child in pairs(ContentArea:GetChildren()) do
+            if child:IsA("Frame") then
+                child.Visible = child.Name:find(name) ~= nil
+            end
+        end
+    end)
+    
+    return tab
+end
+
+local function CreateSection(name, tabName, order)
+    local section = Instance.new("Frame")
+    section.Name = tabName .. "_" .. name
+    section.Parent = ContentArea
+    section.Size = UDim2.new(1, 0, 0, 0)
+    section.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    section.BorderSizePixel = 0
+    section.Visible = currentTab == tabName
+    section.LayoutOrder = order
+    
+    local sectionCorner = Instance.new("UICorner")
+    sectionCorner.CornerRadius = UDim.new(0, 6)
+    sectionCorner.Parent = section
+    
+    local sectionStroke = Instance.new("UIStroke")
+    sectionStroke.Parent = section
+    sectionStroke.Color = Color3.fromRGB(40, 40, 40)
+    sectionStroke.Thickness = 1
+    
+    local sectionTitle = Instance.new("TextLabel")
+    sectionTitle.Parent = section
+    sectionTitle.Size = UDim2.new(1, -20, 0, 30)
+    sectionTitle.Position = UDim2.new(0, 10, 0, 5)
+    sectionTitle.BackgroundTransparency = 1
+    sectionTitle.Text = name
+    sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sectionTitle.TextSize = 16
+    sectionTitle.Font = Enum.Font.GothamBold
+    sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local sectionContent = Instance.new("Frame")
+    sectionContent.Name = "Content"
+    sectionContent.Parent = section
+    sectionContent.Size = UDim2.new(1, -20, 0, 0)
+    sectionContent.Position = UDim2.new(0, 10, 0, 35)
+    sectionContent.BackgroundTransparency = 1
+    
+    local sectionLayout = Instance.new("UIListLayout")
+    sectionLayout.Parent = sectionContent
+    sectionLayout.Padding = UDim.new(0, 8)
+    
+    sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        section.Size = UDim2.new(1, 0, 0, sectionContent.AbsoluteContentSize.Y + 45)
+    end)
+    
+    return sectionContent
+end
+
+local function CreateCheckbox(parent, text, defaultValue, callback)
+    local checkboxFrame = Instance.new("Frame")
+    checkboxFrame.Parent = parent
+    checkboxFrame.Size = UDim2.new(1, 0, 0, 30)
+    checkboxFrame.BackgroundTransparency = 1
+    
+    local checkbox = Instance.new("TextButton")
+    checkbox.Parent = checkboxFrame
+    checkbox.Size = UDim2.new(0, 20, 0, 20)
+    checkbox.Position = UDim2.new(0, 0, 0, 5)
+    checkbox.BackgroundColor3 = defaultValue and Color3.fromRGB(100, 150, 255) or Color3.fromRGB(50, 50, 50)
+    checkbox.Text = ""
+    checkbox.BorderSizePixel = 0
+    
+    local checkCorner = Instance.new("UICorner")
+    checkCorner.CornerRadius = UDim.new(0, 4)
+    checkCorner.Parent = checkbox
+    
+    local checkLabel = Instance.new("TextLabel")
+    checkLabel.Parent = checkboxFrame
+    checkLabel.Size = UDim2.new(1, -30, 1, 0)
+    checkLabel.Position = UDim2.new(0, 30, 0, 0)
+    checkLabel.BackgroundTransparency = 1
+    checkLabel.Text = text
+    checkLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    checkLabel.TextSize = 14
+    checkLabel.Font = Enum.Font.Gotham
+    checkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    checkbox.MouseButton1Click:Connect(function()
+        defaultValue = not defaultValue
+        checkbox.BackgroundColor3 = defaultValue and Color3.fromRGB(100, 150, 255) or Color3.fromRGB(50, 50, 50)
+        if callback then callback(defaultValue) end
+    end)
+    
+    return checkbox, checkboxFrame
+end
+
+local function CreateSlider(parent, text, min, max, defaultValue, callback)
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Parent = parent
+    sliderFrame.Size = UDim2.new(1, 0, 0, 50)
+    sliderFrame.BackgroundTransparency = 1
+    
+    local sliderLabel = Instance.new("TextLabel")
+    sliderLabel.Parent = sliderFrame
+    sliderLabel.Size = UDim2.new(1, 0, 0, 20)
+    sliderLabel.BackgroundTransparency = 1
+    sliderLabel.Text = text .. ": " .. tostring(defaultValue)
+    sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sliderLabel.TextSize = 14
+    sliderLabel.Font = Enum.Font.Gotham
+    sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local sliderTrack = Instance.new("Frame")
+    sliderTrack.Parent = sliderFrame
+    sliderTrack.Size = UDim2.new(1, 0, 0, 6)
+    sliderTrack.Position = UDim2.new(0, 0, 0, 25)
+    sliderTrack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    sliderTrack.BorderSizePixel = 0
+    
+    local trackCorner = Instance.new("UICorner")
+    trackCorner.CornerRadius = UDim.new(0, 3)
+    trackCorner.Parent = sliderTrack
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Parent = sliderTrack
+    sliderFill.Size = UDim2.new((defaultValue - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    sliderFill.BorderSizePixel = 0
+    
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 3)
+    fillCorner.Parent = sliderFill
+    
+    local sliderButton = Instance.new("TextButton")
+    sliderButton.Parent = sliderTrack
+    sliderButton.Size = UDim2.new(0, 12, 0, 12)
+    sliderButton.Position = UDim2.new(sliderFill.Size.X.Scale, -6, 0, -3)
+    sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderButton.Text = ""
+    sliderButton.BorderSizePixel = 0
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = sliderButton
+    
+    local dragging = false
+    sliderButton.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation()
+            local trackPos = sliderTrack.AbsolutePosition
+            local trackSize = sliderTrack.AbsoluteSize
+            local relativeX = math.clamp((mousePos.X - trackPos.X) / trackSize.X, 0, 1)
+            local value = math.floor((min + (max - min) * relativeX) * 100) / 100
+            sliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
+            sliderButton.Position = UDim2.new(relativeX, -6, 0, -3)
+            sliderLabel.Text = text .. ": " .. tostring(value)
+            if callback then callback(value) end
+        end
+    end)
+    
+    return sliderFrame
+end
+
+local function CreateDropdown(parent, text, options, defaultValue, callback)
+    local dropdownFrame = Instance.new("Frame")
+    dropdownFrame.Parent = parent
+    dropdownFrame.Size = UDim2.new(1, 0, 0, 30)
+    dropdownFrame.BackgroundTransparency = 1
+    
+    local dropdownLabel = Instance.new("TextLabel")
+    dropdownLabel.Parent = dropdownFrame
+    dropdownLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    dropdownLabel.BackgroundTransparency = 1
+    dropdownLabel.Text = text
+    dropdownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownLabel.TextSize = 14
+    dropdownLabel.Font = Enum.Font.Gotham
+    dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local dropdownButton = Instance.new("TextButton")
+    dropdownButton.Parent = dropdownFrame
+    dropdownButton.Size = UDim2.new(0.5, 0, 1, 0)
+    dropdownButton.Position = UDim2.new(0.5, 0, 0, 0)
+    dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdownButton.Text = defaultValue or options[1]
+    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownButton.TextSize = 14
+    dropdownButton.Font = Enum.Font.Gotham
+    dropdownButton.BorderSizePixel = 0
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 4)
+    buttonCorner.Parent = dropdownButton
+    
+    local dropdownOpen = false
+    dropdownButton.MouseButton1Click:Connect(function()
+        dropdownOpen = not dropdownOpen
+        -- Simple dropdown - just cycle through options
+        local currentIndex = 1
+        for i, option in ipairs(options) do
+            if option == dropdownButton.Text then
+                currentIndex = i
+                break
+            end
+        end
+        local nextIndex = (currentIndex % #options) + 1
+        dropdownButton.Text = options[nextIndex]
+        if callback then callback(options[nextIndex]) end
+    end)
+    
+    return dropdownFrame
+end
+
+local function CreateTextBox(parent, text, defaultValue, callback)
+    local textBoxFrame = Instance.new("Frame")
+    textBoxFrame.Parent = parent
+    textBoxFrame.Size = UDim2.new(1, 0, 0, 30)
+    textBoxFrame.BackgroundTransparency = 1
+    
+    local textBoxLabel = Instance.new("TextLabel")
+    textBoxLabel.Parent = textBoxFrame
+    textBoxLabel.Size = UDim2.new(0.4, 0, 1, 0)
+    textBoxLabel.BackgroundTransparency = 1
+    textBoxLabel.Text = text
+    textBoxLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBoxLabel.TextSize = 14
+    textBoxLabel.Font = Enum.Font.Gotham
+    textBoxLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local textBox = Instance.new("TextBox")
+    textBox.Parent = textBoxFrame
+    textBox.Size = UDim2.new(0.6, 0, 1, 0)
+    textBox.Position = UDim2.new(0.4, 0, 0, 0)
+    textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    textBox.Text = tostring(defaultValue)
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.TextSize = 14
+    textBox.Font = Enum.Font.Gotham
+    textBox.BorderSizePixel = 0
+    
+    local boxCorner = Instance.new("UICorner")
+    boxCorner.CornerRadius = UDim.new(0, 4)
+    boxCorner.Parent = textBox
+    
+    textBox.FocusLost:Connect(function()
+        if callback then callback(textBox.Text) end
+    end)
+    
+    return textBoxFrame
+end
+
+local function CreateButton(parent, text, callback)
+    local button = Instance.new("TextButton")
+    button.Parent = parent
+    button.Size = UDim2.new(1, 0, 0, 35)
+    button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamBold
+    button.BorderSizePixel = 0
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 4)
+    buttonCorner.Parent = button
+    
+    button.MouseButton1Click:Connect(function()
+        if callback then callback() end
+    end)
+    
+    return button
+end
+
+-- Toggle UI Function
+local function ToggleUI()
+    UIEnabled = not UIEnabled
+    MainWindow.Visible = UIEnabled
+    Blur.Enabled = UIEnabled
+    
+    if UIEnabled then
+        -- Set first tab as active
+        for _, child in pairs(TabsContainer:GetChildren()) do
+            if child:IsA("TextButton") and child.Name == "MainTab" then
+                child.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                child.TextColor3 = Color3.fromRGB(255, 255, 255)
+            end
         end
     end
 end
 
+ToggleButton.MouseButton1Click:Connect(ToggleUI)
+CloseButton.MouseButton1Click:Connect(ToggleUI)
 
-
-Image3.MouseButton1Click:Connect(function()
-    Open = not Open
-    print("khen.cc")
-    ToggleMenu()
+-- Make window draggable
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainWindow.Position
+    end
 end)
 
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
 
-
-UITextSizeConstraint.Parent = TextButton
-UITextSizeConstraint.MaxTextSize = 30
-
-local player = game.Players.LocalPlayer
-
--- Function to show the GUI when the character respawns
-local function onCharacterAdded(character)
-    ScreenGui.Parent = player.PlayerGui
-end
-
--- Function to connect character respawn event
-local function connectCharacterAdded()
-    player.CharacterAdded:Connect(onCharacterAdded)
-end
-
-
-connectCharacterAdded()
-
+-- Character respawn handling
+player.CharacterAdded:Connect(function()
+    MainGui.Parent = game.CoreGui
+end)
 
 player.CharacterRemoving:Connect(function()
-    ScreenGui.Parent = nil
+    -- Keep UI visible
 end) 
 
 local hitsounds = {
@@ -967,222 +1339,88 @@ Crescents.Parent = Attachment
 
 
 
-Menu:SetSize(500, 400)
-Menu.Notify("Script Loaded.", 2)
+-- Create Tabs
+CreateTab("Main")
+CreateTab("HvH")
+CreateTab("Visuals")
+CreateTab("Misc")
 
-local CombatTab = Menu.Tab("Main")
+-- Main Tab Sections
+local targetAimSection = CreateSection("Target Aim", "Main", 1)
+CreateCheckbox(targetAimSection, "Enabled", getgenv().Sentinel.Enabled, function(a) getgenv().Sentinel.Enabled = a end)
+CreateCheckbox(targetAimSection, "Look At", getgenv().Sentinel.LookAt, function(a) getgenv().Sentinel.LookAt = a end)
+CreateCheckbox(targetAimSection, "Highlight", false, function(a) Highlight = a end)
+CreateCheckbox(targetAimSection, "Auto Air", getgenv().Sentinel.AutoAir, function(a) getgenv().Sentinel.AutoAir = a end)
+CreateCheckbox(targetAimSection, "Resolver", getgenv().Sentinel.ResolverEnabled, function(a) getgenv().Sentinel.ResolverEnabled = a end)
 
+local hitPartSection = CreateSection("Hit Part", "Main", 2)
+CreateCheckbox(hitPartSection, "NearestPart", getgenv().Sentinel.NearestPart, function(a) getgenv().Sentinel.NearestPart = a end)
+CreateDropdown(hitPartSection, "Body Part", {"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"}, getgenv().Sentinel.SelectedPart, function(a) getgenv().Sentinel.SelectedPart = a end)
 
+local predictionSection = CreateSection("Prediction", "Main", 3)
+CreateCheckbox(predictionSection, "Auto Prediction", getgenv().Sentinel.AutoPrediction, function(a) getgenv().Sentinel.AutoPrediction = a end)
+CreateDropdown(predictionSection, "Lock Type", {"Namecall", "Index"}, getgenv().Sentinel.LockType or "Namecall", function(a) getgenv().Sentinel.LockType = a end)
+CreateTextBox(predictionSection, "Horizontal", getgenv().Sentinel.HorizontalPrediction, function(a) getgenv().Sentinel.HorizontalPrediction2 = tonumber(a) or 0.045 end)
 
-local TargetAimSection = Menu.Container("Main", "Target Aim", "Left") do
+local cameraSection = CreateSection("Camera", "Main", 4)
+CreateCheckbox(cameraSection, "Enabled", getgenv().Sentinel.Camera, function(a) getgenv().Sentinel.Camera = a end)
+CreateTextBox(cameraSection, "Smoothness", getgenv().Sentinel.smoothness, function(a) getgenv().Sentinel.smoothness = tonumber(a) or 0.9 end)
+CreateDropdown(cameraSection, "Easing Style", {"Linear", "Quad", "Cubic", "Quart", "Quint", "Sine", "Exponential", "Circular", "Back", "Bounce", "Elastic"}, getgenv().Sentinel.easingStyle, function(a) getgenv().Sentinel.easingStyle = a end)
+CreateDropdown(cameraSection, "Easing Direction", {"In", "Out", "InOut"}, getgenv().Sentinel.easingDirection, function(a) getgenv().Sentinel.easingDirection = a end)
 
-Menu.CheckBox("Main", "Target Aim", "Enabled", getgenv().Sentinel.Enabled, function(a)
-        getgenv().Sentinel.Enabled = a
-end)
+-- HvH Tab Sections
+local teleportSection = CreateSection("Teleports", "HvH", 1)
+CreateCheckbox(teleportSection, "Grenade Tp", GrenadeTP, function(a) Script.Locals.GrenadeTP.Enabled = a end)
+CreateCheckbox(teleportSection, "Rocket Tp", RocketTP, function(a) Script.Locals.RocketTP.Enabled = a end)
 
+local bulletTPSection = CreateSection("Bullet-TP", "HvH", 2)
+CreateCheckbox(bulletTPSection, "Bullet Gyatt", RocketTP, function(a) Script.Locals.GunTP.Enabled = a end)
+CreateCheckbox(bulletTPSection, "Anchor", RocketTP, function(a) Script.Locals.GunTP.Anchor = a end)
+CreateTextBox(bulletTPSection, "X Offset", Script.Locals.GunTP.Offset[1], function(a) Script.Locals.GunTP.Offset[1] = tonumber(a) or 0 end)
+CreateTextBox(bulletTPSection, "Y Offset", Script.Locals.GunTP.Offset[2], function(a) Script.Locals.GunTP.Offset[2] = tonumber(a) or -1 end)
+CreateTextBox(bulletTPSection, "Z Offset", Script.Locals.GunTP.Offset[3], function(a) Script.Locals.GunTP.Offset[3] = tonumber(a) or 0 end)
 
-    Menu.CheckBox("Main", "Target Aim", "Look At", getgenv().Sentinel.LookAt, function(a)
-        getgenv().Sentinel.LookAt = a 
-    end)
-    Menu.CheckBox("Main", "Target Aim", "Highlight", getgenv().Sentinel.Highlight, function(a)
-        Highlight = a
-    end)
-    Menu.CheckBox("Main", "Target Aim", "Auto Air", getgenv().Sentinel.AutoAir, function(a)
-        getgenv().Sentinel.AutoAir = a
-    end)
-    Menu.CheckBox("Main", "Target Aim", "Resolver", getgenv().Sentinel.ResolverEnabled, function(a)
-        getgenv().Sentinel.ResolverEnabled = a
-    end)
-end       
+local cSyncSection = CreateSection("CSync", "HvH", 3)
+CreateCheckbox(cSyncSection, "Enabled", TargetAimbot.CSync.Enabled, function(a) TargetAimbot.CSync.Enabled = a end)
+CreateDropdown(cSyncSection, "Type", {"Orbit", "Random"}, TargetAimbot.CSync.Type, function(a) TargetAimbot.CSync.Type = a end)
+CreateSlider(cSyncSection, "Distance", 0, 20, TargetAimbot.CSync.Distance, function(a) TargetAimbot.CSync.Distance = a end)
+CreateSlider(cSyncSection, "Height", 0, 10, TargetAimbot.CSync.Height, function(a) TargetAimbot.CSync.Height = a end)
+CreateSlider(cSyncSection, "Speed", 0, 20, TargetAimbot.CSync.Speed, function(a) TargetAimbot.CSync.Speed = a end)
+CreateSlider(cSyncSection, "Random Amount", 0, 20, TargetAimbot.CSync.RandomAmount, function(a) TargetAimbot.CSync.RandomAmount = a end)
 
-local HvHTab = Menu.Tab("HvH")
-local TeleportSection = Menu.Container("HvH", "Teleports", "Left") do
+-- Visuals Tab Sections
+local hitDetectionSection = CreateSection("Hit Detection", "Visuals", 1)
+local Hitnotify = false
+CreateCheckbox(hitDetectionSection, "Hit Effect", TargetAimbot.HitEffect, function(a) TargetAimbot.HitEffect = a end)
+CreateCheckbox(hitDetectionSection, "Hit Sound", TargetAimbot.HitSounds, function(a) TargetAimbot.HitSounds = a end)
+CreateCheckbox(hitDetectionSection, "Notify", false, function(a) Hitnotify = a end)
+CreateDropdown(hitDetectionSection, "Effect Type", {"Atomic Slash", "Crescent Slash", "Coom", "Nova", "Cosmic Explosion", "Circle Shot", "Bolt", "Aura", "Electric", "Shock", "Thunder"}, TargetAimbot.HitEffectType, function(a) TargetAimbot.HitEffectType = a end)
+CreateDropdown(hitDetectionSection, "Sound Type", {"RIFK7", "Bubble", "Minecraft", "Cod", "Bameware", "Neverlose", "Gamesense", "Rust", "BlackPencil"}, TargetAimbot.HitSound, function(a) TargetAimbot.HitSound = a end)
 
-Menu.CheckBox("HvH", "Teleports", "Grenade Tp", GrenadeTP, function(a)
-        Script.Locals.GrenadeTP.Enabled = a
-end)
-    Menu.CheckBox("HvH", "Teleports", "Rocket Tp", RocketTP, function(a)
-        Script.Locals.RocketTP.Enabled = a
-end)
-end
+local hitChamsSection = CreateSection("Hit Chams", "Visuals", 2)
+CreateCheckbox(hitChamsSection, "Enabled", TargetAimbot.HitChams, function(a) TargetAimbot.HitChams = a end)
+CreateDropdown(hitChamsSection, "Material", {"Neon", "SmoothPlastic"}, TargetAimbot.HitChamsMaterial.Name, function(a) TargetAimbot.HitChamsMaterial = Enum.Material[a] end)
+CreateSlider(hitChamsSection, "Duration", 0, 5, TargetAimbot.HitChamsDuration, function(a) TargetAimbot.HitChamsDuration = a end)
 
+-- Misc Tab Sections
+local predictionBreakerSection = CreateSection("Prediction Breaker", "Misc", 1)
+CreateCheckbox(predictionBreakerSection, "Jump Prediction", getgenv().Sentinel.JumpBreak, function(a) getgenv().Sentinel.JumpBreak = a end)
+CreateCheckbox(predictionBreakerSection, "Enable Anti Lock", getgenv().Desync, function(a) getgenv().Desync = a end)
+CreateDropdown(predictionBreakerSection, "Anti Lock Type", {"Behind", "Down", "ForWard", "Left", "One", "Right", "Up", "Zero"}, getgenv().AntiLockType, function(a) getgenv().AntiLockType = a end)
 
+local cframeSpeedSection = CreateSection("CFrame Speed", "Misc", 2)
+CreateCheckbox(cframeSpeedSection, "Enabled", false, function(a) getgenv().Sentinel.cframespeedtoggle = a end)
+CreateSlider(cframeSpeedSection, "Speed", 0, 10, getgenv().Sentinel.speedvalue, function(a) getgenv().Sentinel.speedvalue = a end)
 
-    local BulletTaP = Menu.Container("HvH", "Bullet-TP", "Left") do
-Menu.CheckBox("HvH", "Bullet-TP", "Bullet Gyatt", RocketTP, function(a) 
-Script.Locals.GunTP.Enabled = a
-end)
-
-Menu.CheckBox("HvH", "Bullet-TP", "Anchor", RocketTP, function(a) 
-Script.Locals.GunTP.Anchor = a
-end)
-
-
-    Menu.TextBox("HvH", "Bullet-TP", "X", "0", function(a) Script.Locals.GunTP.Offset[1] = a end)
-
-    Menu.TextBox("HvH", "Bullet-TP", "Y", "-0.5", function(a) Script.Locals.GunTP.Offset[2] = a end)
-
-    Menu.TextBox("HvH", "Bullet-TP", "Z", "0", function(a) Script.Locals.GunTP.Offset[3] = a end)
-
-    end
-
-
-    local HitPartSection = Menu.Container("Main", "HitPart", "Left") do
-        Menu.CheckBox("Main", "HitPart", "NearestPart", getgenv().Sentinel.NearestPart, function(a) 
-getgenv().Sentinel.NearestPart = a
-end)
-Menu.ComboBox("Main", "HitPart", "BodyPart", "Body Part", {
-    "Head", "UpperTorso", "LowerTorso", "HumanoidRootPart", 
-    "LeftUpperArm", "LeftLowerArm", "LeftHand", 
-    "RightUpperArm", "RightLowerArm", "RightHand", 
-    "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", 
-    "RightUpperLeg", "RightLowerLeg", "RightFoot"
-}, function(a)
-    getgenv().Sentinel.SelectedPart = a
-end)       
-    end
-
-    local Hitnotify = false
-local PredictionSection = Menu.Container("Main", "Prediction", "Left") do
-        Menu.CheckBox("Main", "Prediction", "Auto Prediction", true, function(a)
-            getgenv().Sentinel.AutoPrediction = a
-        end)
- Menu.ComboBox("Main","Prediction","LockType", getgenv().Sentinel.LockType, {"Namecall","Index"},
-function(a)
- getgenv().Sentinel.LockType = a
-end)
-        Menu.TextBox("Main", "Prediction", "Horizontal", tostring(getgenv().Sentinel.HorizontalPrediction), function(a)
-            getgenv().Sentinel.HorizontalPrediction2 = tonumber(a)
-        end)
-
-    end
-
-local CameraContainer = Menu.Container("Main", "Camera", "Right") do
-Menu.CheckBox("Main", "Camera", "Enabled", getgenv().Sentinel.Camera, function(a)
-        getgenv().Sentinel.Camera = a
-    end)
-Menu.TextBox("Main", "Camera", "Smoothness", tostring(getgenv().Sentinel.smoothness), function(a)
-            getgenv().Sentinel.smoothness= tonumber(a)
-        end)
-Menu.ComboBox("Main", "Camera", "Easing Style", getgenv().Sentinel.easingStyle, {
-    "Linear",
-    "Quad",
-    "Cubic",
-    "Quart",
-    "Quint",
-    "Sine",
-    "Exponential",
-    "Circular",
-    "Back",
-    "Bounce",
-    "Elastic"
-}, function(Cock)
-    getgenv().Sentinel.easingStyle = Cock
-end)
-Menu.ComboBox("Main", "Camera", "Easing Direction", getgenv().Sentinel.easingDirection, {
-    "In",
-    "Out",
-    "InOut"
-}, function(Cock)
-    getgenv().Sentinel.easingDirection = Cock
-end)
-end
-
-local Visuals = Menu.Tab("Visuals")
- local HitDetectionSection = Menu.Container("Visuals", "Hit Detection", "Left") do
-    Menu.CheckBox("Visuals", "Hit Detection", "Hit Effect", TargetAimbot.HitEffect, function(a) 
-        TargetAimbot.HitEffect = a
-    end)
-    Menu.CheckBox("Visuals", "Hit Detection", "Hit Sound", TargetAimbot.HitSounds, function(a)
-        TargetAimbot.HitSounds = a
-    end)
-    Menu.CheckBox("Visuals", "Hit Detection", "Notify", false, function(a) 
-        Hitnotify = a
-    end)
-    Menu.ComboBox("Visuals", "Hit Detection", "Effect Type", TargetAimbot.HitEffectType, {"Atomic Slash", "Crescent Slash", "Coom", "Nova", "Cosmic Explosion", "Circle Shot", "Bolt","Aura","Electric","Shock","Thunder"}, function(a)
-        TargetAimbot.HitEffectType = a
-    end)
-    Menu.ComboBox("Visuals", "Hit Detection", "Sound Type", TargetAimbot.HitSound, {"RIFK7", "Bubble", "Minecraft", "Cod", "Bameware", "Neverlose", "Gamesense", "Rust", "BlackPencil"}, function(a)
-        TargetAimbot.HitSound = a
-    end)
-    Menu.ColorPicker("Visuals", "Hit Detection", "Highlight fill", Color3.fromRGB(144, 238, 144), 0, function(a)
-        TargetAimbot.HighlightColor1 = a
-    end)
-    Menu.ColorPicker("Visuals", "Hit Detection", "Highlight Outline", Color3.fromRGB(144, 238, 144), 0, function(a)
-        TargetAimbot.HighlightColor2 = a
-    end)
-    Menu.ColorPicker("Visuals", "Hit Detection", "Hit Effect Color", Color3.fromRGB(144, 238, 144), 0, function(a)
-        TargetAimbot.HitEffectColor = a
-    end)
-    Menu.ColorPicker("Visuals", "Hit Detection", "Visualizer", Color3.fromRGB(144, 238, 144), 0, function(a)
-        TargetAimbot.CSync.Color = a
-    end)
-end
-   
-    local CSyncSection = Menu.Container("HvH", "CSync", "Right") do
-        Menu.CheckBox("HvH", "CSync", "Enabled", TargetAimbot.CSync.Enabled, function(a)
-            TargetAimbot.CSync.Enabled = a
-        end)
-        Menu.ComboBox("HvH", "CSync", "Type", TargetAimbot.CSync.Type, {"Orbit", "Random"}, function(a)
-            TargetAimbot.CSync.Type = a
-        end)
-        Menu.Slider("HvH", "CSync", "Distance", 0, 20, TargetAimbot.CSync.Distance, '', 1, function(a)
-            TargetAimbot.CSync.Distance = a
-        end)
-        Menu.Slider("HvH", "CSync", "Height", 0, 10, TargetAimbot.CSync.Height, '', 1, function(a)
-            TargetAimbot.CSync.Height = a
-        end)
-        Menu.Slider("HvH", "CSync", "Speed", 0, 20, TargetAimbot.CSync.Speed, '', 1, function(a)
-            TargetAimbot.CSync.Speed = a
-        end)
-        Menu.Slider("HvH", "CSync", "Random Amount", 0, 20, TargetAimbot.CSync.RandomAmount, '', 1, function(a)
-            TargetAimbot.CSync.RandomAmount = a
-        end)
-    end
-local MiscTab = Menu.Tab("Misc") do
-  
- local MTSection1 = Menu.Container("Misc", "Prediction Breaker", "Left") 
-
-Menu.CheckBox("Misc", "Prediction Breaker", "Jump Prediction", getgenv().Sentinel.JumpBreak, function(a)
-    getgenv().Sentinel.JumpBreak = a
-end)
-
-Menu.CheckBox("Misc", "Prediction Breaker", "Enable Anti Lock", getgenv().Desync, function(a)
-    getgenv().Desync = a
-end)
-
-Menu.ComboBox("Misc", "Prediction Breaker", "Anti Lock Type", getgenv().AntiLockType, {
-    "Behind",
-    "Down",
-    "ForWard",
-    "Left",
-    "One",
-    "Right",
-    "Up",
-    "Zero"
-}, function(a)
-    getgenv().AntiLockType = a
-end)
-
-            local MTSection2 = Menu.Container("Misc", "CFrame Speed", "Right") do
-                Menu.CheckBox("Misc", "CFrame Speed", "Enabled", false, function(a)
-                    getgenv().Sentinel.cframespeedtoggle = a
-                end)
-                Menu.Slider("Misc", "CFrame Speed", "Speed", 0, 10, 3, '%', 1, function(a)
-                getgenv().Sentinel.speedvalue = a
-                end)
-            end
-            
-            
-            local MTSectionS = Menu.Container("Misc", "Macro", "Right") do
-            Menu.Button("Misc", "Macro", "Load Macro", function()
+local macroSection = CreateSection("Macro", "Misc", 3)
+local MacroAlreadLoaded = false
+CreateButton(macroSection, "Load Macro", function()
     if MacroAlreadLoaded then
-        print("hi")
+        print("Macro already loaded")
         return
     end
     MacroAlreadLoaded = true
     
-    local MobileCameraFramework = {}
     local players = game:GetService("Players")
     local runservice = game:GetService("RunService")
     local player = players.LocalPlayer
@@ -1195,70 +1433,6 @@ end)
     local ENABLED_OFFSET = CFrame.new(0, 0, 0)
     local DISABLED_OFFSET = CFrame.new(0, 0, 0)
     local rootPos = Vector3.new(0, 0, 0)
-
-    -- GUI Setup
-    local ScreenGui = Instance.new("ScreenGui")
-    local Frame = Instance.new("Frame")
-    local TextButton = Instance.new("ImageLabel")
-    local TextLabel = Instance.new("TextButton")
-    local UITextSizeConstraint = Instance.new("UITextSizeConstraint")
-
-    ScreenGui.Parent = player.PlayerGui
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-    Frame.Parent = ScreenGui
-    Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    Frame.BackgroundTransparency = 0.5
-    Frame.Position = UDim2.new(1, -128, 0, 0)
-    Frame.Size = UDim2.new(0, 90, 0, 32)
-
-    TextButton.Parent = Frame
-    TextButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    TextButton.BackgroundTransparency = 1
-    TextButton.Size = UDim2.new(0, 26, 0, 26)
-    TextButton.AnchorPoint = Vector2.new(0, 0.5)
-    TextButton.Position = UDim2.new(0.05, 0, 0.5, 0)
-    TextButton.Image = "rbxassetid://10734923214"
-
-    TextLabel.Parent = Frame
-    TextLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    TextLabel.BackgroundTransparency = 1
-    TextLabel.Size = UDim2.new(0, 52, 0, 26)
-    TextLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-    TextLabel.Position = UDim2.new(0.65, 0, 0.5, 0)
-    TextLabel.Font = Enum.Font.Arimo
-    TextLabel.Text = "Macro"
-    TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TextLabel.TextScaled = true
-    TextLabel.TextSize = 35
-    TextLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    TextLabel.TextStrokeTransparency = 1
-
-    local uiCorner = Instance.new("UICorner", Frame)
-    uiCorner.CornerRadius = UDim.new(0, 8)
-
-    local MCenabled = false
-    TextLabel.MouseButton1Down:Connect(function()
-        MCenabled = not MCenabled
-        print(MCenabled)
-        if MCenabled then
-            TextButton.Image = "rbxassetid://10735024209"
-        else
-            TextButton.Image = "rbxassetid://10734923214"
-            DisableShiftlock()
-        end
-    end)
-
-    UITextSizeConstraint.Parent = TextLabel
-    UITextSizeConstraint.MaxTextSize = 30
-
-    player.CharacterAdded:Connect(function(character)
-        ScreenGui.Parent = player.PlayerGui
-    end)
-
-    player.CharacterRemoving:Connect(function()
-        ScreenGui.Parent = nil
-    end)
 
     local function UpdatePos()
         if player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").RootPart then
@@ -1296,47 +1470,14 @@ end)
             game:GetService("Workspace").CurrentCamera.CFrame = camera.CFrame * DISABLED_OFFSET
         end
         pcall(function()
-            active:Disconnect()
-            active = nil
+            if active then
+                active:Disconnect()
+                active = nil
+            end
         end)
     end
 
-    local dragging = false
-    local dragInput
-    local dragStart
-    local startPos
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-
-    Frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = Frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    Frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if dragging and input == dragInput then
-            update(input)
-        end
-    end)
-
+    local MCenabled = false
     function ShiftLock()
         if MCenabled then
             if not active then
@@ -1349,88 +1490,19 @@ end)
         end
     end
 
-    while task.wait(getgenv().Sentinel.MacroSpeed) do
-        ShiftLock()
-    end
-end, "Click to toggle the macro")
-Menu.TextBox("Misc", "Macro", "Speed", tostring(getgenv().Sentinel.MacroSpeed), function(a)
-            getgenv().Sentinel.MacroSpeed = tonumber(a)
-        end)
-    end
-
-local aurasec2 = Menu.Container("Misc", "Aura", "Right") do
-Menu.CheckBox("Misc", "Aura", "Enabled", false, function(y)
-     if y then
-       spawn()
-     else 
-       disconnect()
-     end
-local player = game.Players.LocalPlayer
-
-player.CharacterAdded:Connect(function(character)
-    if y then
-        spawn()
-    end
+    task.spawn(function()
+        while task.wait(getgenv().Sentinel.MacroSpeed) do
+            ShiftLock()
+        end
+    end)
 end)
+CreateTextBox(macroSection, "Speed", getgenv().Sentinel.MacroSpeed, function(a) getgenv().Sentinel.MacroSpeed = tonumber(a) or 0.1 end)
+
+local networkAntiSection = CreateSection("Network Anti", "Misc", 4)
+CreateCheckbox(networkAntiSection, "Enabled", getgenv().Sentinel.network, function(a) getgenv().Sentinel.network = a end)
+
+-- Notification
+task.spawn(function()
+    task.wait(0.5)
+    print("Script Loaded - Cactus.GG [khen.cc]")
 end)
-end
-
-
-            
-            local MTSection3 = Menu.Container("Misc", "Fly", "Right") do
-                Menu.CheckBox("Misc", "Fly", "Enabled", false, function(a)
-                    
-                end)
-                Menu.Hotkey("Misc", "Fly", "Keybind", Enum.KeyCode.X, function(a)
-                    
-                end)
-                Menu.CheckBox("Misc", "Fly", "Notification", false, function(a)
-                    
-                end)
-                Menu.Slider("Misc", "Fly", "Speed", 0, 30, 5, '%', 1, function(a)
-                    
-                end)
-            end
-  
-local MTSection4 = Menu.Container("Misc", "Network Anti", "Left") do
-                Menu.CheckBox("Misc", "Network Anti", "Enabled", getgenv().Sentinel.network, function(a)
-                    getgenv().Sentinel.network = a
-                end)
-end    
-            local MTSection4 = Menu.Container("Misc", "Trash Talk", "Left") do
-                Menu.CheckBox("Misc", "Trash Talk", "Enabled", false, function(a)
-                    
-                end)
-                Menu.CheckBox("Misc", "Trash Talk", "Target", false, function(a)
-                    
-                end)
-                Menu.CheckBox("Misc", "Trash Talk", "Notification", false, function(a)
-                    
-                end)
-                Menu.CheckBox("Misc", "Trash Talk", "Use Keybind", false, function(a)
-                    
-                end)
-                Menu.Hotkey("Misc", "Trash Talk", "Keybind", Enum.KeyCode.B, function(a)
-                    
-                end)
-            end
-
-  local HitChamsSection = Menu.Container("Visuals", "Hit Chams", "Right") do
-        Menu.CheckBox("Visuals", "Hit Chams", "Enabled", TargetAimbot.HitChams, function(a)
-            TargetAimbot.HitChams = a
-        end)
-        Menu.ColorPicker("Visuals", "Hit Chams", "Color", TargetAimbot.HitChamsColor, 0, function(a)
-            TargetAimbot.HitChamsColor = a
-        end)
-        Menu.Slider("Visuals", "Hit Chams", "Duration", 0, 5, TargetAimbot.HitChamsDuration, '', 1, function(a)
-            TargetAimbot.HitChamsDuration = a
-        end)
-        Menu.ComboBox("Visuals", "Hit Chams", "Material", TargetAimbot.HitChamsMaterial.Name, {Enum.Material.Neon.Name, Enum.Material.SmoothPlastic.Name}, function(a)
-            TargetAimbot.HitChamsMaterial = Enum.Material[a]
-        end)
-    end
-end
-
-Menu:SetTitle("Nigger.Lua")
-Menu:SetVisible(true)
-Menu:Init()
