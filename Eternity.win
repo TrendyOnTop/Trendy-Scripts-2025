@@ -1,0 +1,908 @@
+-- Roblox Advanced Camera Lock System - Eternity.win
+-- Simplified UI Version
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
+
+-- Settings
+local Settings = {
+    CameraLockEnabled = false,
+    PathfindingEnabled = false,
+    UIEnabled = false,
+    SmoothnessX = 0.15,
+    SmoothnessY = 0.15,
+    PredictionX = 0.5,
+    PredictionY = 0.5,
+    FOV = 100,
+    WalkSpeed = 200,
+    JumpProbability = 0.02,
+    AutoReload = false,
+    AutoReloadInterval = 2.3,
+    AutoStopShootingHP = 10,
+    FOVCircleColor = Color3.fromRGB(255, 0, 0),
+    FOVCircleTransparency = 0.3,
+    FOVCircleThickness = 3,
+    DodgingEnabled = false,
+    DodgingSpeed = 16,
+    DodgingIntensity = 5,
+    JumpPower = 50
+}
+
+if not getgenv().walkSpeedSettings then
+    getgenv().walkSpeedSettings = {
+        WalkSpeed = {Enabled = true, Speed = 300},
+        Activation = {WalkSpeedToggleKey = "T"}
+    }
+end
+
+-- State
+local Character = nil
+local Humanoid = nil
+local HumanoidRootPart = nil
+local Target = nil
+local TargetHumanoid = nil
+local TargetHumanoidRootPart = nil
+local LastReloadTime = 0
+local IsShooting = false
+local PathfindingPath = nil
+local FOVCircle = nil
+local MainUI = nil
+local UIButton = nil
+local ShootingConnection = nil
+local LastPathfindingUpdate = 0
+local CurrentWaypointIndex = 1
+local DodgingDirection = 1
+local LastDodgeChange = 0
+local RandomMovementTimer = 0
+local isSpeedEnabled = false
+local defaultSpeed = 16
+local speedConnection = nil
+local UILocked = false
+
+-- Initialize character
+local function InitializeCharacter()
+    if LocalPlayer.Character then
+        Character = LocalPlayer.Character
+        Humanoid = Character:FindFirstChild("Humanoid")
+        HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+        if Humanoid and HumanoidRootPart then
+            if Humanoid.UseJumpPower then
+                Humanoid.JumpPower = Settings.JumpPower
+            end
+            defaultSpeed = Humanoid.WalkSpeed
+            return true
+        end
+    end
+    return false
+end
+
+-- Walk Speed System
+local function updateSpeed()
+    if not Character or not Humanoid then return end
+    if Settings.PathfindingEnabled then return end
+    if isSpeedEnabled and getgenv().walkSpeedSettings.WalkSpeed.Enabled then
+        Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+    elseif not isSpeedEnabled then
+        Humanoid.WalkSpeed = defaultSpeed
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    Humanoid = newCharacter:FindFirstChild("Humanoid")
+    HumanoidRootPart = newCharacter:FindFirstChild("HumanoidRootPart")
+    if Humanoid and HumanoidRootPart then
+        if Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+        defaultSpeed = Humanoid.WalkSpeed
+        Target = nil
+        TargetHumanoid = nil
+        TargetHumanoidRootPart = nil
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
+        LastPathfindingUpdate = 0
+        if IsShooting and ShootingConnection then
+            ShootingConnection:Disconnect()
+            ShootingConnection = nil
+            IsShooting = false
+        end
+        if Settings.PathfindingEnabled then
+            Humanoid.WalkSpeed = 500
+        else
+            updateSpeed()
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode[getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey] then
+        if Settings.PathfindingEnabled then return end
+        isSpeedEnabled = not isSpeedEnabled
+        if Character and Humanoid then
+            if isSpeedEnabled then
+                Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+            else
+                Humanoid.WalkSpeed = defaultSpeed
+            end
+        end
+    end
+end)
+
+-- Refresh FOV Circle
+local function RefreshFOVCircle()
+    if not FOVCircle or not Settings.CameraLockEnabled then return end
+    FOVCircle.Circle.Size = UDim2.new(0, Settings.FOV * 2, 0, Settings.FOV * 2)
+    FOVCircle.Circle.Position = UDim2.new(0.5, -Settings.FOV, 0.5, -Settings.FOV)
+    FOVCircle.Stroke.Color = Settings.FOVCircleColor
+    FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
+    FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
+    FOVCircle.Stroke.Transparency = Settings.FOVCircleTransparency
+    FOVCircle.GlowStroke.Transparency = Settings.FOVCircleTransparency + 0.2
+    FOVCircle.Circle.BackgroundTransparency = math.max(0.05, Settings.FOVCircleTransparency + 0.1)
+    FOVCircle.Stroke.Thickness = Settings.FOVCircleThickness
+    FOVCircle.GlowStroke.Thickness = Settings.FOVCircleThickness + 4
+end
+
+-- Create FOV Circle
+local function CreateFOVCircle()
+    if FOVCircle then
+        pcall(function() FOVCircle.ScreenGui:Destroy() end)
+        FOVCircle = nil
+    end
+    if not Settings.CameraLockEnabled then return end
+    
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+    if not playerGui then return end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "FOVCircleGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = playerGui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+    frame.Parent = screenGui
+    
+    local circle = Instance.new("Frame")
+    circle.Name = "FOVCircle"
+    circle.Size = UDim2.new(0, Settings.FOV * 2, 0, Settings.FOV * 2)
+    circle.Position = UDim2.new(0.5, -Settings.FOV, 0.5, -Settings.FOV)
+    circle.BackgroundTransparency = 1
+    circle.BorderSizePixel = 0
+    circle.Parent = frame
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Settings.FOVCircleColor
+    stroke.Transparency = Settings.FOVCircleTransparency
+    stroke.Thickness = Settings.FOVCircleThickness
+    stroke.Parent = circle
+    
+    local glowStroke = Instance.new("UIStroke")
+    glowStroke.Color = Settings.FOVCircleColor
+    glowStroke.Transparency = Settings.FOVCircleTransparency + 0.2
+    glowStroke.Thickness = Settings.FOVCircleThickness + 4
+    glowStroke.Parent = circle
+    
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(0.5, 0)
+    circleCorner.Parent = circle
+    
+    circle.BackgroundColor3 = Settings.FOVCircleColor
+    circle.BackgroundTransparency = math.max(0.05, Settings.FOVCircleTransparency + 0.1)
+    
+    FOVCircle = {
+        ScreenGui = screenGui,
+        Circle = circle,
+        Stroke = stroke,
+        GlowStroke = glowStroke
+    }
+end
+
+-- Find nearest target
+local function FindNearestTarget()
+    if not HumanoidRootPart or not Camera then return nil end
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoid and rootPart and humanoid.Health > 0 then
+                local success, distance = pcall(function()
+                    return (HumanoidRootPart.Position - rootPart.Position).Magnitude
+                end)
+                if success and distance then
+                    local screenSuccess, screenPoint, onScreen = pcall(function()
+                        return Camera:WorldToViewportPoint(rootPart.Position)
+                    end)
+                    if screenSuccess and screenPoint and onScreen then
+                        local centerX = Camera.ViewportSize.X / 2
+                        local centerY = Camera.ViewportSize.Y / 2
+                        local distanceFromCenter = math.sqrt(math.pow(screenPoint.X - centerX, 2) + math.pow(screenPoint.Y - centerY, 2))
+                        if distanceFromCenter <= Settings.FOV and distance < nearestDistance then
+                            nearestDistance = distance
+                            nearestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+local function FindNearestTargetForPathfinding()
+    if not HumanoidRootPart then return nil end
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if humanoid and rootPart and humanoid.Health > 0 then
+                local success, distance = pcall(function()
+                    return (HumanoidRootPart.Position - rootPart.Position).Magnitude
+                end)
+                if success and distance and distance < 500 then
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+local function UpdateTarget()
+    if not Settings.CameraLockEnabled then
+        if not Settings.PathfindingEnabled then
+            Target = nil
+            TargetHumanoid = nil
+            TargetHumanoidRootPart = nil
+        end
+        return
+    end
+    if Target and Target.Character then
+        local humanoid = Target.Character:FindFirstChild("Humanoid")
+        local rootPart = Target.Character:FindFirstChild("HumanoidRootPart")
+        if humanoid and rootPart and humanoid.Health > 0 then
+            local distance = (HumanoidRootPart.Position - rootPart.Position).Magnitude
+            if distance < 500 then
+                TargetHumanoid = humanoid
+                TargetHumanoidRootPart = rootPart
+                return
+            end
+        end
+    end
+    local newTarget = FindNearestTarget()
+    if newTarget and newTarget.Character then
+        Target = newTarget
+        TargetHumanoid = newTarget.Character:FindFirstChild("Humanoid")
+        TargetHumanoidRootPart = newTarget.Character:FindFirstChild("HumanoidRootPart")
+    else
+        Target = nil
+        TargetHumanoid = nil
+        TargetHumanoidRootPart = nil
+    end
+end
+
+local function UpdatePathfinding()
+    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
+        return
+    end
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 5,
+        AgentCanJump = true,
+        WaypointSpacing = 4,
+        Costs = {Water = 10, Danger = 20}
+    })
+    local success, err = pcall(function()
+        path:ComputeAsync(HumanoidRootPart.Position, TargetHumanoidRootPart.Position)
+    end)
+    if success and path.Status == Enum.PathStatus.Success then
+        PathfindingPath = path
+        CurrentWaypointIndex = 1
+    else
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
+    end
+end
+
+local function IsTargetVisible()
+    if not TargetHumanoidRootPart or not Camera then return false end
+    local success, screenPoint, onScreen = pcall(function()
+        return Camera:WorldToViewportPoint(TargetHumanoidRootPart.Position)
+    end)
+    return success and onScreen or false
+end
+
+local function ApplyDodgingMovement()
+    if not Settings.DodgingEnabled or not TargetHumanoidRootPart then
+        return Vector3.new(0, 0, 0)
+    end
+    local targetVisible = IsTargetVisible()
+    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
+    if not targetVisible or distanceToTarget > 50 then
+        return Vector3.new(0, 0, 0)
+    end
+    local currentTime = tick()
+    local dodgeMovement = Vector3.new(0, 0, 0)
+    if currentTime - LastDodgeChange > 0.3 + math.random() * 0.4 then
+        DodgingDirection = -DodgingDirection
+        LastDodgeChange = currentTime
+    end
+    local rightVector = Camera.CFrame.RightVector
+    dodgeMovement = dodgeMovement + rightVector * DodgingDirection * Settings.DodgingSpeed * Settings.DodgingIntensity
+    RandomMovementTimer = RandomMovementTimer + (1/60)
+    if RandomMovementTimer > 0.2 + math.random() * 0.3 then
+        RandomMovementTimer = 0
+        local randomX = (math.random() - 0.5) * 1.5
+        local randomZ = (math.random() - 0.5) * 1.5
+        dodgeMovement = dodgeMovement + Vector3.new(randomX, 0, randomZ) * Settings.DodgingSpeed * 0.4
+    end
+    return dodgeMovement
+end
+
+local function MoveToTarget()
+    if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart or not Humanoid then
+        return
+    end
+    if Humanoid then
+        Humanoid.WalkSpeed = 500
+        if Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+    end
+    if Settings.PathfindingEnabled and TargetHumanoid and TargetHumanoid.Health > Settings.AutoStopShootingHP and not Settings.CameraLockEnabled then
+        if not IsShooting then
+            IsShooting = true
+            if ShootingConnection then ShootingConnection:Disconnect() end
+            ShootingConnection = RunService.Heartbeat:Connect(function()
+                if not Settings.PathfindingEnabled or Settings.CameraLockEnabled or not TargetHumanoid or TargetHumanoid.Health < Settings.AutoStopShootingHP then
+                    if ShootingConnection then ShootingConnection:Disconnect() ShootingConnection = nil end
+                    IsShooting = false
+                    return
+                end
+                pcall(function()
+                    UserInputService:FireInputBegan({
+                        UserInputType = Enum.UserInputType.MouseButton1,
+                        UserInputState = Enum.UserInputState.Begin
+                    })
+                end)
+            end)
+        end
+    elseif not Settings.PathfindingEnabled and IsShooting and not Settings.CameraLockEnabled then
+        if ShootingConnection then ShootingConnection:Disconnect() ShootingConnection = nil end
+        IsShooting = false
+    end
+    local currentTime = tick()
+    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
+    local shouldUpdate = false
+    if not PathfindingPath then
+        shouldUpdate = true
+    elseif PathfindingPath.Status ~= Enum.PathStatus.Success then
+        shouldUpdate = true
+    elseif distanceToTarget > 100 then
+        shouldUpdate = true
+    else
+        local success, waypoints = pcall(function()
+            return PathfindingPath:GetWaypoints()
+        end)
+        if success and waypoints then
+            if CurrentWaypointIndex > #waypoints then
+                shouldUpdate = true
+            end
+        else
+            shouldUpdate = true
+        end
+    end
+    if shouldUpdate and (currentTime - LastPathfindingUpdate > 1) then
+        UpdatePathfinding()
+        LastPathfindingUpdate = currentTime
+    end
+    local targetPosition = TargetHumanoidRootPart.Position
+    local targetVisible = IsTargetVisible()
+    if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
+        local success, waypoints = pcall(function()
+            return PathfindingPath:GetWaypoints()
+        end)
+        if success and waypoints and #waypoints > 1 and CurrentWaypointIndex <= #waypoints then
+            local currentWaypoint = waypoints[CurrentWaypointIndex]
+            local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
+            if currentWaypoint.Action == Enum.PathWaypointAction.Jump then
+                Humanoid.Jump = true
+            end
+            if distanceToWaypoint > 3 then
+                local directionToWaypoint = (currentWaypoint.Position - HumanoidRootPart.Position)
+                if directionToWaypoint.Magnitude > 0 then
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    raycastParams.FilterDescendantsInstances = {Character}
+                    local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), directionToWaypoint.Unit * 8, raycastParams)
+                    if raycast and raycast.Instance then
+                        Humanoid.Jump = true
+                    end
+                end
+            end
+            if distanceToWaypoint < 6 then
+                CurrentWaypointIndex = CurrentWaypointIndex + 1
+                if CurrentWaypointIndex > #waypoints then
+                    targetPosition = TargetHumanoidRootPart.Position
+                else
+                    targetPosition = waypoints[CurrentWaypointIndex].Position
+                end
+            else
+                targetPosition = currentWaypoint.Position
+            end
+        else
+            targetPosition = TargetHumanoidRootPart.Position
+        end
+    else
+        targetPosition = TargetHumanoidRootPart.Position
+    end
+    local direction = (targetPosition - HumanoidRootPart.Position)
+    direction = Vector3.new(direction.X, 0, direction.Z)
+    local distance = direction.Magnitude
+    if distance > 2 then
+        direction = direction.Unit
+        if targetVisible and distanceToTarget < 50 and Settings.DodgingEnabled then
+            local dodgingMove = ApplyDodgingMovement()
+            if dodgingMove.Magnitude > 0 then
+                local finalDirection = direction + dodgingMove.Unit * 0.3
+                finalDirection = finalDirection.Unit
+                Humanoid:Move(finalDirection, false)
+            else
+                Humanoid:Move(direction, false)
+            end
+            if math.random() < Settings.JumpProbability * 2 then
+                Humanoid.Jump = true
+            end
+        else
+            Humanoid:Move(direction, false)
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            raycastParams.FilterDescendantsInstances = {Character}
+            local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), direction * 6, raycastParams)
+            if raycast and raycast.Instance then
+                Humanoid.Jump = true
+            elseif math.random() < Settings.JumpProbability * 0.5 then
+                Humanoid.Jump = true
+            end
+        end
+    else
+        if distance > 0.5 then
+            Humanoid:Move(direction * 0.5, false)
+        else
+            Humanoid:Move(Vector3.new(0, 0, 0), false)
+        end
+    end
+end
+
+-- Camera lock
+local function LockCamera()
+    if not Settings.CameraLockEnabled or not TargetHumanoidRootPart or not Camera then
+        return
+    end
+    local success, targetPosition = pcall(function()
+        return TargetHumanoidRootPart.Position
+    end)
+    if not success or not targetPosition then
+        return
+    end
+    local cameraPosition = Camera.CFrame.Position
+    local currentCFrame = Camera.CFrame
+    local targetCFrame = CFrame.lookAt(cameraPosition, targetPosition)
+    local newCFrame = currentCFrame:Lerp(targetCFrame, Settings.SmoothnessX)
+    Camera.CFrame = newCFrame
+end
+
+local function AutoReload()
+    if not Settings.AutoReload or not Settings.CameraLockEnabled then
+        return
+    end
+    local currentTime = tick()
+    if currentTime - LastReloadTime >= Settings.AutoReloadInterval then
+        pcall(function()
+            UserInputService:FireInputBegan({
+                KeyCode = Enum.KeyCode.R,
+                UserInputState = Enum.UserInputState.Begin
+            })
+        end)
+        LastReloadTime = currentTime
+    end
+end
+
+local function UpdateShooting()
+    if not Settings.CameraLockEnabled or not TargetHumanoid then
+        if IsShooting then
+            pcall(function()
+                UserInputService:FireInputEnded({
+                    UserInputType = Enum.UserInputType.MouseButton1,
+                    UserInputState = Enum.UserInputState.End
+                })
+            end)
+            IsShooting = false
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+        end
+        return
+    end
+    local targetHP = TargetHumanoid.Health
+    local shouldShoot = targetHP >= Settings.AutoStopShootingHP
+    if shouldShoot and not IsShooting then
+        IsShooting = true
+        ShootingConnection = RunService.Heartbeat:Connect(function()
+            if not Settings.CameraLockEnabled or not TargetHumanoid or TargetHumanoid.Health < Settings.AutoStopShootingHP then
+                if ShootingConnection then
+                    ShootingConnection:Disconnect()
+                    ShootingConnection = nil
+                end
+                IsShooting = false
+                return
+            end
+            pcall(function()
+                UserInputService:FireInputBegan({
+                    UserInputType = Enum.UserInputType.MouseButton1,
+                    UserInputState = Enum.UserInputState.Begin
+                })
+            end)
+        end)
+    elseif not shouldShoot and IsShooting then
+        if ShootingConnection then
+            ShootingConnection:Disconnect()
+            ShootingConnection = nil
+        end
+        pcall(function()
+            UserInputService:FireInputEnded({
+                UserInputType = Enum.UserInputType.MouseButton1,
+                UserInputState = Enum.UserInputState.End
+            })
+        end)
+        IsShooting = false
+    end
+end
+
+-- Create Simple Draggable UI
+local function CreateUI()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+    if not playerGui then return end
+    
+    -- UI Toggle Button
+    local toggleGui = Instance.new("ScreenGui")
+    toggleGui.Name = "UIToggle"
+    toggleGui.ResetOnSpawn = false
+    toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    toggleGui.Parent = playerGui
+    
+    UIButton = Instance.new("TextButton")
+    UIButton.Name = "ToggleButton"
+    UIButton.Size = UDim2.new(0, 60, 0, 60)
+    UIButton.Position = UDim2.new(1, -70, 0, 10)
+    UIButton.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
+    UIButton.BackgroundTransparency = 0.3
+    UIButton.BorderSizePixel = 2
+    UIButton.BorderColor3 = Color3.fromRGB(255, 0, 0)
+    UIButton.Text = "⚙"
+    UIButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+    UIButton.TextSize = 24
+    UIButton.Font = Enum.Font.GothamBold
+    UIButton.Active = true
+    UIButton.Parent = toggleGui
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.Parent = UIButton
+    
+    -- Main UI
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "EternityWinUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = playerGui
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
+    mainFrame.BackgroundTransparency = 0.2
+    mainFrame.BorderSizePixel = 2
+    mainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+    mainFrame.Visible = Settings.UIEnabled
+    mainFrame.Active = true
+    mainFrame.Parent = screenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = mainFrame
+    
+    -- Title Bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, 35)
+    titleBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    titleBar.BackgroundTransparency = 0.2
+    titleBar.BorderSizePixel = 0
+    titleBar.Active = true
+    titleBar.Parent = mainFrame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 8)
+    titleCorner.Parent = titleBar
+    
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, -100, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Eternity.win"
+    title.TextColor3 = Color3.fromRGB(255, 100, 100)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
+    
+    -- UI Lock Button
+    local uiLockBtn = Instance.new("TextButton")
+    uiLockBtn.Name = "UILock"
+    uiLockBtn.Size = UDim2.new(0, 30, 0, 30)
+    uiLockBtn.Position = UDim2.new(1, -70, 0.5, -15)
+    uiLockBtn.BackgroundColor3 = UILocked and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+    uiLockBtn.BackgroundTransparency = UILocked and 0.2 or 0.5
+    uiLockBtn.BorderSizePixel = 0
+    uiLockBtn.Text = UILocked and "🔒" or "🔓"
+    uiLockBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+    uiLockBtn.TextSize = 14
+    uiLockBtn.Font = Enum.Font.GothamBold
+    uiLockBtn.Active = true
+    uiLockBtn.Parent = titleBar
+    
+    local uiLockCorner = Instance.new("UICorner")
+    uiLockCorner.CornerRadius = UDim.new(0, 5)
+    uiLockCorner.Parent = uiLockBtn
+    
+    uiLockBtn.MouseButton1Click:Connect(function()
+        UILocked = not UILocked
+        uiLockBtn.Text = UILocked and "🔒" or "🔓"
+        uiLockBtn.BackgroundColor3 = UILocked and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        uiLockBtn.BackgroundTransparency = UILocked and 0.2 or 0.5
+    end)
+    
+    -- Camera Lock Button
+    local camLockBtn = Instance.new("TextButton")
+    camLockBtn.Name = "CamLock"
+    camLockBtn.Size = UDim2.new(0, 30, 0, 30)
+    camLockBtn.Position = UDim2.new(1, -35, 0.5, -15)
+    camLockBtn.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+    camLockBtn.BackgroundTransparency = Settings.CameraLockEnabled and 0.2 or 0.5
+    camLockBtn.BorderSizePixel = 0
+    camLockBtn.Text = Settings.CameraLockEnabled and "🔒" or "🔓"
+    camLockBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+    camLockBtn.TextSize = 14
+    camLockBtn.Font = Enum.Font.GothamBold
+    camLockBtn.Active = true
+    camLockBtn.Parent = titleBar
+    
+    local camLockCorner = Instance.new("UICorner")
+    camLockCorner.CornerRadius = UDim.new(0, 5)
+    camLockCorner.Parent = camLockBtn
+    
+    camLockBtn.MouseButton1Click:Connect(function()
+        Settings.CameraLockEnabled = not Settings.CameraLockEnabled
+        camLockBtn.Text = Settings.CameraLockEnabled and "🔒" or "🔓"
+        camLockBtn.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        camLockBtn.BackgroundTransparency = Settings.CameraLockEnabled and 0.2 or 0.5
+        
+        if Settings.CameraLockEnabled then
+            CreateFOVCircle()
+        else
+            if FOVCircle then
+                pcall(function() FOVCircle.ScreenGui:Destroy() end)
+                FOVCircle = nil
+            end
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+            IsShooting = false
+            if not Settings.PathfindingEnabled then
+                Target = nil
+                TargetHumanoid = nil
+                TargetHumanoidRootPart = nil
+            end
+        end
+    end)
+    
+    -- Dragging
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    titleBar.InputBegan:Connect(function(input)
+        if UILocked then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and not UILocked and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
+            local viewportSize = Camera.ViewportSize
+            local frameSize = mainFrame.AbsoluteSize
+            newX = math.clamp(newX, 0, viewportSize.X - frameSize.X)
+            newY = math.clamp(newY, 0, viewportSize.Y - frameSize.Y)
+            mainFrame.Position = UDim2.new(0, newX, 0, newY)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    
+    -- Content Frame
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Name = "Content"
+    contentFrame.Size = UDim2.new(1, -10, 1, -45)
+    contentFrame.Position = UDim2.new(0, 5, 0, 40)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.BorderSizePixel = 0
+    contentFrame.ScrollBarThickness = 6
+    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    contentFrame.Parent = mainFrame
+    
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 5)
+    listLayout.Parent = contentFrame
+    
+    -- Settings Display
+    local function CreateSettingRow(name, value, color)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 25)
+        row.BackgroundTransparency = 1
+        row.Parent = contentFrame
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(0.6, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = name .. ":"
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
+        label.TextSize = 12
+        label.Font = Enum.Font.Gotham
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = row
+        
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Size = UDim2.new(0.4, 0, 1, 0)
+        valueLabel.Position = UDim2.new(0.6, 0, 0, 0)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Text = tostring(value)
+        valueLabel.TextColor3 = color or Color3.fromRGB(255, 150, 150)
+        valueLabel.TextSize = 12
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+        valueLabel.Parent = row
+        
+        return row
+    end
+    
+    -- Display all settings
+    CreateSettingRow("Camera Lock", Settings.CameraLockEnabled and "ON" or "OFF", Settings.CameraLockEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+    CreateSettingRow("Pathfinding", Settings.PathfindingEnabled and "ON" or "OFF", Settings.PathfindingEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+    CreateSettingRow("Smoothness X", string.format("%.2f", Settings.SmoothnessX))
+    CreateSettingRow("Smoothness Y", string.format("%.2f", Settings.SmoothnessY))
+    CreateSettingRow("FOV", Settings.FOV)
+    CreateSettingRow("Walk Speed", Settings.WalkSpeed)
+    CreateSettingRow("Jump Power", Settings.JumpPower)
+    CreateSettingRow("Auto Reload", Settings.AutoReload and "ON" or "OFF", Settings.AutoReload and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+    CreateSettingRow("Dodging", Settings.DodgingEnabled and "ON" or "OFF", Settings.DodgingEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0))
+    
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        contentFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    -- Toggle UI Button
+    UIButton.MouseButton1Click:Connect(function()
+        Settings.UIEnabled = not Settings.UIEnabled
+        mainFrame.Visible = Settings.UIEnabled
+    end)
+    
+    MainUI = mainFrame
+end
+
+-- Main update loop
+RunService.Heartbeat:Connect(function()
+    if not Character or not Humanoid or not HumanoidRootPart then
+        return
+    end
+    if Settings.CameraLockEnabled then
+        UpdateTarget()
+        if TargetHumanoidRootPart then
+            LockCamera()
+            UpdateShooting()
+            AutoReload()
+        end
+    else
+        if not Settings.PathfindingEnabled then
+            Target = nil
+            TargetHumanoid = nil
+            TargetHumanoidRootPart = nil
+        end
+        if IsShooting and not Settings.PathfindingEnabled then
+            if ShootingConnection then
+                ShootingConnection:Disconnect()
+                ShootingConnection = nil
+            end
+            IsShooting = false
+        end
+    end
+    if Settings.PathfindingEnabled then
+        if not TargetHumanoidRootPart then
+            local newTarget = FindNearestTargetForPathfinding()
+            if newTarget and newTarget.Character then
+                Target = newTarget
+                TargetHumanoid = newTarget.Character:FindFirstChild("Humanoid")
+                TargetHumanoidRootPart = newTarget.Character:FindFirstChild("HumanoidRootPart")
+            end
+        end
+        if TargetHumanoidRootPart then
+            MoveToTarget()
+        end
+    else
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
+        if Humanoid then
+            Humanoid:Move(Vector3.new(0, 0, 0), false)
+        end
+    end
+    updateSpeed()
+end)
+
+speedConnection = RunService.RenderStepped:Connect(updateSpeed)
+
+-- Initialize
+task.spawn(function()
+    if not InitializeCharacter() then
+        LocalPlayer.CharacterAdded:Wait()
+        task.wait(1)
+        if not InitializeCharacter() then
+            warn("Failed to initialize character")
+            return
+        end
+    end
+    task.wait(0.5)
+    CreateUI()
+    print("========================================")
+    print("Eternity.win Loaded Successfully!")
+    print("Press the gear button to toggle UI")
+    print("========================================")
+end)
