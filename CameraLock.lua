@@ -35,8 +35,8 @@ local Settings = {
     AutoReloadInterval = 2.3,
     AutoStopShootingHP = 10,
     FOVCircleColor = Color3.fromRGB(255, 0, 0),
-    FOVCircleTransparency = 0.5,
-    FOVCircleThickness = 2,
+    FOVCircleTransparency = 0.3,
+    FOVCircleThickness = 3,
     DodgingEnabled = false,
     DodgingSpeed = 16,
     DodgingIntensity = 5,
@@ -157,42 +157,110 @@ local function CreateFOVCircle()
     circle.BorderSizePixel = 0
     circle.Parent = frame
     
+    -- Main stroke with glow effect
     local stroke = Instance.new("UIStroke")
     stroke.Color = Settings.FOVCircleColor
     stroke.Transparency = Settings.FOVCircleTransparency
     stroke.Thickness = Settings.FOVCircleThickness
     stroke.Parent = circle
     
+    -- Outer glow stroke
+    local glowStroke = Instance.new("UIStroke")
+    glowStroke.Color = Settings.FOVCircleColor
+    glowStroke.Transparency = Settings.FOVCircleTransparency + 0.2
+    glowStroke.Thickness = Settings.FOVCircleThickness + 4
+    glowStroke.Parent = circle
+    
     local circleCorner = Instance.new("UICorner")
     circleCorner.CornerRadius = UDim.new(0.5, 0)
     circleCorner.Parent = circle
     
     circle.BackgroundColor3 = Settings.FOVCircleColor
-    circle.BackgroundTransparency = Settings.FOVCircleTransparency + 0.3
+    circle.BackgroundTransparency = Settings.FOVCircleTransparency + 0.4
     
+    -- Animated gradient
     local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 50, 50)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+    })
     gradient.Rotation = 0
     gradient.Transparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, Settings.FOVCircleTransparency),
-        NumberSequenceKeypoint.new(0.5, Settings.FOVCircleTransparency + 0.3),
+        NumberSequenceKeypoint.new(0.5, Settings.FOVCircleTransparency + 0.2),
         NumberSequenceKeypoint.new(1, Settings.FOVCircleTransparency)
     })
     gradient.Parent = circle
+    
+    -- Inner glow circle
+    local innerGlow = Instance.new("Frame")
+    innerGlow.Name = "InnerGlow"
+    innerGlow.Size = UDim2.new(0.85, 0, 0.85, 0)
+    innerGlow.Position = UDim2.new(0.075, 0, 0.075, 0)
+    innerGlow.BackgroundColor3 = Settings.FOVCircleColor
+    innerGlow.BackgroundTransparency = 0.7
+    innerGlow.BorderSizePixel = 0
+    innerGlow.Parent = circle
+    
+    local innerGlowCorner = Instance.new("UICorner")
+    innerGlowCorner.CornerRadius = UDim.new(0.5, 0)
+    innerGlowCorner.Parent = innerGlow
+    
+    local innerGlowGradient = Instance.new("UIGradient")
+    innerGlowGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 0))
+    })
+    innerGlowGradient.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.7),
+        NumberSequenceKeypoint.new(1, 0.9)
+    })
+    innerGlowGradient.Parent = innerGlow
     
     FOVCircle = {
         ScreenGui = screenGui,
         Circle = circle,
         Gradient = gradient,
-        Stroke = stroke
+        Stroke = stroke,
+        GlowStroke = glowStroke,
+        InnerGlow = innerGlow,
+        InnerGlowGradient = innerGlowGradient
     }
     
+    -- Beautiful rotating animation
     spawn(function()
+        local rotationSpeed = 1
         while FOVCircle and Settings.CameraLockEnabled do
-            for i = 0, 360, 2 do
+            for i = 0, 360, rotationSpeed do
                 if not FOVCircle or not Settings.CameraLockEnabled then break end
                 FOVCircle.Gradient.Rotation = i
-                task.wait(0.03)
+                FOVCircle.InnerGlowGradient.Rotation = -i * 0.5
+                -- Pulse effect
+                local pulse = math.sin(math.rad(i)) * 0.1 + 1
+                FOVCircle.Circle.Size = UDim2.new(0, Settings.FOV * 2 * pulse, 0, Settings.FOV * 2 * pulse)
+                FOVCircle.Circle.Position = UDim2.new(0.5, -Settings.FOV * pulse, 0.5, -Settings.FOV * pulse)
+                task.wait(0.016)
             end
+        end
+    end)
+    
+    -- Glow pulse animation
+    spawn(function()
+        while FOVCircle and Settings.CameraLockEnabled do
+            local tween1 = TweenService:Create(
+                glowStroke,
+                TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                {Transparency = Settings.FOVCircleTransparency + 0.2}
+            )
+            local tween2 = TweenService:Create(
+                glowStroke,
+                TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                {Transparency = Settings.FOVCircleTransparency + 0.5}
+            )
+            tween1:Play()
+            tween2:Play()
+            task.wait(1.6)
         end
     end)
 end
@@ -393,7 +461,7 @@ local function ApplyDodgingMovement()
     return dodgeMovement
 end
 
--- Move to target
+-- Move to target (Fixed stuttering)
 local function MoveToTarget()
     if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart or not Humanoid then
         return
@@ -443,55 +511,54 @@ local function MoveToTarget()
     end
     
     local currentTime = tick()
-    -- Update pathfinding more frequently for better navigation
-    if currentTime - LastPathfindingUpdate > 0.5 then
-        UpdatePathfinding()
-        LastPathfindingUpdate = currentTime
+    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
+    
+    -- Update pathfinding less frequently to prevent stuttering (only when far or path invalid)
+    if not PathfindingPath or PathfindingPath.Status ~= Enum.PathStatus.Success or distanceToTarget > 100 or CurrentWaypointIndex > #(PathfindingPath:GetWaypoints()) then
+        if currentTime - LastPathfindingUpdate > 1 then
+            UpdatePathfinding()
+            LastPathfindingUpdate = currentTime
+        end
     end
     
     local targetPosition = TargetHumanoidRootPart.Position
     local targetVisible = IsTargetVisible()
-    local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
     
     -- Use pathfinding to navigate around obstacles
     if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
         local waypoints = PathfindingPath:GetWaypoints()
-        if #waypoints > 1 then
-            if CurrentWaypointIndex <= #waypoints then
-                local currentWaypoint = waypoints[CurrentWaypointIndex]
-                local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
-                
-                -- Handle jump waypoints
-                if currentWaypoint.Action == Enum.PathWaypointAction.Jump then
-                    Humanoid.Jump = true
-                end
-                
-                -- Check for obstacles and jump over them
+        if #waypoints > 1 and CurrentWaypointIndex <= #waypoints then
+            local currentWaypoint = waypoints[CurrentWaypointIndex]
+            local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
+            
+            -- Handle jump waypoints
+            if currentWaypoint.Action == Enum.PathWaypointAction.Jump then
+                Humanoid.Jump = true
+            end
+            
+            -- Check for obstacles and jump over them
+            if distanceToWaypoint > 2 then
                 local directionToWaypoint = (currentWaypoint.Position - HumanoidRootPart.Position)
                 local raycastParams = RaycastParams.new()
                 raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
                 raycastParams.FilterDescendantsInstances = {Character}
                 
-                local raycast = workspace:Raycast(HumanoidRootPart.Position, directionToWaypoint.Unit * 8, raycastParams)
+                local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), directionToWaypoint.Unit * 8, raycastParams)
                 if raycast and raycast.Instance then
                     -- Obstacle detected, jump over it
                     Humanoid.Jump = true
                 end
-                
-                -- Move to waypoint
-                if distanceToWaypoint < 5 then
-                    CurrentWaypointIndex = CurrentWaypointIndex + 1
-                    -- If we've reached the last waypoint, update pathfinding
-                    if CurrentWaypointIndex > #waypoints then
-                        UpdatePathfinding()
-                    end
-                else
-                    targetPosition = currentWaypoint.Position
-                end
-            else
-                -- Reached end of path, move directly to target
-                targetPosition = TargetHumanoidRootPart.Position
             end
+            
+            -- Move to waypoint (increased threshold to prevent stuttering)
+            if distanceToWaypoint < 8 then
+                CurrentWaypointIndex = CurrentWaypointIndex + 1
+            else
+                targetPosition = currentWaypoint.Position
+            end
+        else
+            -- Reached end of path or no waypoints, move directly to target
+            targetPosition = TargetHumanoidRootPart.Position
         end
     else
         -- No pathfinding path, move directly to target
@@ -503,23 +570,26 @@ local function MoveToTarget()
     direction = Vector3.new(direction.X, 0, direction.Z)
     local distance = direction.Magnitude
     
-    if distance > 0.5 then
+    if distance > 2 then
         direction = direction.Unit
         
-        -- Apply movement using Humanoid:Move() for proper physics
+        -- Apply movement using Humanoid:Move() for proper physics - smooth continuous movement
         if targetVisible and distanceToTarget < 50 and Settings.DodgingEnabled then
             -- Dodging mode when close and visible
             local dodgingMove = ApplyDodgingMovement()
-            local finalDirection = direction + dodgingMove.Unit * 0.3
-            finalDirection = finalDirection.Unit
-            
-            Humanoid:Move(finalDirection, false)
+            if dodgingMove.Magnitude > 0 then
+                local finalDirection = direction + dodgingMove.Unit * 0.3
+                finalDirection = finalDirection.Unit
+                Humanoid:Move(finalDirection, false)
+            else
+                Humanoid:Move(direction, false)
+            end
             
             if math.random() < Settings.JumpProbability * 2 then
                 Humanoid.Jump = true
             end
         else
-            -- Normal pathfinding movement
+            -- Normal pathfinding movement - smooth continuous run
             Humanoid:Move(direction, false)
             
             -- Check for obstacles ahead and jump if needed
@@ -527,18 +597,22 @@ local function MoveToTarget()
             raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
             raycastParams.FilterDescendantsInstances = {Character}
             
-            local raycast = workspace:Raycast(HumanoidRootPart.Position, direction * 6, raycastParams)
+            local raycast = workspace:Raycast(HumanoidRootPart.Position + Vector3.new(0, 2, 0), direction * 6, raycastParams)
             if raycast and raycast.Instance then
                 -- Obstacle detected, jump over it
                 Humanoid.Jump = true
-            elseif math.random() < Settings.JumpProbability then
-                -- Random jump
+            elseif math.random() < Settings.JumpProbability * 0.5 then
+                -- Less frequent random jumps to prevent stuttering
                 Humanoid.Jump = true
             end
         end
     else
-        -- Very close to target, stop moving
-        Humanoid:Move(Vector3.new(0, 0, 0), false)
+        -- Very close to target, slow down smoothly
+        if distance > 0.5 then
+            Humanoid:Move(direction * 0.5, false)
+        else
+            Humanoid:Move(Vector3.new(0, 0, 0), false)
+        end
     end
 end
 
@@ -679,12 +753,12 @@ local function CreateCornerButtons()
     btn1.Name = "CameraLockToggle"
     btn1.Size = UDim2.new(0, buttonSize, 0, buttonSize)
     btn1.Position = UDim2.new(0.5, -(buttonSize + buttonSpacing/2), 0.5, -buttonSize/2)
-    btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-    btn1.BackgroundTransparency = Settings.CameraLockEnabled and 0.3 or 0.5
+    btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+    btn1.BackgroundTransparency = Settings.CameraLockEnabled and 0.2 or 0.5
     btn1.BorderSizePixel = 2
-    btn1.BorderColor3 = Color3.fromRGB(255, 255, 0)
+    btn1.BorderColor3 = Color3.fromRGB(255, 0, 0)
     btn1.Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
-    btn1.TextColor3 = Color3.fromRGB(255, 255, 0)
+    btn1.TextColor3 = Color3.fromRGB(255, 50, 50)
     btn1.TextSize = isMobile and 16 or 14
     btn1.Font = Enum.Font.GothamBold
     btn1.TextWrapped = true
@@ -695,11 +769,35 @@ local function CreateCornerButtons()
     corner1.CornerRadius = UDim.new(0, 12)
     corner1.Parent = btn1
     
+    -- Button hover animation
+    btn1.MouseEnter:Connect(function()
+        TweenService:Create(btn1, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = btn1.BackgroundTransparency - 0.1,
+            Size = UDim2.new(0, buttonSize + 4, 0, buttonSize + 4)
+        }):Play()
+    end)
+    btn1.MouseLeave:Connect(function()
+        TweenService:Create(btn1, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = Settings.CameraLockEnabled and 0.2 or 0.5,
+            Size = UDim2.new(0, buttonSize, 0, buttonSize)
+        }):Play()
+    end)
+    
     local function toggleCameraLock()
         Settings.CameraLockEnabled = not Settings.CameraLockEnabled
         btn1.Text = Settings.CameraLockEnabled and "🔒\nLOCKED" or "🔓\nUNLOCKED"
-        btn1.BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-        btn1.BackgroundTransparency = Settings.CameraLockEnabled and 0.3 or 0.5
+        
+        -- Animated toggle
+        TweenService:Create(btn1, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundColor3 = Settings.CameraLockEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0),
+            BackgroundTransparency = Settings.CameraLockEnabled and 0.2 or 0.5,
+            Size = UDim2.new(0, buttonSize + 6, 0, buttonSize + 6)
+        }):Play()
+        
+        task.wait(0.15)
+        TweenService:Create(btn1, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(0, buttonSize, 0, buttonSize)
+        }):Play()
         
         if Settings.CameraLockEnabled then
             CreateFOVCircle()
@@ -765,9 +863,9 @@ local function CreateCornerButtons()
     btn2.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     btn2.BackgroundTransparency = 0.5
     btn2.BorderSizePixel = 2
-    btn2.BorderColor3 = Color3.fromRGB(255, 255, 0)
+    btn2.BorderColor3 = Color3.fromRGB(255, 0, 0)
     btn2.Text = "⚙\nSETTINGS"
-    btn2.TextColor3 = Color3.fromRGB(255, 255, 0)
+    btn2.TextColor3 = Color3.fromRGB(255, 50, 50)
     btn2.TextSize = isMobile and 16 or 14
     btn2.Font = Enum.Font.GothamBold
     btn2.TextWrapped = true
@@ -778,6 +876,20 @@ local function CreateCornerButtons()
     corner2.CornerRadius = UDim.new(0, 12)
     corner2.Parent = btn2
     
+    -- Button hover animation
+    btn2.MouseEnter:Connect(function()
+        TweenService:Create(btn2, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.3,
+            Size = UDim2.new(0, buttonSize + 4, 0, buttonSize + 4)
+        }):Play()
+    end)
+    btn2.MouseLeave:Connect(function()
+        TweenService:Create(btn2, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0.5,
+            Size = UDim2.new(0, buttonSize, 0, buttonSize)
+        }):Play()
+    end)
+    
     local function toggleSettings()
         Settings.UIEnabled = not Settings.UIEnabled
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -785,10 +897,36 @@ local function CreateCornerButtons()
         if uiGui then
             local mainFrame = uiGui:FindFirstChild("MainFrame")
             if mainFrame then
-                mainFrame.Visible = Settings.UIEnabled
+                if Settings.UIEnabled then
+                    mainFrame.Visible = true
+                    local viewportSize = Camera.ViewportSize
+                    local targetWidth = math.min(viewportSize.X * 0.8, isMobile and 550 or 500)
+                    local targetHeight = math.min(viewportSize.Y * 0.7, isMobile and 500 or 450)
+                    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+                    TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(0, targetWidth, 0, targetHeight)
+                    }):Play()
+                else
+                    local currentSize = mainFrame.AbsoluteSize
+                    TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                        Size = UDim2.new(0, 0, 0, 0)
+                    }):Play()
+                    task.wait(0.3)
+                    mainFrame.Visible = false
+                    mainFrame.Size = UDim2.new(0, currentSize.X, 0, currentSize.Y)
+                end
             end
         end
+        
+        -- Animate button
+        TweenService:Create(btn2, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, buttonSize + 6, 0, buttonSize + 6)
+        }):Play()
+        task.wait(0.1)
         btn2.Text = Settings.UIEnabled and "⚙\nCLOSE" or "⚙\nSETTINGS"
+        TweenService:Create(btn2, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(0, buttonSize, 0, buttonSize)
+        }):Play()
     end
     
     local btn2Dragging = false
@@ -852,10 +990,10 @@ local function CreateUI()
     mainFrame.Size = UDim2.new(0, baseWidth, 0, baseHeight)
     -- Center the UI properly
     mainFrame.Position = UDim2.new(0.5, -baseWidth/2, 0.5, -baseHeight/2)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
     mainFrame.BackgroundTransparency = 0.2
     mainFrame.BorderSizePixel = 2
-    mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 0)
+    mainFrame.BorderColor3 = Color3.fromRGB(255, 0, 0)
     mainFrame.Visible = Settings.UIEnabled
     mainFrame.Active = true
     mainFrame.Parent = screenGui
@@ -868,8 +1006,8 @@ local function CreateUI()
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0, isMobile and 45 or 40)
-    titleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-    titleBar.BackgroundTransparency = 0.3
+    titleBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    titleBar.BackgroundTransparency = 0.2
     titleBar.BorderSizePixel = 0
     titleBar.Active = true
     titleBar.Parent = mainFrame
@@ -884,7 +1022,7 @@ local function CreateUI()
     title.Position = UDim2.new(0, 10, 0, 0)
     title.BackgroundTransparency = 1
     title.Text = "🎯 Camera Lock Settings"
-    title.TextColor3 = Color3.fromRGB(255, 255, 0)
+    title.TextColor3 = Color3.fromRGB(255, 100, 100)
     title.TextSize = isMobile and 18 or 16
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
@@ -970,7 +1108,7 @@ local function CreateUI()
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
     scrollFrame.ScrollBarThickness = isMobile and 10 or 8
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 0)
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollFrame.ScrollingEnabled = true
     scrollFrame.Parent = tabContentFrame
@@ -988,11 +1126,11 @@ local function CreateUI()
         local tabButton = Instance.new("TextButton")
         tabButton.Name = name .. "Tab"
         tabButton.Size = UDim2.new(0, isMobile and 100 or 90, 1, 0)
-        tabButton.BackgroundColor3 = (currentTab == name) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-        tabButton.BackgroundTransparency = (currentTab == name) and 0.3 or 0.6
+        tabButton.BackgroundColor3 = (currentTab == name) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        tabButton.BackgroundTransparency = (currentTab == name) and 0.2 or 0.6
         tabButton.BorderSizePixel = 0
         tabButton.Text = name
-        tabButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+        tabButton.TextColor3 = Color3.fromRGB(255, 100, 100)
         tabButton.TextSize = isMobile and 13 or 12
         tabButton.Font = Enum.Font.GothamBold
         tabButton.Active = true
@@ -1020,8 +1158,8 @@ local function CreateUI()
         local function switchToTab()
             currentTab = name
             for tabName, tabData in pairs(tabs) do
-                tabData.Button.BackgroundColor3 = (tabName == name) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-                tabData.Button.BackgroundTransparency = (tabName == name) and 0.3 or 0.6
+                tabData.Button.BackgroundColor3 = (tabName == name) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+                tabData.Button.BackgroundTransparency = (tabName == name) and 0.2 or 0.6
                 tabData.Content.Visible = (tabName == name)
             end
             updateScrollSize()
@@ -1056,10 +1194,10 @@ local function CreateUI()
         local sectionContainer = Instance.new("Frame")
         sectionContainer.Name = title .. "Section"
         sectionContainer.Size = UDim2.new(1, 0, 0, 0)
-        sectionContainer.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        sectionContainer.BackgroundColor3 = Color3.fromRGB(10, 0, 0)
         sectionContainer.BackgroundTransparency = 0.4
         sectionContainer.BorderSizePixel = 2
-        sectionContainer.BorderColor3 = Color3.fromRGB(255, 255, 0)
+        sectionContainer.BorderColor3 = Color3.fromRGB(255, 0, 0)
         sectionContainer.Parent = parent
         
         local sectionCorner = Instance.new("UICorner")
@@ -1069,8 +1207,8 @@ local function CreateUI()
         local header = Instance.new("Frame")
         header.Name = "Header"
         header.Size = UDim2.new(1, 0, 0, isMobile and 28 or 24)
-        header.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-        header.BackgroundTransparency = 0.3
+        header.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        header.BackgroundTransparency = 0.2
         header.BorderSizePixel = 0
         header.Parent = sectionContainer
         
@@ -1086,7 +1224,7 @@ local function CreateUI()
         collapseButton.BackgroundTransparency = 0.5
         collapseButton.BorderSizePixel = 0
         collapseButton.Text = "▼"
-        collapseButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+        collapseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
         collapseButton.TextSize = isMobile and 12 or 10
         collapseButton.Font = Enum.Font.GothamBold
         collapseButton.Active = true
@@ -1100,8 +1238,8 @@ local function CreateUI()
         divider.Name = "Divider"
         divider.Size = UDim2.new(1, -8, 0, 1)
         divider.Position = UDim2.new(0, 4, 1, -1)
-        divider.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-        divider.BackgroundTransparency = 0.5
+        divider.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        divider.BackgroundTransparency = 0.4
         divider.BorderSizePixel = 0
         divider.Parent = header
         
@@ -1111,7 +1249,7 @@ local function CreateUI()
         headerLabel.Position = UDim2.new(0, isMobile and 30 or 26, 0, 0)
         headerLabel.BackgroundTransparency = 1
         headerLabel.Text = title
-        headerLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+        headerLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         headerLabel.TextSize = isMobile and 13 or 12
         headerLabel.Font = Enum.Font.GothamBold
         headerLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1169,7 +1307,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.35, 0, 0, isMobile and 16 or 14)
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
-        label.TextColor3 = Color3.fromRGB(255, 255, 0)
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -1181,7 +1319,7 @@ local function CreateUI()
         valueLabel.Position = UDim2.new(0.37, 0, 0, 0)
         valueLabel.BackgroundTransparency = 1
         valueLabel.Text = string.format("%.2f", current)
-        valueLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+        valueLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
         valueLabel.TextSize = isMobile and 12 or 11
         valueLabel.Font = Enum.Font.GothamBold
         valueLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -1203,7 +1341,7 @@ local function CreateUI()
         local fill = Instance.new("Frame")
         fill.Name = "Fill"
         fill.Size = UDim2.new((current - min) / (max - min), 0, 1, 0)
-        fill.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         fill.BackgroundTransparency = 0.2
         fill.BorderSizePixel = 0
         fill.Parent = slider
@@ -1287,7 +1425,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.7, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name
-        label.TextColor3 = Color3.fromRGB(255, 255, 0)
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -1297,8 +1435,8 @@ local function CreateUI()
         toggle.Name = "Toggle"
         toggle.Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)
         toggle.Position = UDim2.new(1, -(isMobile and 42 or 38), 0.5, -(isMobile and 10 or 9))
-        toggle.BackgroundColor3 = current and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-        toggle.BackgroundTransparency = current and 0.3 or 0.5
+        toggle.BackgroundColor3 = current and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
+        toggle.BackgroundTransparency = current and 0.2 or 0.5
         toggle.BorderSizePixel = 0
         toggle.Text = ""
         toggle.Active = true
@@ -1312,7 +1450,7 @@ local function CreateUI()
         indicator.Name = "Indicator"
         indicator.Size = UDim2.new(0, isMobile and 16 or 14, 0, isMobile and 16 or 14)
         indicator.Position = current and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))
-        indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
         indicator.BorderSizePixel = 0
         indicator.Parent = toggle
         
@@ -1325,15 +1463,36 @@ local function CreateUI()
             local newValue = not currentValue
             Settings[settingKey] = newValue
             
-            toggle.BackgroundColor3 = newValue and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
-            toggle.BackgroundTransparency = newValue and 0.3 or 0.5
+            -- Animate toggle background
+            TweenService:Create(
+                toggle,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {
+                    BackgroundColor3 = newValue and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0),
+                    BackgroundTransparency = newValue and 0.2 or 0.5
+                }
+            ):Play()
             
+            -- Animate indicator with bounce
             local tween = TweenService:Create(
                 indicator,
-                TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
                 {Position = newValue and UDim2.new(1, -(isMobile and 18 or 16), 0.5, -(isMobile and 8 or 7)) or UDim2.new(0, isMobile and 2 or 2, 0.5, -(isMobile and 8 or 7))}
             )
             tween:Play()
+            
+            -- Pulse effect
+            TweenService:Create(
+                toggle,
+                TweenInfo.new(0.15, Enum.EasingStyle.Quad),
+                {Size = UDim2.new(0, (isMobile and 42 or 38) + 4, 0, isMobile and 20 or 18)}
+            ):Play()
+            task.wait(0.15)
+            TweenService:Create(
+                toggle,
+                TweenInfo.new(0.15, Enum.EasingStyle.Quad),
+                {Size = UDim2.new(0, isMobile and 42 or 38, 0, isMobile and 20 or 18)}
+            ):Play()
             
             if callback then
                 callback(newValue)
@@ -1362,7 +1521,7 @@ local function CreateUI()
         label.Size = UDim2.new(0.4, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = name .. ":"
-        label.TextColor3 = Color3.fromRGB(255, 255, 0)
+        label.TextColor3 = Color3.fromRGB(255, 100, 100)
         label.TextSize = isMobile and 12 or 11
         label.Font = Enum.Font.Gotham
         label.TextXAlignment = Enum.TextXAlignment.Left
@@ -1376,7 +1535,7 @@ local function CreateUI()
         textBox.BackgroundTransparency = 0.5
         textBox.BorderSizePixel = 0
         textBox.Text = tostring(current)
-        textBox.TextColor3 = Color3.fromRGB(255, 255, 0)
+        textBox.TextColor3 = Color3.fromRGB(255, 100, 100)
         textBox.TextSize = isMobile and 12 or 11
         textBox.Font = Enum.Font.Gotham
         textBox.PlaceholderText = placeholder or "Enter value"
@@ -1436,7 +1595,7 @@ local function CreateUI()
             local centerBtn = cornerGui:FindFirstChild("CameraLockToggle")
             if centerBtn then
                 centerBtn.Text = val and "🔒\nLOCKED" or "🔓\nUNLOCKED"
-                centerBtn.BackgroundColor3 = val and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(0, 0, 0)
+                centerBtn.BackgroundColor3 = val and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(20, 0, 0)
                 centerBtn.BackgroundTransparency = val and 0.3 or 0.5
             end
         end
@@ -1522,12 +1681,16 @@ local function CreateUI()
         Settings.FOVCircleTransparency = val
         if FOVCircle then
             FOVCircle.Stroke.Transparency = val
-            FOVCircle.Circle.BackgroundTransparency = val + 0.3
+            FOVCircle.GlowStroke.Transparency = val + 0.2
+            FOVCircle.Circle.BackgroundTransparency = val + 0.4
             FOVCircle.Gradient.Transparency = NumberSequence.new({
                 NumberSequenceKeypoint.new(0, val),
-                NumberSequenceKeypoint.new(0.5, val + 0.3),
+                NumberSequenceKeypoint.new(0.5, val + 0.2),
                 NumberSequenceKeypoint.new(1, val)
             })
+            if FOVCircle.InnerGlow then
+                FOVCircle.InnerGlow.BackgroundTransparency = val + 0.4
+            end
         end
     end, visualSection)
     
