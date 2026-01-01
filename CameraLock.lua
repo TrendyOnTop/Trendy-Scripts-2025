@@ -12,6 +12,53 @@ local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- Walk Speed Settings
+if not getgenv().walkSpeedSettings then
+    getgenv().walkSpeedSettings = {
+        WalkSpeed = {
+            Enabled = true,
+            Speed = 300,
+        },
+        Activation = {
+            WalkSpeedToggleKey = "T",
+        }
+    }
+end
+
+local isSpeedEnabled = false
+local defaultSpeed = 16
+
+-- Walk Speed System
+local function updateSpeed()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if isSpeedEnabled and getgenv().walkSpeedSettings.WalkSpeed.Enabled then
+            LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+        end
+    end
+end
+
+local speedConnection = RunService.RenderStepped:Connect(updateSpeed)
+
+LocalPlayer.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    updateSpeed()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode[getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey] then
+        isSpeedEnabled = not isSpeedEnabled
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if isSpeedEnabled then
+                LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+            else
+                LocalPlayer.Character.Humanoid.WalkSpeed = defaultSpeed
+            end
+        end
+    end
+end)
+
 -- Character handling with proper respawn support
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
@@ -22,6 +69,11 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     Humanoid = newCharacter:WaitForChild("Humanoid")
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    
+    -- Set jump power on respawn
+    if Humanoid.UseJumpPower then
+        Humanoid.JumpPower = Settings.JumpPower
+    end
     
     -- Reset state on respawn
     Target = nil
@@ -35,6 +87,9 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
         ShootingConnection = nil
         IsShooting = false
     end
+    
+    -- Update speed on respawn
+    updateSpeed()
 end)
 
 -- Detect if mobile
@@ -61,7 +116,8 @@ local Settings = {
     FOVCircleThickness = 2,
     DodgingEnabled = false,
     DodgingSpeed = 16,
-    DodgingIntensity = 5
+    DodgingIntensity = 5,
+    JumpPower = 50
 }
 
 -- State
@@ -250,7 +306,7 @@ local function UpdateTarget()
     end
 end
 
--- Update pathfinding
+-- Update pathfinding - Improved to navigate around walls and objects
 local function UpdatePathfinding()
     if not Settings.PathfindingEnabled or not TargetHumanoidRootPart or not HumanoidRootPart then
         PathfindingPath = nil
@@ -258,11 +314,16 @@ local function UpdatePathfinding()
         return
     end
     
+    -- Create path with better settings for navigating obstacles
     local path = PathfindingService:CreatePath({
         AgentRadius = 2,
         AgentHeight = 5,
         AgentCanJump = true,
-        WaypointSpacing = 4
+        WaypointSpacing = 3, -- Closer waypoints for better navigation
+        Costs = {
+            Water = math.huge, -- Avoid water if possible
+            Danger = math.huge -- Avoid danger zones
+        }
     })
     
     local success, errorMessage = pcall(function()
@@ -271,6 +332,10 @@ local function UpdatePathfinding()
     
     if success and path.Status == Enum.PathStatus.Success then
         PathfindingPath = path
+        CurrentWaypointIndex = 1
+    elseif success and path.Status == Enum.PathStatus.NoPath then
+        -- Try to find alternative path or direct approach
+        PathfindingPath = nil
         CurrentWaypointIndex = 1
     else
         PathfindingPath = nil
@@ -398,12 +463,35 @@ local function MoveToTarget()
                 local currentWaypoint = waypoints[CurrentWaypointIndex]
                 local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
                 
+                -- Check if waypoint requires jumping
+                if currentWaypoint.Action == Enum.PathWaypointAction.Jump then
+                    Humanoid.Jump = true
+                    if Humanoid.UseJumpPower then
+                        Humanoid.JumpPower = Settings.JumpPower
+                    end
+                end
+                
                 if distanceToWaypoint < 4 then
                     CurrentWaypointIndex = CurrentWaypointIndex + 1
                 end
                 
                 if CurrentWaypointIndex <= #waypoints then
                     targetPosition = waypoints[CurrentWaypointIndex].Position
+                    
+                    -- Check for obstacles between current position and waypoint
+                    local directionToWaypoint = (targetPosition - HumanoidRootPart.Position)
+                    local raycastParams = RaycastParams.new()
+                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    raycastParams.FilterDescendantsInstances = {Character}
+                    
+                    local raycast = workspace:Raycast(HumanoidRootPart.Position, directionToWaypoint.Unit * 5, raycastParams)
+                    if raycast and raycast.Instance then
+                        -- Obstacle detected, jump over it
+                        Humanoid.Jump = true
+                        if Humanoid.UseJumpPower then
+                            Humanoid.JumpPower = Settings.JumpPower
+                        end
+                    end
                 else
                     targetPosition = TargetHumanoidRootPart.Position
                 end
@@ -415,6 +503,9 @@ local function MoveToTarget()
     local direction = (targetPosition - HumanoidRootPart.Position)
     direction = Vector3.new(direction.X, 0, direction.Z).Unit
     
+    -- Use walk speed from settings
+    local pathfindingSpeed = getgenv().walkSpeedSettings.WalkSpeed.Enabled and getgenv().walkSpeedSettings.WalkSpeed.Speed or Settings.WalkSpeed
+    
     -- If target is visible and close, prioritize strafing over approaching
     if targetVisible and distanceToTarget < 50 then
         -- Strafe mode - move side to side with human movements
@@ -422,16 +513,19 @@ local function MoveToTarget()
         moveVector = dodgingMove
         
         -- Add slight forward movement to maintain distance
-        local forwardComponent = direction * Settings.WalkSpeed * 0.3
+        local forwardComponent = direction * pathfindingSpeed * 0.3
         moveVector = moveVector + forwardComponent
         
         -- More frequent jumping when strafing
         if math.random() < Settings.JumpProbability * 2 then
             Humanoid.Jump = true
+            if Humanoid.UseJumpPower then
+                Humanoid.JumpPower = Settings.JumpPower
+            end
         end
     else
-        -- Approach mode - run directly to target
-        moveVector = direction * Settings.WalkSpeed
+        -- Approach mode - run directly to target using pathfinding speed
+        moveVector = direction * pathfindingSpeed
         
         -- Add dodging movement if enabled (but less when approaching)
         if Settings.DodgingEnabled then
@@ -439,9 +533,28 @@ local function MoveToTarget()
             moveVector = moveVector + dodgingMove * 0.5
         end
         
-        -- Random jumping while approaching
-        if math.random() < Settings.JumpProbability then
-            Humanoid.Jump = true
+        -- Check if we need to jump over obstacles
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {Character}
+        
+        local raycast = workspace:Raycast(HumanoidRootPart.Position, direction * 5, raycastParams)
+        if raycast and raycast.Instance then
+            -- Obstacle detected, jump over it
+            if math.random() < Settings.JumpProbability * 3 then
+                Humanoid.Jump = true
+                if Humanoid.UseJumpPower then
+                    Humanoid.JumpPower = Settings.JumpPower
+                end
+            end
+        else
+            -- Random jumping while approaching
+            if math.random() < Settings.JumpProbability then
+                Humanoid.Jump = true
+                if Humanoid.UseJumpPower then
+                    Humanoid.JumpPower = Settings.JumpPower
+                end
+            end
         end
     end
     
@@ -1462,6 +1575,13 @@ local function CreateUI()
         Settings.JumpProbability = math.clamp(val, 0, 0.1)
     end, "0-0.1", movementSection)
     
+    CreateTextBox("Jump Power", Settings.JumpPower, function(val)
+        Settings.JumpPower = math.clamp(val, 0, 200)
+        if Humanoid and Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+    end, "0-200", movementSection)
+    
     CreateTextBox("Dodging Speed", Settings.DodgingSpeed, function(val)
         Settings.DodgingSpeed = math.clamp(val, 0, 50)
     end, "0-50", movementSection)
@@ -1556,6 +1676,12 @@ end)
 CreateCornerButtons()
 CreateUI()
 
+-- Set initial jump power
+if Humanoid and Humanoid.UseJumpPower then
+    Humanoid.JumpPower = Settings.JumpPower
+end
+
 print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
 print("Center Toggle Buttons (Draggable): Left (Camera Lock), Right (Settings)")
+print("Walk Speed Toggle: Press " .. getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey .. " to toggle")
 print("All settings are OFF by default - enable manually through buttons or settings panel")
