@@ -1,6 +1,13 @@
 -- Eternity.win
 -- Custom UI Script with All Features
 
+-- Ensure getgenv exists
+if not getgenv then
+    getgenv = function()
+        return _G
+    end
+end
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -12,6 +19,11 @@ local CoreGui = game:GetService("CoreGui")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
+
+-- Initialize getgenv tables safely
+if not getgenv().Sentinel then
+    getgenv().Sentinel = {}
+end
 
 -- Wait for character with error handling
 local character, hrp
@@ -519,11 +531,18 @@ TargHighlight.FillTransparency = 0.5
 TargHighlight.OutlineTransparency = 0
 TargHighlight.Enabled = false
 
-local Tracer = Drawing.new("Line")
-Tracer.Visible = false
-Tracer.Color = Color3.fromRGB(154, 7, 250)
-Tracer.Thickness = 1
-Tracer.Transparency = 1
+local Tracer
+local success, err = pcall(function()
+    Tracer = Drawing.new("Line")
+    Tracer.Visible = false
+    Tracer.Color = Color3.fromRGB(154, 7, 250)
+    Tracer.Thickness = 1
+    Tracer.Transparency = 1
+end)
+if not success then
+    warn("Failed to create Tracer:", err)
+    Tracer = {Visible = false, Color = Color3.new(1,1,1), Thickness = 1, Transparency = 1}
+end
 
 -- Hit Effect Module
 local HitEffectModule = {
@@ -901,14 +920,23 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- FOV Circle
-local FOV43 = Drawing.new("Circle")
-FOV43.Transparency = 0.5
-FOV43.Thickness = 2
-FOV43.Color = Color3.new(1, 0, 0)
-FOV43.Filled = false
-FOV43.Radius = 250
-FOV43.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
-FOV43.Visible = false
+local FOV43
+local fovSuccess, fovErr = pcall(function()
+    FOV43 = Drawing.new("Circle")
+    FOV43.Transparency = 0.5
+    FOV43.Thickness = 2
+    FOV43.Color = Color3.new(1, 0, 0)
+    FOV43.Filled = false
+    FOV43.Radius = 250
+    if workspace.CurrentCamera then
+        FOV43.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
+    end
+    FOV43.Visible = false
+end)
+if not fovSuccess then
+    warn("Failed to create FOV Circle:", fovErr)
+    FOV43 = {Transparency = 0.5, Thickness = 2, Color = Color3.new(1,0,0), Filled = false, Radius = 250, Visible = false, Position = Vector2.new(0,0)}
+end
 
 function SigmaOhioPlayer()
     local closestPlayer
@@ -1842,11 +1870,11 @@ local hookSuccess, hookError = pcall(function()
             if not checkcaller() and method == "FireServer" then
                 for i, arg in pairs(args) do
                     if typeof(arg) == "Vector3" then
-                    if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
-                        local selectedPart = getgenv().Sentinel.SelectedPart
-                        local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
+                        if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
+                            local selectedPart = getgenv().Sentinel.SelectedPart
+                            local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
 
-                        if targetPart then
+                            if targetPart then
                             local velocity
                             if getgenv().Sentinel.ResolverEnabled then
                                 if getgenv().Sentinel.RESOLVER == "MoveDirection" then
@@ -1862,12 +1890,12 @@ local hookSuccess, hookError = pcall(function()
 
                             local horizontalPrediction = getgenv().Sentinel.HorizontalPrediction
                             args[i] = targetPart.Position + (velocity * horizontalPrediction)
+                            end
                         end
-                    end
-                elseif type(arg) == "table" then
-                    for index, element in ipairs(arg) do
-                        if typeof(element) == "Vector3" then
-                            if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
+                    elseif type(arg) == "table" then
+                        for index, element in ipairs(arg) do
+                            if typeof(element) == "Vector3" then
+                                if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
                                 local selectedPart = getgenv().Sentinel.SelectedPart
                                 local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
 
@@ -1892,9 +1920,8 @@ local hookSuccess, hookError = pcall(function()
                         end
                     end
                 end
+                return __namecall(Self, unpack(args))
             end
-            return __namecall(Self, unpack(args))
-        end
 
             return __namecall(Self, ...)
         end))
