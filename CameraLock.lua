@@ -197,7 +197,7 @@ local function CreateFOVCircle()
     end)
 end
 
--- Find nearest target
+-- Find nearest target (for camera lock - requires visibility)
 local function FindNearestTarget()
     if not HumanoidRootPart or not Camera then
         return nil
@@ -234,6 +234,39 @@ local function FindNearestTarget()
                             nearestDistance = distance
                             nearestPlayer = player
                         end
+                    end
+                end
+            end
+        end
+    end
+    
+    return nearestPlayer
+end
+
+-- Find nearest target for pathfinding (can find targets behind walls)
+local function FindNearestTargetForPathfinding()
+    if not HumanoidRootPart then
+        return nil
+    end
+    
+    local nearestPlayer = nil
+    local nearestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and rootPart and humanoid.Health > 0 then
+                local success, distance = pcall(function()
+                    return (HumanoidRootPart.Position - rootPart.Position).Magnitude
+                end)
+                
+                if success and distance and distance < 500 then
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearestPlayer = player
                     end
                 end
             end
@@ -292,19 +325,29 @@ local function UpdatePathfinding()
         AgentRadius = 2,
         AgentHeight = 5,
         AgentCanJump = true,
-        WaypointSpacing = 3
+        WaypointSpacing = 4,
+        Costs = {
+            Water = 10,
+            Danger = 20
+        }
     })
     
-    local success = pcall(function()
+    local success, err = pcall(function()
         path:ComputeAsync(HumanoidRootPart.Position, TargetHumanoidRootPart.Position)
     end)
     
     if success and path.Status == Enum.PathStatus.Success then
         PathfindingPath = path
-        CurrentWaypointIndex = 1
+        -- Only reset waypoint index if we got a completely new path
+        if not PathfindingPath or PathfindingPath ~= path then
+            CurrentWaypointIndex = 1
+        end
     else
-        PathfindingPath = nil
-        CurrentWaypointIndex = 1
+        -- If pathfinding fails, try to continue with current path or reset
+        if not PathfindingPath or PathfindingPath.Status ~= Enum.PathStatus.Success then
+            PathfindingPath = nil
+            CurrentWaypointIndex = 1
+        end
     end
 end
 
@@ -356,6 +399,16 @@ local function MoveToTarget()
         return
     end
     
+    -- Set walk speed to 500 when pathfinding is enabled (unless walk speed toggle is active)
+    if Humanoid then
+        if not isSpeedEnabled then
+            Humanoid.WalkSpeed = 500
+        end
+        if Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+    end
+    
     -- Auto-shoot when pathfinding enabled
     if Settings.PathfindingEnabled and TargetHumanoid and TargetHumanoid.Health > Settings.AutoStopShootingHP and not Settings.CameraLockEnabled then
         if not IsShooting then
@@ -390,104 +443,103 @@ local function MoveToTarget()
     end
     
     local currentTime = tick()
-    if currentTime - LastPathfindingUpdate > 1 then
+    -- Update pathfinding more frequently for better navigation
+    if currentTime - LastPathfindingUpdate > 0.5 then
         UpdatePathfinding()
         LastPathfindingUpdate = currentTime
     end
     
     local targetPosition = TargetHumanoidRootPart.Position
-    local moveVector = Vector3.new(0, 0, 0)
     local targetVisible = IsTargetVisible()
     local distanceToTarget = (HumanoidRootPart.Position - TargetHumanoidRootPart.Position).Magnitude
     
-    local pathfindingSpeed = getgenv().walkSpeedSettings.WalkSpeed.Enabled and getgenv().walkSpeedSettings.WalkSpeed.Speed or Settings.WalkSpeed
-    
-    if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success and (not targetVisible or distanceToTarget > 30) then
+    -- Use pathfinding to navigate around obstacles
+    if PathfindingPath and PathfindingPath.Status == Enum.PathStatus.Success then
         local waypoints = PathfindingPath:GetWaypoints()
         if #waypoints > 1 then
             if CurrentWaypointIndex <= #waypoints then
                 local currentWaypoint = waypoints[CurrentWaypointIndex]
                 local distanceToWaypoint = (HumanoidRootPart.Position - currentWaypoint.Position).Magnitude
                 
+                -- Handle jump waypoints
                 if currentWaypoint.Action == Enum.PathWaypointAction.Jump then
                     Humanoid.Jump = true
-                    if Humanoid.UseJumpPower then
-                        Humanoid.JumpPower = Settings.JumpPower
-                    end
                 end
                 
-                if distanceToWaypoint < 4 then
+                -- Check for obstacles and jump over them
+                local directionToWaypoint = (currentWaypoint.Position - HumanoidRootPart.Position)
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                raycastParams.FilterDescendantsInstances = {Character}
+                
+                local raycast = workspace:Raycast(HumanoidRootPart.Position, directionToWaypoint.Unit * 8, raycastParams)
+                if raycast and raycast.Instance then
+                    -- Obstacle detected, jump over it
+                    Humanoid.Jump = true
+                end
+                
+                -- Move to waypoint
+                if distanceToWaypoint < 5 then
                     CurrentWaypointIndex = CurrentWaypointIndex + 1
-                end
-                
-                if CurrentWaypointIndex <= #waypoints then
-                    targetPosition = waypoints[CurrentWaypointIndex].Position
-                    
-                    local directionToWaypoint = (targetPosition - HumanoidRootPart.Position)
-                    local raycastParams = RaycastParams.new()
-                    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                    raycastParams.FilterDescendantsInstances = {Character}
-                    
-                    local raycast = workspace:Raycast(HumanoidRootPart.Position, directionToWaypoint.Unit * 5, raycastParams)
-                    if raycast and raycast.Instance then
-                        Humanoid.Jump = true
-                        if Humanoid.UseJumpPower then
-                            Humanoid.JumpPower = Settings.JumpPower
-                        end
+                    -- If we've reached the last waypoint, update pathfinding
+                    if CurrentWaypointIndex > #waypoints then
+                        UpdatePathfinding()
                     end
                 else
-                    targetPosition = TargetHumanoidRootPart.Position
+                    targetPosition = currentWaypoint.Position
                 end
-            end
-        end
-    end
-    
-    local direction = (targetPosition - HumanoidRootPart.Position)
-    direction = Vector3.new(direction.X, 0, direction.Z).Unit
-    
-    if targetVisible and distanceToTarget < 50 then
-        local dodgingMove = ApplyDodgingMovement()
-        moveVector = dodgingMove
-        local forwardComponent = direction * pathfindingSpeed * 0.3
-        moveVector = moveVector + forwardComponent
-        
-        if math.random() < Settings.JumpProbability * 2 then
-            Humanoid.Jump = true
-            if Humanoid.UseJumpPower then
-                Humanoid.JumpPower = Settings.JumpPower
+            else
+                -- Reached end of path, move directly to target
+                targetPosition = TargetHumanoidRootPart.Position
             end
         end
     else
-        moveVector = direction * pathfindingSpeed
-        
-        if Settings.DodgingEnabled then
-            local dodgingMove = ApplyDodgingMovement()
-            moveVector = moveVector + dodgingMove * 0.5
-        end
-        
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {Character}
-        
-        local raycast = workspace:Raycast(HumanoidRootPart.Position, direction * 5, raycastParams)
-        if raycast and raycast.Instance then
-            if math.random() < Settings.JumpProbability * 3 then
-                Humanoid.Jump = true
-                if Humanoid.UseJumpPower then
-                    Humanoid.JumpPower = Settings.JumpPower
-                end
-            end
-        else
-            if math.random() < Settings.JumpProbability then
-                Humanoid.Jump = true
-                if Humanoid.UseJumpPower then
-                    Humanoid.JumpPower = Settings.JumpPower
-                end
-            end
-        end
+        -- No pathfinding path, move directly to target
+        targetPosition = TargetHumanoidRootPart.Position
     end
     
-    HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + moveVector * (1/60)
+    -- Calculate direction to move
+    local direction = (targetPosition - HumanoidRootPart.Position)
+    direction = Vector3.new(direction.X, 0, direction.Z)
+    local distance = direction.Magnitude
+    
+    if distance > 0.5 then
+        direction = direction.Unit
+        
+        -- Apply movement using Humanoid:Move() for proper physics
+        if targetVisible and distanceToTarget < 50 and Settings.DodgingEnabled then
+            -- Dodging mode when close and visible
+            local dodgingMove = ApplyDodgingMovement()
+            local finalDirection = direction + dodgingMove.Unit * 0.3
+            finalDirection = finalDirection.Unit
+            
+            Humanoid:Move(finalDirection, false)
+            
+            if math.random() < Settings.JumpProbability * 2 then
+                Humanoid.Jump = true
+            end
+        else
+            -- Normal pathfinding movement
+            Humanoid:Move(direction, false)
+            
+            -- Check for obstacles ahead and jump if needed
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            raycastParams.FilterDescendantsInstances = {Character}
+            
+            local raycast = workspace:Raycast(HumanoidRootPart.Position, direction * 6, raycastParams)
+            if raycast and raycast.Instance then
+                -- Obstacle detected, jump over it
+                Humanoid.Jump = true
+            elseif math.random() < Settings.JumpProbability then
+                -- Random jump
+                Humanoid.Jump = true
+            end
+        end
+    else
+        -- Very close to target, stop moving
+        Humanoid:Move(Vector3.new(0, 0, 0), false)
+    end
 end
 
 -- Camera lock
@@ -1522,7 +1574,7 @@ RunService.Heartbeat:Connect(function()
     
     if Settings.PathfindingEnabled then
         if not TargetHumanoidRootPart then
-            local newTarget = FindNearestTarget()
+            local newTarget = FindNearestTargetForPathfinding()
             if newTarget and newTarget.Character then
                 Target = newTarget
                 TargetHumanoid = newTarget.Character:FindFirstChild("Humanoid")
@@ -1533,6 +1585,14 @@ RunService.Heartbeat:Connect(function()
         if TargetHumanoidRootPart then
             MoveToTarget()
         end
+    else
+        -- Reset walk speed when pathfinding is disabled
+        if Humanoid and not isSpeedEnabled then
+            Humanoid.WalkSpeed = defaultSpeed
+        end
+        -- Reset pathfinding state
+        PathfindingPath = nil
+        CurrentWaypointIndex = 1
     end
 end)
 
