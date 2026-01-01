@@ -12,6 +12,34 @@ local GuiService = game:GetService("GuiService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
+-- Detect if mobile
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local isTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
+
+-- Settings (All turned off by default - must be enabled manually)
+local Settings = {
+    CameraLockEnabled = false,
+    PathfindingEnabled = false,
+    UIEnabled = false,
+    SmoothnessX = 0.15,
+    SmoothnessY = 0.15,
+    PredictionX = 0.5,
+    PredictionY = 0.5,
+    FOV = 100,
+    WalkSpeed = 200,
+    JumpProbability = 0.02,
+    AutoReload = false,
+    AutoReloadInterval = 2.3,
+    AutoStopShootingHP = 10,
+    FOVCircleColor = Color3.fromRGB(255, 0, 0),
+    FOVCircleTransparency = 0.5,
+    FOVCircleThickness = 2,
+    DodgingEnabled = false,
+    DodgingSpeed = 16,
+    DodgingIntensity = 5,
+    JumpPower = 50
+}
+
 -- Walk Speed Settings
 if not getgenv().walkSpeedSettings then
     getgenv().walkSpeedSettings = {
@@ -28,6 +56,11 @@ end
 local isSpeedEnabled = false
 local defaultSpeed = 16
 
+-- Character handling with proper respawn support
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
 -- Walk Speed System
 local function updateSpeed()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -38,31 +71,6 @@ local function updateSpeed()
 end
 
 local speedConnection = RunService.RenderStepped:Connect(updateSpeed)
-
-LocalPlayer.CharacterAdded:Connect(function(character)
-    character:WaitForChild("Humanoid")
-    updateSpeed()
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-
-    if input.KeyCode == Enum.KeyCode[getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey] then
-        isSpeedEnabled = not isSpeedEnabled
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            if isSpeedEnabled then
-                LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
-            else
-                LocalPlayer.Character.Humanoid.WalkSpeed = defaultSpeed
-            end
-        end
-    end
-end)
-
--- Character handling with proper respawn support
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 
 -- Handle character respawning - Improved version
 LocalPlayer.CharacterAdded:Connect(function(newCharacter)
@@ -92,33 +100,20 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     updateSpeed()
 end)
 
--- Detect if mobile
-local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local isTablet = UserInputService.TouchEnabled and UserInputService.KeyboardEnabled
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
 
--- Settings (All turned off by default - must be enabled manually)
-local Settings = {
-    CameraLockEnabled = false,
-    PathfindingEnabled = false,
-    UIEnabled = false,
-    SmoothnessX = 0.15,
-    SmoothnessY = 0.15,
-    PredictionX = 0.5,
-    PredictionY = 0.5,
-    FOV = 100,
-    WalkSpeed = 200,
-    JumpProbability = 0.02,
-    AutoReload = false,
-    AutoReloadInterval = 2.3,
-    AutoStopShootingHP = 10,
-    FOVCircleColor = Color3.fromRGB(255, 0, 0),
-    FOVCircleTransparency = 0.5,
-    FOVCircleThickness = 2,
-    DodgingEnabled = false,
-    DodgingSpeed = 16,
-    DodgingIntensity = 5,
-    JumpPower = 50
-}
+    if input.KeyCode == Enum.KeyCode[getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey] then
+        isSpeedEnabled = not isSpeedEnabled
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if isSpeedEnabled then
+                LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().walkSpeedSettings.WalkSpeed.Speed
+            else
+                LocalPlayer.Character.Humanoid.WalkSpeed = defaultSpeed
+            end
+        end
+    end
+end)
 
 -- State
 local Target = nil
@@ -439,6 +434,16 @@ local function MoveToTarget()
             ShootingConnection = nil
         end
         IsShooting = false
+    end
+    
+    -- If no target but pathfinding is enabled, try to find one
+    if not TargetHumanoidRootPart and Settings.PathfindingEnabled then
+        local newTarget = FindNearestTarget()
+        if newTarget and newTarget.Character then
+            Target = newTarget
+            TargetHumanoid = newTarget.Character:FindFirstChild("Humanoid")
+            TargetHumanoidRootPart = newTarget.Character:FindFirstChild("HumanoidRootPart")
+        end
     end
     
     -- Update pathfinding periodically
@@ -1126,7 +1131,12 @@ local function CreateUI()
         sectionContainer.BackgroundTransparency = 0.4 -- Transparent
         sectionContainer.BorderSizePixel = 2
         sectionContainer.BorderColor3 = Color3.fromRGB(255, 255, 0) -- Yellow border
-        sectionContainer.Parent = parent or scrollFrame
+        -- Parent to tab content if provided, otherwise scrollFrame
+        if parent then
+            sectionContainer.Parent = parent
+        else
+            sectionContainer.Parent = scrollFrame
+        end
         
         local sectionCorner = Instance.new("UICorner")
         sectionCorner.CornerRadius = UDim.new(0, 10)
@@ -1643,6 +1653,11 @@ end
 
 -- Main update loop - FIXED to prevent camera lock when disabled
 RunService.Heartbeat:Connect(function()
+    -- Safety check for character
+    if not Character or not Humanoid or not HumanoidRootPart then
+        return
+    end
+    
     if Settings.CameraLockEnabled then
         UpdateTarget() -- Automatically locks onto nearest target
         if TargetHumanoidRootPart then
@@ -1651,13 +1666,15 @@ RunService.Heartbeat:Connect(function()
             AutoReload()
         end
     else
-        -- When camera lock is disabled, clear target and stop shooting
-        if Target then
-            Target = nil
-            TargetHumanoid = nil
-            TargetHumanoidRootPart = nil
+        -- When camera lock is disabled, clear target and stop shooting (but keep target for pathfinding if enabled)
+        if not Settings.PathfindingEnabled then
+            if Target then
+                Target = nil
+                TargetHumanoid = nil
+                TargetHumanoidRootPart = nil
+            end
         end
-        if IsShooting then
+        if IsShooting and not Settings.PathfindingEnabled then
             if ShootingConnection then
                 ShootingConnection:Disconnect()
                 ShootingConnection = nil
@@ -1666,22 +1683,52 @@ RunService.Heartbeat:Connect(function()
         end
     end
     
-    -- Pathfinding runs independently (only if enabled and has target)
-    if Settings.PathfindingEnabled and TargetHumanoidRootPart and Settings.CameraLockEnabled then
-        MoveToTarget()
+    -- Pathfinding runs independently (finds target if needed)
+    if Settings.PathfindingEnabled then
+        -- Find target if we don't have one
+        if not TargetHumanoidRootPart then
+            local newTarget = FindNearestTarget()
+            if newTarget and newTarget.Character then
+                Target = newTarget
+                TargetHumanoid = newTarget.Character:FindFirstChild("Humanoid")
+                TargetHumanoidRootPart = newTarget.Character:FindFirstChild("HumanoidRootPart")
+            end
+        end
+        
+        -- Move to target if we have one
+        if TargetHumanoidRootPart then
+            MoveToTarget()
+        end
     end
 end)
 
--- Initialize
-CreateCornerButtons()
-CreateUI()
-
--- Set initial jump power
-if Humanoid and Humanoid.UseJumpPower then
-    Humanoid.JumpPower = Settings.JumpPower
+-- Initialize with error handling
+local function Initialize()
+    local success, err = pcall(function()
+        CreateCornerButtons()
+        CreateUI()
+        
+        -- Set initial jump power
+        if Humanoid and Humanoid.UseJumpPower then
+            Humanoid.JumpPower = Settings.JumpPower
+        end
+        
+        print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
+        print("Center Toggle Buttons (Draggable): Left (Camera Lock), Right (Settings)")
+        print("Walk Speed Toggle: Press " .. getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey .. " to toggle")
+        print("All settings are OFF by default - enable manually through buttons or settings panel")
+    end)
+    
+    if not success then
+        warn("Error initializing Camera Lock System: " .. tostring(err))
+    end
 end
 
-print("Camera Lock System Loaded! Mobile Compatible: " .. tostring(isMobile))
-print("Center Toggle Buttons (Draggable): Left (Camera Lock), Right (Settings)")
-print("Walk Speed Toggle: Press " .. getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey .. " to toggle")
-print("All settings are OFF by default - enable manually through buttons or settings panel")
+-- Wait for character to load, then initialize
+if Character and Humanoid and HumanoidRootPart then
+    Initialize()
+else
+    LocalPlayer.CharacterAdded:Wait()
+    task.wait(1) -- Wait a bit for everything to load
+    Initialize()
+end
