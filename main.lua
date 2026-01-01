@@ -429,23 +429,23 @@ MainGui.ResetOnSpawn = false
 local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = MainGui
-ToggleButton.Size = UDim2.new(0, 60, 0, 60)
-ToggleButton.Position = UDim2.new(1, -70, 0, 10)
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(1, -60, 0, 10)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 ToggleButton.BackgroundTransparency = 0.3
 ToggleButton.Image = "rbxassetid://126818107683779"
 ToggleButton.ImageTransparency = 0
 
 local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(0, 12)
+ToggleCorner.CornerRadius = UDim.new(0, 10)
 ToggleCorner.Parent = ToggleButton
 
 -- Main Window
 local MainWindow = Instance.new("Frame")
 MainWindow.Name = "MainWindow"
 MainWindow.Parent = MainGui
-MainWindow.Size = UDim2.new(0, 600, 0, 500)
-MainWindow.Position = UDim2.new(0.5, -300, 0.5, -250)
+MainWindow.Size = UDim2.new(0, 450, 0, 400)
+MainWindow.Position = UDim2.new(0.5, -225, 0.5, -200)
 MainWindow.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainWindow.BorderSizePixel = 0
 MainWindow.Visible = false
@@ -463,7 +463,7 @@ WindowStroke.Thickness = 1
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Parent = MainWindow
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TitleBar.BorderSizePixel = 0
 
@@ -473,23 +473,23 @@ TitleCorner.Parent = TitleBar
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Parent = TitleBar
-TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.Size = UDim2.new(1, -80, 1, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text = "Cactus.GG [khen.cc]"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 18
+TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Parent = TitleBar
-CloseButton.Size = UDim2.new(0, 30, 0, 30)
-CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 5)
 CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 16
+CloseButton.TextSize = 14
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.BorderSizePixel = 0
 
@@ -501,8 +501,8 @@ CloseCorner.Parent = CloseButton
 local TabsContainer = Instance.new("Frame")
 TabsContainer.Name = "TabsContainer"
 TabsContainer.Parent = MainWindow
-TabsContainer.Size = UDim2.new(1, 0, 0, 40)
-TabsContainer.Position = UDim2.new(0, 0, 0, 40)
+TabsContainer.Size = UDim2.new(1, 0, 0, 35)
+TabsContainer.Position = UDim2.new(0, 0, 0, 35)
 TabsContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 TabsContainer.BorderSizePixel = 0
 
@@ -510,25 +510,26 @@ local TabsList = Instance.new("UIListLayout")
 TabsList.Parent = TabsContainer
 TabsList.FillDirection = Enum.FillDirection.Horizontal
 TabsList.HorizontalAlignment = Enum.HorizontalAlignment.Left
+TabsList.Padding = UDim.new(0, 2)
 
 -- Content Area
 local ContentArea = Instance.new("ScrollingFrame")
 ContentArea.Name = "ContentArea"
 ContentArea.Parent = MainWindow
-ContentArea.Size = UDim2.new(1, -20, 1, -90)
-ContentArea.Position = UDim2.new(0, 10, 0, 80)
+ContentArea.Size = UDim2.new(1, -15, 1, -75)
+ContentArea.Position = UDim2.new(0, 8, 0, 70)
 ContentArea.BackgroundTransparency = 1
 ContentArea.BorderSizePixel = 0
-ContentArea.ScrollBarThickness = 4
+ContentArea.ScrollBarThickness = 3
 ContentArea.ScrollBarImageColor3 = Color3.fromRGB(50, 50, 50)
 
 local ContentLayout = Instance.new("UIListLayout")
 ContentLayout.Parent = ContentArea
-ContentLayout.Padding = UDim.new(0, 10)
+ContentLayout.Padding = UDim.new(0, 6)
 ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    ContentArea.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+    ContentArea.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 10)
 end)
 
 -- UI Helper Functions
@@ -536,11 +537,11 @@ local function CreateTab(name)
     local tab = Instance.new("TextButton")
     tab.Name = name .. "Tab"
     tab.Parent = TabsContainer
-    tab.Size = UDim2.new(0, 100, 1, 0)
+    tab.Size = UDim2.new(0, 85, 1, 0)
     tab.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     tab.Text = name
     tab.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tab.TextSize = 14
+    tab.TextSize = 13
     tab.Font = Enum.Font.Gotham
     tab.BorderSizePixel = 0
     
@@ -564,8 +565,8 @@ local function CreateTab(name)
         end
         -- Show/hide content sections
         for _, child in pairs(ContentArea:GetChildren()) do
-            if child:IsA("Frame") then
-                child.Visible = child.Name:find(name) ~= nil
+            if child:IsA("Frame") and child.Name:find("_") then
+                child.Visible = child.Name:find("^" .. name .. "_") ~= nil
             end
         end
     end)
@@ -584,7 +585,7 @@ local function CreateSection(name, tabName, order)
     section.LayoutOrder = order
     
     local sectionCorner = Instance.new("UICorner")
-    sectionCorner.CornerRadius = UDim.new(0, 6)
+    sectionCorner.CornerRadius = UDim.new(0, 5)
     sectionCorner.Parent = section
     
     local sectionStroke = Instance.new("UIStroke")
@@ -594,28 +595,28 @@ local function CreateSection(name, tabName, order)
     
     local sectionTitle = Instance.new("TextLabel")
     sectionTitle.Parent = section
-    sectionTitle.Size = UDim2.new(1, -20, 0, 30)
-    sectionTitle.Position = UDim2.new(0, 10, 0, 5)
+    sectionTitle.Size = UDim2.new(1, -16, 0, 24)
+    sectionTitle.Position = UDim2.new(0, 8, 0, 4)
     sectionTitle.BackgroundTransparency = 1
     sectionTitle.Text = name
     sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sectionTitle.TextSize = 16
+    sectionTitle.TextSize = 14
     sectionTitle.Font = Enum.Font.GothamBold
     sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
     
     local sectionContent = Instance.new("Frame")
     sectionContent.Name = "Content"
     sectionContent.Parent = section
-    sectionContent.Size = UDim2.new(1, -20, 0, 0)
-    sectionContent.Position = UDim2.new(0, 10, 0, 35)
+    sectionContent.Size = UDim2.new(1, -16, 0, 0)
+    sectionContent.Position = UDim2.new(0, 8, 0, 28)
     sectionContent.BackgroundTransparency = 1
     
     local sectionLayout = Instance.new("UIListLayout")
     sectionLayout.Parent = sectionContent
-    sectionLayout.Padding = UDim.new(0, 8)
+    sectionLayout.Padding = UDim.new(0, 4)
     
     sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        section.Size = UDim2.new(1, 0, 0, sectionContent.AbsoluteContentSize.Y + 45)
+        section.Size = UDim2.new(1, 0, 0, sectionContent.AbsoluteContentSize.Y + 32)
     end)
     
     return sectionContent
@@ -624,29 +625,29 @@ end
 local function CreateCheckbox(parent, text, defaultValue, callback)
     local checkboxFrame = Instance.new("Frame")
     checkboxFrame.Parent = parent
-    checkboxFrame.Size = UDim2.new(1, 0, 0, 30)
+    checkboxFrame.Size = UDim2.new(1, 0, 0, 24)
     checkboxFrame.BackgroundTransparency = 1
     
     local checkbox = Instance.new("TextButton")
     checkbox.Parent = checkboxFrame
-    checkbox.Size = UDim2.new(0, 20, 0, 20)
-    checkbox.Position = UDim2.new(0, 0, 0, 5)
+    checkbox.Size = UDim2.new(0, 18, 0, 18)
+    checkbox.Position = UDim2.new(0, 0, 0, 3)
     checkbox.BackgroundColor3 = defaultValue and Color3.fromRGB(100, 150, 255) or Color3.fromRGB(50, 50, 50)
     checkbox.Text = ""
     checkbox.BorderSizePixel = 0
     
     local checkCorner = Instance.new("UICorner")
-    checkCorner.CornerRadius = UDim.new(0, 4)
+    checkCorner.CornerRadius = UDim.new(0, 3)
     checkCorner.Parent = checkbox
     
     local checkLabel = Instance.new("TextLabel")
     checkLabel.Parent = checkboxFrame
-    checkLabel.Size = UDim2.new(1, -30, 1, 0)
-    checkLabel.Position = UDim2.new(0, 30, 0, 0)
+    checkLabel.Size = UDim2.new(1, -26, 1, 0)
+    checkLabel.Position = UDim2.new(0, 24, 0, 0)
     checkLabel.BackgroundTransparency = 1
     checkLabel.Text = text
     checkLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    checkLabel.TextSize = 14
+    checkLabel.TextSize = 12
     checkLabel.Font = Enum.Font.Gotham
     checkLabel.TextXAlignment = Enum.TextXAlignment.Left
     
@@ -662,28 +663,28 @@ end
 local function CreateSlider(parent, text, min, max, defaultValue, callback)
     local sliderFrame = Instance.new("Frame")
     sliderFrame.Parent = parent
-    sliderFrame.Size = UDim2.new(1, 0, 0, 50)
+    sliderFrame.Size = UDim2.new(1, 0, 0, 38)
     sliderFrame.BackgroundTransparency = 1
     
     local sliderLabel = Instance.new("TextLabel")
     sliderLabel.Parent = sliderFrame
-    sliderLabel.Size = UDim2.new(1, 0, 0, 20)
+    sliderLabel.Size = UDim2.new(1, 0, 0, 16)
     sliderLabel.BackgroundTransparency = 1
     sliderLabel.Text = text .. ": " .. tostring(defaultValue)
     sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sliderLabel.TextSize = 14
+    sliderLabel.TextSize = 12
     sliderLabel.Font = Enum.Font.Gotham
     sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local sliderTrack = Instance.new("Frame")
     sliderTrack.Parent = sliderFrame
-    sliderTrack.Size = UDim2.new(1, 0, 0, 6)
-    sliderTrack.Position = UDim2.new(0, 0, 0, 25)
+    sliderTrack.Size = UDim2.new(1, 0, 0, 5)
+    sliderTrack.Position = UDim2.new(0, 0, 0, 20)
     sliderTrack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     sliderTrack.BorderSizePixel = 0
     
     local trackCorner = Instance.new("UICorner")
-    trackCorner.CornerRadius = UDim.new(0, 3)
+    trackCorner.CornerRadius = UDim.new(0, 2)
     trackCorner.Parent = sliderTrack
     
     local sliderFill = Instance.new("Frame")
@@ -693,19 +694,19 @@ local function CreateSlider(parent, text, min, max, defaultValue, callback)
     sliderFill.BorderSizePixel = 0
     
     local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 3)
+    fillCorner.CornerRadius = UDim.new(0, 2)
     fillCorner.Parent = sliderFill
     
     local sliderButton = Instance.new("TextButton")
     sliderButton.Parent = sliderTrack
-    sliderButton.Size = UDim2.new(0, 12, 0, 12)
-    sliderButton.Position = UDim2.new(sliderFill.Size.X.Scale, -6, 0, -3)
+    sliderButton.Size = UDim2.new(0, 10, 0, 10)
+    sliderButton.Position = UDim2.new(sliderFill.Size.X.Scale, -5, 0, -2.5)
     sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     sliderButton.Text = ""
     sliderButton.BorderSizePixel = 0
     
     local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.CornerRadius = UDim.new(0, 5)
     buttonCorner.Parent = sliderButton
     
     local dragging = false
@@ -727,7 +728,7 @@ local function CreateSlider(parent, text, min, max, defaultValue, callback)
             local relativeX = math.clamp((mousePos.X - trackPos.X) / trackSize.X, 0, 1)
             local value = math.floor((min + (max - min) * relativeX) * 100) / 100
             sliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-            sliderButton.Position = UDim2.new(relativeX, -6, 0, -3)
+            sliderButton.Position = UDim2.new(relativeX, -5, 0, -2.5)
             sliderLabel.Text = text .. ": " .. tostring(value)
             if callback then callback(value) end
         end
@@ -739,32 +740,32 @@ end
 local function CreateDropdown(parent, text, options, defaultValue, callback)
     local dropdownFrame = Instance.new("Frame")
     dropdownFrame.Parent = parent
-    dropdownFrame.Size = UDim2.new(1, 0, 0, 30)
+    dropdownFrame.Size = UDim2.new(1, 0, 0, 24)
     dropdownFrame.BackgroundTransparency = 1
     
     local dropdownLabel = Instance.new("TextLabel")
     dropdownLabel.Parent = dropdownFrame
-    dropdownLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    dropdownLabel.Size = UDim2.new(0.5, -4, 1, 0)
     dropdownLabel.BackgroundTransparency = 1
     dropdownLabel.Text = text
     dropdownLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dropdownLabel.TextSize = 14
+    dropdownLabel.TextSize = 12
     dropdownLabel.Font = Enum.Font.Gotham
     dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local dropdownButton = Instance.new("TextButton")
     dropdownButton.Parent = dropdownFrame
-    dropdownButton.Size = UDim2.new(0.5, 0, 1, 0)
-    dropdownButton.Position = UDim2.new(0.5, 0, 0, 0)
+    dropdownButton.Size = UDim2.new(0.5, -4, 1, 0)
+    dropdownButton.Position = UDim2.new(0.5, 4, 0, 0)
     dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     dropdownButton.Text = defaultValue or options[1]
     dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dropdownButton.TextSize = 14
+    dropdownButton.TextSize = 12
     dropdownButton.Font = Enum.Font.Gotham
     dropdownButton.BorderSizePixel = 0
     
     local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
+    buttonCorner.CornerRadius = UDim.new(0, 3)
     buttonCorner.Parent = dropdownButton
     
     local dropdownOpen = false
@@ -789,32 +790,32 @@ end
 local function CreateTextBox(parent, text, defaultValue, callback)
     local textBoxFrame = Instance.new("Frame")
     textBoxFrame.Parent = parent
-    textBoxFrame.Size = UDim2.new(1, 0, 0, 30)
+    textBoxFrame.Size = UDim2.new(1, 0, 0, 24)
     textBoxFrame.BackgroundTransparency = 1
     
     local textBoxLabel = Instance.new("TextLabel")
     textBoxLabel.Parent = textBoxFrame
-    textBoxLabel.Size = UDim2.new(0.4, 0, 1, 0)
+    textBoxLabel.Size = UDim2.new(0.4, -4, 1, 0)
     textBoxLabel.BackgroundTransparency = 1
     textBoxLabel.Text = text
     textBoxLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBoxLabel.TextSize = 14
+    textBoxLabel.TextSize = 12
     textBoxLabel.Font = Enum.Font.Gotham
     textBoxLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local textBox = Instance.new("TextBox")
     textBox.Parent = textBoxFrame
-    textBox.Size = UDim2.new(0.6, 0, 1, 0)
-    textBox.Position = UDim2.new(0.4, 0, 0, 0)
+    textBox.Size = UDim2.new(0.6, -4, 1, 0)
+    textBox.Position = UDim2.new(0.4, 4, 0, 0)
     textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     textBox.Text = tostring(defaultValue)
     textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textBox.TextSize = 14
+    textBox.TextSize = 12
     textBox.Font = Enum.Font.Gotham
     textBox.BorderSizePixel = 0
     
     local boxCorner = Instance.new("UICorner")
-    boxCorner.CornerRadius = UDim.new(0, 4)
+    boxCorner.CornerRadius = UDim.new(0, 3)
     boxCorner.Parent = textBox
     
     textBox.FocusLost:Connect(function()
@@ -827,16 +828,16 @@ end
 local function CreateButton(parent, text, callback)
     local button = Instance.new("TextButton")
     button.Parent = parent
-    button.Size = UDim2.new(1, 0, 0, 35)
+    button.Size = UDim2.new(1, 0, 0, 28)
     button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
     button.Text = text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 14
+    button.TextSize = 12
     button.Font = Enum.Font.GothamBold
     button.BorderSizePixel = 0
     
     local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 4)
+    buttonCorner.CornerRadius = UDim.new(0, 3)
     buttonCorner.Parent = button
     
     button.MouseButton1Click:Connect(function()
@@ -855,9 +856,20 @@ local function ToggleUI()
     if UIEnabled then
         -- Set first tab as active
         for _, child in pairs(TabsContainer:GetChildren()) do
-            if child:IsA("TextButton") and child.Name == "MainTab" then
-                child.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-                child.TextColor3 = Color3.fromRGB(255, 255, 255)
+            if child:IsA("TextButton") then
+                if child.Name == "MainTab" then
+                    child.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+                    child.TextColor3 = Color3.fromRGB(255, 255, 255)
+                else
+                    child.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    child.TextColor3 = Color3.fromRGB(200, 200, 200)
+                end
+            end
+        end
+        -- Show Main tab content
+        for _, child in pairs(ContentArea:GetChildren()) do
+            if child:IsA("Frame") and child.Name:find("_") then
+                child.Visible = child.Name:find("^Main_") ~= nil
             end
         end
     end
