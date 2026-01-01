@@ -139,6 +139,50 @@ local success, err = pcall(function()
         end
     end)
 
+    -- Refresh FOV Circle (update existing circle with new settings)
+    local function RefreshFOVCircle()
+        if not FOVCircle or not Settings.CameraLockEnabled then return end
+        
+        -- Update size
+        FOVCircle.Circle.Size = UDim2.new(0, Settings.FOV * 2, 0, Settings.FOV * 2)
+        FOVCircle.Circle.Position = UDim2.new(0.5, -Settings.FOV, 0.5, -Settings.FOV)
+        
+        -- Update colors
+        FOVCircle.Stroke.Color = Settings.FOVCircleColor
+        FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
+        FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
+        
+        -- Update transparency
+        FOVCircle.Stroke.Transparency = Settings.FOVCircleTransparency
+        FOVCircle.GlowStroke.Transparency = Settings.FOVCircleTransparency + 0.2
+        FOVCircle.Circle.BackgroundTransparency = math.max(0.05, Settings.FOVCircleTransparency + 0.1)
+        
+        -- Update thickness
+        FOVCircle.Stroke.Thickness = Settings.FOVCircleThickness
+        FOVCircle.GlowStroke.Thickness = Settings.FOVCircleThickness + 4
+        
+        -- Update gradients
+        local r, g, b = math.floor(Settings.FOVCircleColor.R * 255), math.floor(Settings.FOVCircleColor.G * 255), math.floor(Settings.FOVCircleColor.B * 255)
+        FOVCircle.Gradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, r + 50), math.min(255, g + 50), math.min(255, b + 50))),
+            ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
+        })
+        FOVCircle.Gradient.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, Settings.FOVCircleTransparency),
+            NumberSequenceKeypoint.new(0.5, Settings.FOVCircleTransparency + 0.2),
+            NumberSequenceKeypoint.new(1, Settings.FOVCircleTransparency)
+        })
+        
+        if FOVCircle.InnerGlow then
+            FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
+            FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, r - 55), math.max(0, g - 55), math.max(0, b - 55)))
+            })
+        end
+    end
+
     -- Create FOV Circle
     local function CreateFOVCircle()
         if FOVCircle then
@@ -186,7 +230,7 @@ local success, err = pcall(function()
         circleCorner.Parent = circle
         
         circle.BackgroundColor3 = Settings.FOVCircleColor
-        circle.BackgroundTransparency = math.max(0.1, Settings.FOVCircleTransparency + 0.2)
+        circle.BackgroundTransparency = math.max(0.05, Settings.FOVCircleTransparency + 0.1) -- Make gradient more visible
         
         local r, g, b = math.floor(Settings.FOVCircleColor.R * 255), math.floor(Settings.FOVCircleColor.G * 255), math.floor(Settings.FOVCircleColor.B * 255)
         local gradient = Instance.new("UIGradient")
@@ -237,23 +281,48 @@ local success, err = pcall(function()
             InnerGlowGradient = innerGlowGradient
         }
         
+        -- Beautiful rotating gradient animation
         task.spawn(function()
             local rotationSpeed = 2
             while FOVCircle and Settings.CameraLockEnabled do
                 for i = 0, 360, rotationSpeed do
                     if not FOVCircle or not Settings.CameraLockEnabled then break end
+                    
+                    -- Update gradient rotation
                     FOVCircle.Gradient.Rotation = i
                     FOVCircle.InnerGlowGradient.Rotation = -i * 0.5
+                    
+                    -- Update stroke color based on current color settings
+                    local currentR = math.floor(Settings.FOVCircleColor.R * 255)
+                    local currentG = math.floor(Settings.FOVCircleColor.G * 255)
+                    local currentB = math.floor(Settings.FOVCircleColor.B * 255)
                     local angle = math.rad(i)
-                    local brightR = math.min(255, r + math.floor(math.sin(angle) * 50))
-                    local brightG = math.min(255, g + math.floor(math.sin(angle) * 50))
-                    local brightB = math.min(255, b + math.floor(math.sin(angle) * 50))
+                    local brightR = math.min(255, currentR + math.floor(math.sin(angle) * 50))
+                    local brightG = math.min(255, currentG + math.floor(math.sin(angle) * 50))
+                    local brightB = math.min(255, currentB + math.floor(math.sin(angle) * 50))
                     FOVCircle.Stroke.Color = Color3.fromRGB(brightR, brightG, brightB)
+                    FOVCircle.GlowStroke.Color = Color3.fromRGB(brightR, brightG, brightB)
+                    
+                    -- Pulse effect
                     local pulse = math.sin(math.rad(i)) * 0.1 + 1
                     FOVCircle.Circle.Size = UDim2.new(0, Settings.FOV * 2 * pulse, 0, Settings.FOV * 2 * pulse)
                     FOVCircle.Circle.Position = UDim2.new(0.5, -Settings.FOV * pulse, 0.5, -Settings.FOV * pulse)
+                    
                     task.wait(0.016)
                 end
+            end
+        end)
+        
+        -- Glow pulse animation
+        task.spawn(function()
+            while FOVCircle and Settings.CameraLockEnabled do
+                local tween1 = TweenService:Create(
+                    glowStroke,
+                    TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+                    {Transparency = Settings.FOVCircleTransparency + 0.2}
+                )
+                tween1:Play()
+                task.wait(1.6)
             end
         end)
     end
@@ -546,27 +615,21 @@ local success, err = pcall(function()
     end
 
     local function LockCamera()
+        -- Only lock camera if CameraLockEnabled is true
         if not Settings.CameraLockEnabled or not TargetHumanoidRootPart or not Camera then
             return
         end
+        
         local success, targetPosition = pcall(function()
+            -- Lock directly on HumanoidRootPart position - NO OFFSET
             return TargetHumanoidRootPart.Position
         end)
+        
         if not success or not targetPosition then
             return
         end
-        if TargetHumanoid then
-            local velSuccess, vel = pcall(function()
-                return TargetHumanoidRootPart.AssemblyLinearVelocity
-            end)
-            if velSuccess and vel then
-                targetPosition = targetPosition + Vector3.new(
-                    vel.X * Settings.PredictionX,
-                    vel.Y * Settings.PredictionY,
-                    vel.Z * Settings.PredictionX
-                )
-            end
-        end
+        
+        -- Lock camera directly on target HumanoidRootPart position
         local cameraPosition = Camera.CFrame.Position
         local currentCFrame = Camera.CFrame
         local targetCFrame = CFrame.lookAt(cameraPosition, targetPosition)
@@ -1397,96 +1460,36 @@ local success, err = pcall(function()
         local visualSection, _ = CreateSection("FOV & Visual", visualTab)
         CreateSlider("FOV Size", 50, 200, Settings.FOV, function(val)
             Settings.FOV = val
-            if FOVCircle then
-                FOVCircle.Circle.Size = UDim2.new(0, val * 2, 0, val * 2)
-                FOVCircle.Circle.Position = UDim2.new(0.5, -val, 0.5, -val)
-            end
+            RefreshFOVCircle()
         end, visualSection)
         CreateSlider("FOV Transparency", 0, 1, Settings.FOVCircleTransparency, function(val)
             Settings.FOVCircleTransparency = val
-            if FOVCircle then
-                FOVCircle.Stroke.Transparency = val
-                FOVCircle.GlowStroke.Transparency = val + 0.2
-                FOVCircle.Circle.BackgroundTransparency = math.max(0.1, val + 0.2)
-                FOVCircle.Gradient.Transparency = NumberSequence.new({
-                    NumberSequenceKeypoint.new(0, val),
-                    NumberSequenceKeypoint.new(0.5, val + 0.2),
-                    NumberSequenceKeypoint.new(1, val)
-                })
-                if FOVCircle.InnerGlow then
-                    FOVCircle.InnerGlow.BackgroundTransparency = val + 0.4
-                end
-            end
+            RefreshFOVCircle()
         end, visualSection)
         CreateSlider("FOV Thickness", 1, 10, Settings.FOVCircleThickness, function(val)
             Settings.FOVCircleThickness = val
-            if FOVCircle then
-                FOVCircle.Stroke.Thickness = val
-                FOVCircle.GlowStroke.Thickness = val + 4
-            end
+            RefreshFOVCircle()
         end, visualSection)
         CreateTextBox("FOV Red", math.floor(Settings.FOVCircleColor.R * 255), function(val)
             local r = math.clamp(val, 0, 255)
-            Settings.FOVCircleColor = Color3.fromRGB(r, Settings.FOVCircleColor.G * 255, Settings.FOVCircleColor.B * 255)
-            if FOVCircle then
-                FOVCircle.Stroke.Color = Settings.FOVCircleColor
-                FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
-                FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
-                FOVCircle.Gradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, r + 50), math.min(255, Settings.FOVCircleColor.G * 255 + 50), math.min(255, Settings.FOVCircleColor.B * 255 + 50))),
-                    ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
-                })
-                if FOVCircle.InnerGlow then
-                    FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
-                    FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, r - 55), math.max(0, Settings.FOVCircleColor.G * 255 - 55), math.max(0, Settings.FOVCircleColor.B * 255 - 55)))
-                    })
-                end
-            end
+            local currentG = math.floor(Settings.FOVCircleColor.G * 255)
+            local currentB = math.floor(Settings.FOVCircleColor.B * 255)
+            Settings.FOVCircleColor = Color3.fromRGB(r, currentG, currentB)
+            RefreshFOVCircle()
         end, "0-255", visualSection)
         CreateTextBox("FOV Green", math.floor(Settings.FOVCircleColor.G * 255), function(val)
             local g = math.clamp(val, 0, 255)
-            Settings.FOVCircleColor = Color3.fromRGB(Settings.FOVCircleColor.R * 255, g, Settings.FOVCircleColor.B * 255)
-            if FOVCircle then
-                FOVCircle.Stroke.Color = Settings.FOVCircleColor
-                FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
-                FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
-                FOVCircle.Gradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, Settings.FOVCircleColor.R * 255 + 50), math.min(255, g + 50), math.min(255, Settings.FOVCircleColor.B * 255 + 50))),
-                    ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
-                })
-                if FOVCircle.InnerGlow then
-                    FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
-                    FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, Settings.FOVCircleColor.R * 255 - 55), math.max(0, g - 55), math.max(0, Settings.FOVCircleColor.B * 255 - 55)))
-                    })
-                end
-            end
+            local currentR = math.floor(Settings.FOVCircleColor.R * 255)
+            local currentB = math.floor(Settings.FOVCircleColor.B * 255)
+            Settings.FOVCircleColor = Color3.fromRGB(currentR, g, currentB)
+            RefreshFOVCircle()
         end, "0-255", visualSection)
         CreateTextBox("FOV Blue", math.floor(Settings.FOVCircleColor.B * 255), function(val)
             local b = math.clamp(val, 0, 255)
-            Settings.FOVCircleColor = Color3.fromRGB(Settings.FOVCircleColor.R * 255, Settings.FOVCircleColor.G * 255, b)
-            if FOVCircle then
-                FOVCircle.Stroke.Color = Settings.FOVCircleColor
-                FOVCircle.GlowStroke.Color = Settings.FOVCircleColor
-                FOVCircle.Circle.BackgroundColor3 = Settings.FOVCircleColor
-                FOVCircle.Gradient.Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(math.min(255, Settings.FOVCircleColor.R * 255 + 50), math.min(255, Settings.FOVCircleColor.G * 255 + 50), math.min(255, b + 50))),
-                    ColorSequenceKeypoint.new(1, Settings.FOVCircleColor)
-                })
-                if FOVCircle.InnerGlow then
-                    FOVCircle.InnerGlow.BackgroundColor3 = Settings.FOVCircleColor
-                    FOVCircle.InnerGlowGradient.Color = ColorSequence.new({
-                        ColorSequenceKeypoint.new(0, Settings.FOVCircleColor),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(math.max(0, Settings.FOVCircleColor.R * 255 - 55), math.max(0, Settings.FOVCircleColor.G * 255 - 55), math.max(0, b - 55)))
-                    })
-                end
-            end
+            local currentR = math.floor(Settings.FOVCircleColor.R * 255)
+            local currentG = math.floor(Settings.FOVCircleColor.G * 255)
+            Settings.FOVCircleColor = Color3.fromRGB(currentR, currentG, b)
+            RefreshFOVCircle()
         end, "0-255", visualSection)
         aimingLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
         movementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateScrollSize)
@@ -1501,20 +1504,21 @@ local success, err = pcall(function()
         if not Character or not Humanoid or not HumanoidRootPart then
             return
         end
+        
+        -- Camera Lock Feature - ONLY runs when Settings.CameraLockEnabled is TRUE
         if Settings.CameraLockEnabled then
             UpdateTarget()
             if TargetHumanoidRootPart then
-                LockCamera()
+                LockCamera() -- This function also checks Settings.CameraLockEnabled internally
                 UpdateShooting()
                 AutoReload()
             end
         else
+            -- Camera lock is disabled - clear target and stop shooting
             if not Settings.PathfindingEnabled then
-                if Target then
-                    Target = nil
-                    TargetHumanoid = nil
-                    TargetHumanoidRootPart = nil
-                end
+                Target = nil
+                TargetHumanoid = nil
+                TargetHumanoidRootPart = nil
             end
             if IsShooting and not Settings.PathfindingEnabled then
                 if ShootingConnection then
@@ -1548,18 +1552,62 @@ local success, err = pcall(function()
 
     speedConnection = RunService.RenderStepped:Connect(updateSpeed)
 
+    -- Initialize everything
     task.spawn(function()
+        -- Wait for character
         if not InitializeCharacter() then
             LocalPlayer.CharacterAdded:Wait()
             task.wait(1)
-            InitializeCharacter()
+            if not InitializeCharacter() then
+                warn("Failed to initialize character")
+                return
+            end
         end
+        
+        -- Wait for everything to load
         task.wait(0.5)
-        CreateCornerButtons()
-        CreateUI()
-        print("Camera Lock System Loaded!")
+        
+        -- Create UI elements
+        local success1, err1 = pcall(function()
+            CreateCornerButtons()
+            print("✓ Corner buttons created")
+        end)
+        if not success1 then
+            warn("Error creating corner buttons: " .. tostring(err1))
+        end
+        
+        local success2, err2 = pcall(function()
+            CreateUI()
+            print("✓ Settings UI created")
+        end)
+        if not success2 then
+            warn("Error creating UI: " .. tostring(err2))
+        end
+        
+        -- Verify UI was created
+        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+        if playerGui then
+            local cornerGui = playerGui:FindFirstChild("CornerButtons")
+            local uiGui = playerGui:FindFirstChild("CameraLockUI")
+            if cornerGui then
+                print("✓ Corner buttons verified in PlayerGui")
+            else
+                warn("⚠ Corner buttons not found in PlayerGui")
+            end
+            if uiGui then
+                print("✓ Settings UI verified in PlayerGui")
+            else
+                warn("⚠ Settings UI not found in PlayerGui")
+            end
+        end
+        
+        print("========================================")
+        print("Camera Lock System Loaded Successfully!")
         print("Mobile Compatible: " .. tostring(isMobile))
         print("Walk Speed Toggle: Press " .. getgenv().walkSpeedSettings.Activation.WalkSpeedToggleKey)
+        print("Center Buttons: Left (Camera Lock), Right (Settings)")
+        print("All settings are OFF by default - enable manually")
+        print("========================================")
     end)
 end)
 
