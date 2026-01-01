@@ -13,9 +13,33 @@ local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- Wait for character
-local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
+-- Wait for character with error handling
+local character, hrp
+local function initializeCharacter()
+    character = LocalPlayer.Character
+    if not character then
+        character = LocalPlayer.CharacterAdded:Wait()
+    end
+    if character then
+        hrp = character:WaitForChild("HumanoidRootPart", 10)
+    end
+    return character ~= nil and hrp ~= nil
+end
+
+-- Initialize character
+if not initializeCharacter() then
+    warn("Failed to initialize character, retrying...")
+    LocalPlayer.CharacterAdded:Wait()
+    initializeCharacter()
+end
+
+-- Update character on respawn
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    if character then
+        hrp = character:WaitForChild("HumanoidRootPart", 10)
+    end
+end)
 
 -- Script Tables
 local Script = {
@@ -391,25 +415,38 @@ getgenv().AntiLockType = "Behind"
 getgenv().Direction = Vector3.new(0, 0, -1)
 
 -- Trail Effect
-if hrp then
-    local a0 = Instance.new("Attachment", hrp)
-    local a1 = Instance.new("Attachment", hrp)
+local function createTrail()
+    if hrp then
+        local success, result = pcall(function()
+            local a0 = Instance.new("Attachment", hrp)
+            local a1 = Instance.new("Attachment", hrp)
 
-    a0.Position = Vector3.new(0, -0.5, -1)
-    a1.Position = Vector3.new(0, -0.5, 1)
+            a0.Position = Vector3.new(0, -0.5, -1)
+            a1.Position = Vector3.new(0, -0.5, 1)
 
-    local trail = Instance.new("Trail", hrp)
-    trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
-    trail.Lifetime = 5
-    trail.LightEmission = 1
-    trail.LightInfluence = 1
-    trail.Texture = "rbxassetid://2443461141"
-    trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
-    trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
+            local trail = Instance.new("Trail", hrp)
+            trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
+            trail.Lifetime = 5
+            trail.LightEmission = 1
+            trail.LightInfluence = 1
+            trail.Texture = "rbxassetid://2443461141"
+            trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
+            trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
 
-    trail.Attachment0 = a0
-    trail.Attachment1 = a1
+            trail.Attachment0 = a0
+            trail.Attachment1 = a1
+        end)
+        if not success then
+            warn("Failed to create trail:", result)
+        end
+    end
 end
+
+createTrail()
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    createTrail()
+end)
 
 -- Hit Sounds
 local hitsounds = {
@@ -547,7 +584,12 @@ do
     Crescents.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
     Crescents.Parent = Attachment
 
-    Insane.Parent = workspace
+    local success, err = pcall(function()
+        Insane.Parent = workspace
+    end)
+    if not success then
+        warn("Failed to move Insane to workspace:", err)
+    end
 end
 
 -- Cosmic Explosion Effect
@@ -573,7 +615,12 @@ do
     Glow.Texture = "rbxassetid://8708637750"
     Glow.Parent = Attachment
 
-    Part.Parent = workspace
+    local success, err = pcall(function()
+        Part.Parent = workspace
+    end)
+    if not success then
+        warn("Failed to move Part to workspace:", err)
+    end
 end
 
 -- Coom Effect
@@ -602,7 +649,12 @@ do
     Foam.Orientation = Enum.ParticleOrientation.VelocityParallel
     Foam.Parent = Attachment
 
-    Part.Parent = workspace
+    local success, err = pcall(function()
+        Part.Parent = workspace
+    end)
+    if not success then
+        warn("Failed to move Part to workspace:", err)
+    end
 end
 
 -- Atomic Slash Effect
@@ -633,7 +685,12 @@ do
     Crescents.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
     Crescents.Parent = Attachment
 
-    Part.Parent = workspace
+    local success, err = pcall(function()
+        Part.Parent = workspace
+    end)
+    if not success then
+        warn("Failed to move Part to workspace:", err)
+    end
 end
 
 -- Nova Effect
@@ -1649,9 +1706,41 @@ CreateDropdown(MiscTab, "Easing Direction", {"In", "Out", "InOut"}, getgenv().Se
 end)
 
 -- Set first tab as active
-if Tabs["Main"] then
-    Tabs["Main"].Button.MouseButton1Click:Fire()
-end
+task.spawn(function()
+    task.wait(0.1)
+    if Tabs["Main"] and Tabs["Main"].Button then
+        -- Hide all tabs first
+        for _, tab in pairs(Tabs) do
+            if tab.Content then
+                tab.Content.Visible = false
+            end
+            if tab.Button then
+                tab.Button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+                tab.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end
+        end
+        
+        -- Show Main tab
+        if Tabs["Main"].Content then
+            Tabs["Main"].Content.Visible = true
+            CurrentTab = Tabs["Main"].Content
+        end
+        if Tabs["Main"].Button then
+            Tabs["Main"].Button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            Tabs["Main"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        end
+        
+        -- Update canvas size
+        if Tabs["Main"].Layout then
+            Tabs["Main"].Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                if Tabs["Main"].Content then
+                    Tabs["Main"].Content.Size = UDim2.new(1, 0, 0, Tabs["Main"].Layout.AbsoluteContentSize.Y)
+                    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, Tabs["Main"].Layout.AbsoluteContentSize.Y + 10)
+                end
+            end)
+        end
+    end
+end)
 
 -- Update canvas size on layout change
 for tabName, tab in pairs(Tabs) do
@@ -1664,7 +1753,20 @@ for tabName, tab in pairs(Tabs) do
 end
 
 -- Game Support
-local game_support = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/script-khen/refs/heads/main/Argument.txt",true))()
+local game_support = {}
+local function loadGameSupport()
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/script-khen/refs/heads/main/Argument.txt",true))()
+    end)
+    if success and result then
+        game_support = result
+    else
+        warn("Failed to load game support:", result)
+        game_support = {}
+    end
+end
+
+loadGameSupport()
 
 local function getRemoteInfo()
     local placeId = game.PlaceId
@@ -1704,31 +1806,42 @@ end
 RunService.PostSimulation:Connect(function(DeltaTime)
     if getgenv().Sentinel.Enabled then
         if getgenv().Sentinel.LockType == "Index" then
-            local LocalFramework = LocalPlayer.PlayerGui:FindFirstChild("Framework")
-            if LocalFramework then
-                local FrameworkEnvironment = getsenv(LocalFramework)
-                if FrameworkEnvironment._G and FrameworkEnvironment._G.MOUSE_POSITION then
-                    if TargetPlr then
-                        FrameworkEnvironment._G.MOUSE_POSITION = predictedposition() 
+            local success, result = pcall(function()
+                local LocalFramework = LocalPlayer.PlayerGui:FindFirstChild("Framework")
+                if LocalFramework then
+                    local FrameworkEnvironment = getsenv(LocalFramework)
+                    if FrameworkEnvironment and FrameworkEnvironment._G and FrameworkEnvironment._G.MOUSE_POSITION then
+                        if TargetPlr then
+                            local predPos = predictedposition()
+                            if predPos then
+                                FrameworkEnvironment._G.MOUSE_POSITION = predPos
+                            end
+                        end
                     end
                 end
+            end)
+            if not success then
+                -- Silently fail - getsenv might not be available
             end
         end
     end
 end)
 
 -- Hooking
-local mt = getrawmetatable(game)
-local old = mt.__namecall
-setreadonly(mt, false)
+local __namecall
+local oldNamecall
+local hookSuccess, hookError = pcall(function()
+    local mt = getrawmetatable(game)
+    if mt then
+        oldNamecall = mt.__namecall
+        setreadonly(mt, false)
 
-do
-    __namecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
-        local args, method = {...}, tostring(getnamecallmethod())
+        __namecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
+            local args, method = {...}, tostring(getnamecallmethod())
 
-        if not checkcaller() and method == "FireServer" then
-            for i, arg in pairs(args) do
-                if typeof(arg) == "Vector3" then
+            if not checkcaller() and method == "FireServer" then
+                for i, arg in pairs(args) do
+                    if typeof(arg) == "Vector3" then
                     if TargetPlr and getgenv().Sentinel.Enabled and getgenv().Sentinel.LockType == "Namecall" then
                         local selectedPart = getgenv().Sentinel.SelectedPart
                         local targetPart = TargetPlr.Character and TargetPlr.Character:FindFirstChild(selectedPart)
@@ -1751,7 +1864,6 @@ do
                             args[i] = targetPart.Position + (velocity * horizontalPrediction)
                         end
                     end
-                    return __namecall(Self, unpack(args))
                 elseif type(arg) == "table" then
                     for index, element in ipairs(arg) do
                         if typeof(element) == "Vector3" then
@@ -1784,8 +1896,20 @@ do
             return __namecall(Self, unpack(args))
         end
 
-        return __namecall(Self, ...)
-    end))
+            return __namecall(Self, ...)
+        end))
+    end
+end)
+
+if not hookSuccess then
+    warn("Failed to hook __namecall:", hookError)
+    if oldNamecall then
+        __namecall = oldNamecall
+    else
+        __namecall = function(self, ...)
+            return self(...)
+        end
+    end
 end
 
 -- Auto Shoot
@@ -2129,14 +2253,19 @@ end)
 
 RunService.Heartbeat:Connect(function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        if getgenv().Sentinel and getgenv().Sentinel.network then
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
-            task.wait()
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
-            setfflag("S2PhysicsSenderRate", 2)
-        else
-            setfflag("S2PhysicsSenderRate", 13)
-            sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+        local success, result = pcall(function()
+            if getgenv().Sentinel and getgenv().Sentinel.network then
+                sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", true)
+                task.wait()
+                sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+                setfflag("S2PhysicsSenderRate", 2)
+            else
+                setfflag("S2PhysicsSenderRate", 13)
+                sethiddenproperty(LocalPlayer.Character.HumanoidRootPart, "NetworkIsSleeping", false)
+            end
+        end)
+        if not success then
+            -- Silently fail - sethiddenproperty/setfflag might not be available
         end
     end
 end)
