@@ -762,6 +762,111 @@ local function CreateDropdown(parent, text, size, position, options, defaultValu
     return dropdown
 end
 
+-- Create ColorPicker
+local function CreateColorPicker(parent, text, size, position, defaultValue, callback)
+    local frame = Instance.new("Frame")
+    frame.Parent = parent
+    frame.BackgroundTransparency = 1
+    frame.Size = size
+    frame.Position = position
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = frame
+    label.Size = UDim2.new(0.4, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local colorButton = Instance.new("TextButton")
+    colorButton.Parent = frame
+    colorButton.Size = UDim2.new(0.55, 0, 1, 0)
+    colorButton.Position = UDim2.new(0.45, 0, 0, 0)
+    colorButton.BackgroundColor3 = defaultValue
+    colorButton.BorderSizePixel = 0
+    colorButton.Font = Enum.Font.Gotham
+    colorButton.Text = ""
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 4)
+    corner.Parent = colorButton
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Parent = colorButton
+    stroke.Color = Color3.fromRGB(60, 60, 80)
+    stroke.Thickness = 1
+    
+    colorButton.MouseButton1Click:Connect(function()
+        -- Simple color picker - you can enhance this with a proper color picker UI
+        callback(colorButton.BackgroundColor3)
+    end)
+    
+    return colorButton
+end
+
+-- Create Hotkey Button
+local function CreateHotkey(parent, text, size, position, defaultValue, callback)
+    local frame = Instance.new("Frame")
+    frame.Parent = parent
+    frame.BackgroundTransparency = 1
+    frame.Size = size
+    frame.Position = position
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = frame
+    label.Size = UDim2.new(0.4, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 13
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local hotkeyButton = Instance.new("TextButton")
+    hotkeyButton.Parent = frame
+    hotkeyButton.Size = UDim2.new(0.55, 0, 1, 0)
+    hotkeyButton.Position = UDim2.new(0.45, 0, 0, 0)
+    hotkeyButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    hotkeyButton.BorderSizePixel = 0
+    hotkeyButton.Font = Enum.Font.Gotham
+    hotkeyButton.Text = tostring(defaultValue):gsub("Enum.KeyCode.", "")
+    hotkeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    hotkeyButton.TextSize = 13
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 4)
+    corner.Parent = hotkeyButton
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Parent = hotkeyButton
+    stroke.Color = Color3.fromRGB(60, 60, 80)
+    stroke.Thickness = 1
+    
+    local listening = false
+    hotkeyButton.MouseButton1Click:Connect(function()
+        listening = true
+        hotkeyButton.Text = "..."
+        hotkeyButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        
+        local connection
+        connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if not gameProcessed and input.KeyCode ~= Enum.KeyCode.Unknown then
+                listening = false
+                hotkeyButton.Text = tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+                hotkeyButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+                callback(input.KeyCode)
+                connection:Disconnect()
+            end
+        end)
+    end)
+    
+    return hotkeyButton
+end
+
 -- Create Main UI
 local function CreateMainUI()
     local screenGui = Instance.new("ScreenGui")
@@ -1047,6 +1152,346 @@ local function CreateMainUI()
     }, getgenv().Sentinel.easingDirection, function(val)
         getgenv().Sentinel.easingDirection = val
     end)
+    yOffset = yOffset + 40
+    
+    -- ESP Section
+    local espLabel = Instance.new("TextLabel")
+    espLabel.Parent = mainTab
+    espLabel.Size = UDim2.new(1, 0, 0, 25)
+    espLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    espLabel.BackgroundTransparency = 1
+    espLabel.Font = Enum.Font.GothamBold
+    espLabel.Text = "ESP"
+    espLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    espLabel.TextSize = 14
+    espLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.ESP, function(val)
+        Settings.Combat.ESP = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- TriggerBot Section
+    local triggerBotLabel = Instance.new("TextLabel")
+    triggerBotLabel.Parent = mainTab
+    triggerBotLabel.Size = UDim2.new(1, 0, 0, 25)
+    triggerBotLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    triggerBotLabel.BackgroundTransparency = 1
+    triggerBotLabel.Font = Enum.Font.GothamBold
+    triggerBotLabel.Text = "TriggerBot"
+    triggerBotLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    triggerBotLabel.TextSize = 14
+    triggerBotLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.TriggerBot.Enabled, function(val)
+        Settings.Combat.TriggerBot.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateTextBox(mainTab, "Delay", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), tostring(Settings.Combat.TriggerBot.Delay), function(val)
+        Settings.Combat.TriggerBot.Delay = tonumber(val) or 0
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Target Only", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.TriggerBot.TargeyOnly, function(val)
+        Settings.Combat.TriggerBot.TargeyOnly = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Show FOV", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.TriggerBot.FOV.Show, function(val)
+        Settings.Combat.TriggerBot.FOV.Show = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "FOV Size", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 200, Settings.Combat.TriggerBot.FOV.Size, function(val)
+        Settings.Combat.TriggerBot.FOV.Size = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Checks Section
+    local checksLabel = Instance.new("TextLabel")
+    checksLabel.Parent = mainTab
+    checksLabel.Size = UDim2.new(1, 0, 0, 25)
+    checksLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    checksLabel.BackgroundTransparency = 1
+    checksLabel.Font = Enum.Font.GothamBold
+    checksLabel.Text = "Checks"
+    checksLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    checksLabel.TextSize = 14
+    checksLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Enabled, function(val)
+        Settings.Combat.Checks.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Knocked", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Knocked, function(val)
+        Settings.Combat.Checks.Knocked = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Crew", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Crew, function(val)
+        Settings.Combat.Checks.Crew = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Wall", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Wall, function(val)
+        Settings.Combat.Checks.Wall = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Grabbed", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Grabbed, function(val)
+        Settings.Combat.Checks.Grabbed = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Vehicle", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Checks.Vehicle, function(val)
+        Settings.Combat.Checks.Vehicle = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Smoothing Section
+    local smoothingLabel = Instance.new("TextLabel")
+    smoothingLabel.Parent = mainTab
+    smoothingLabel.Size = UDim2.new(1, 0, 0, 25)
+    smoothingLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    smoothingLabel.BackgroundTransparency = 1
+    smoothingLabel.Font = Enum.Font.GothamBold
+    smoothingLabel.Text = "Smoothing"
+    smoothingLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    smoothingLabel.TextSize = 14
+    smoothingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Horizontal", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Combat.Smoothing.Horizontal, function(val)
+        Settings.Combat.Smoothing.Horizontal = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateSlider(mainTab, "Vertical", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Combat.Smoothing.Vertical, function(val)
+        Settings.Combat.Smoothing.Vertical = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Vertical Prediction
+    CreateTextBox(mainTab, "Vertical Prediction", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), tostring(getgenv().Sentinel.VerticalPrediction), function(val)
+        getgenv().Sentinel.VerticalPrediction = tonumber(val) or getgenv().Sentinel.VerticalPrediction
+    end)
+    yOffset = yOffset + 40
+    
+    -- Resolver Section
+    local resolverLabel = Instance.new("TextLabel")
+    resolverLabel.Parent = mainTab
+    resolverLabel.Size = UDim2.new(1, 0, 0, 25)
+    resolverLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    resolverLabel.BackgroundTransparency = 1
+    resolverLabel.Font = Enum.Font.GothamBold
+    resolverLabel.Text = "Resolver"
+    resolverLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    resolverLabel.TextSize = 14
+    resolverLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Refresh Rate", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 500, Settings.Combat.Resolver.RefreshRate, function(val)
+        Settings.Combat.Resolver.RefreshRate = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- FOV Section
+    local fovLabel = Instance.new("TextLabel")
+    fovLabel.Parent = mainTab
+    fovLabel.Size = UDim2.new(1, 0, 0, 25)
+    fovLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    fovLabel.BackgroundTransparency = 1
+    fovLabel.Font = Enum.Font.GothamBold
+    fovLabel.Text = "FOV"
+    fovLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    fovLabel.TextSize = 14
+    fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Visualize", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Fov.Visualize.Enabled, function(val)
+        Settings.Combat.Fov.Visualize.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Radius", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 500, Settings.Combat.Fov.Radius, function(val)
+        Settings.Combat.Fov.Radius = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Visuals Section
+    local visualsLabel = Instance.new("TextLabel")
+    visualsLabel.Parent = mainTab
+    visualsLabel.Size = UDim2.new(1, 0, 0, 25)
+    visualsLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    visualsLabel.BackgroundTransparency = 1
+    visualsLabel.Font = Enum.Font.GothamBold
+    visualsLabel.Text = "Visuals"
+    visualsLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    visualsLabel.TextSize = 14
+    visualsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Tracer", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Visuals.Tracer.Enabled, function(val)
+        Settings.Combat.Visuals.Tracer.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Tracer Thickness", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Combat.Visuals.Tracer.Thickness, function(val)
+        Settings.Combat.Visuals.Tracer.Thickness = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateToggle(mainTab, "Dot", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Visuals.Dot.Enabled, function(val)
+        Settings.Combat.Visuals.Dot.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Dot Filled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Visuals.Dot.Filled, function(val)
+        Settings.Combat.Visuals.Dot.Filled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Dot Size", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 20, Settings.Combat.Visuals.Dot.Size, function(val)
+        Settings.Combat.Visuals.Dot.Size = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateToggle(mainTab, "Chams", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Visuals.Chams.Enabled, function(val)
+        Settings.Combat.Visuals.Chams.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Chams Fill Transparency", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 1, Settings.Combat.Visuals.Chams.Fill.Transparency, function(val)
+        Settings.Combat.Visuals.Chams.Fill.Transparency = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateSlider(mainTab, "Chams Outline Transparency", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 1, Settings.Combat.Visuals.Chams.Outline.Transparency, function(val)
+        Settings.Combat.Visuals.Chams.Outline.Transparency = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Air Section
+    local airLabel = Instance.new("TextLabel")
+    airLabel.Parent = mainTab
+    airLabel.Size = UDim2.new(1, 0, 0, 25)
+    airLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    airLabel.BackgroundTransparency = 1
+    airLabel.Font = Enum.Font.GothamBold
+    airLabel.Text = "Air"
+    airLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    airLabel.TextSize = 14
+    airLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Air Aim Part", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Air.AirAimPart.Enabled, function(val)
+        Settings.Combat.Air.AirAimPart.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(mainTab, "Air Hit Part", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {
+        "Head", "UpperTorso", "LowerTorso", "HumanoidRootPart"
+    }, Settings.Combat.Air.AirAimPart.HitPart, function(val)
+        Settings.Combat.Air.AirAimPart.HitPart = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Jump Offset", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Air.JumpOffset.Enabled, function(val)
+        Settings.Combat.Air.JumpOffset.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Jump Offset Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -5, 5, Settings.Combat.Air.JumpOffset.Offset, function(val)
+        Settings.Combat.Air.JumpOffset.Offset = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Other Settings
+    CreateToggle(mainTab, "Silent", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Silent, function(val)
+        Settings.Combat.Silent = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Beta Airshot", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.BetaAirshot, function(val)
+        Settings.Combat.BetaAirshot = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Target Info", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.TargetInfo, function(val)
+        Settings.Combat.TargetInfo = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Alerts", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Alerts, function(val)
+        Settings.Combat.Alerts = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Ping Based", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.PingBased, function(val)
+        Settings.Combat.PingBased = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Use Index", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.UseIndex, function(val)
+        Settings.Combat.UseIndex = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "AntiAim Viewer", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.AntiAimViewer, function(val)
+        Settings.Combat.AntiAimViewer = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Skibidi", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Skibidi, function(val)
+        Settings.Combat.Skibidi = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Spectate", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.Spectate, function(val)
+        Settings.Combat.Spectate = val
+    end)
+    yOffset = yOffset + 30
+    
+    -- AutoSelect
+    CreateToggle(mainTab, "Auto Select", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.AutoSelect.Enabled, function(val)
+        Settings.Combat.AutoSelect.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "Auto Select Cooldown", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Combat.AutoSelect.Cooldown.Enabled, function(val)
+        Settings.Combat.AutoSelect.Cooldown.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(mainTab, "Cooldown Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 5, Settings.Combat.AutoSelect.Cooldown.Amount, function(val)
+        Settings.Combat.AutoSelect.Cooldown.Amount = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Additional Sentinel Settings
+    CreateTextBox(mainTab, "Shoot Delay", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), tostring(getgenv().Sentinel.ShootDelay), function(val)
+        getgenv().Sentinel.ShootDelay = tonumber(val) or getgenv().Sentinel.ShootDelay
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(mainTab, "No Ground Shot", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), getgenv().Sentinel.NoGroundShot, function(val)
+        getgenv().Sentinel.NoGroundShot = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateTextBox(mainTab, "Jump Offset 2", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), tostring(getgenv().Sentinel.jumpoffset2), function(val)
+        getgenv().Sentinel.jumpoffset2 = tonumber(val) or getgenv().Sentinel.jumpoffset2
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(mainTab, "Auto Pred Mode", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {"PingBased", "Custom"}, getgenv().Sentinel.AutoPredMode, function(val)
+        getgenv().Sentinel.AutoPredMode = val
+    end)
     
     UpdateCanvasSize(mainTab)
     
@@ -1158,6 +1603,132 @@ local function CreateMainUI()
     end)
     yOffset = yOffset + 40
     
+    -- Velocity Spoofer Section
+    local velocitySpooferLabel = Instance.new("TextLabel")
+    velocitySpooferLabel.Parent = hvhTab
+    velocitySpooferLabel.Size = UDim2.new(1, 0, 0, 25)
+    velocitySpooferLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    velocitySpooferLabel.BackgroundTransparency = 1
+    velocitySpooferLabel.Font = Enum.Font.GothamBold
+    velocitySpooferLabel.Text = "Velocity Spoofer"
+    velocitySpooferLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    velocitySpooferLabel.TextSize = 14
+    velocitySpooferLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.VelocitySpoofer.Enabled, function(val)
+        Settings.AntiAim.VelocitySpoofer.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Visualize", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.VelocitySpoofer.Visualize.Enabled, function(val)
+        Settings.AntiAim.VelocitySpoofer.Visualize.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(hvhTab, "Type", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {"Underground", "Up", "Down", "Custom"}, Settings.AntiAim.VelocitySpoofer.Type, function(val)
+        Settings.AntiAim.VelocitySpoofer.Type = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(hvhTab, "Roll", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -180, 180, Settings.AntiAim.VelocitySpoofer.Roll, function(val)
+        Settings.AntiAim.VelocitySpoofer.Roll = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateSlider(hvhTab, "Pitch", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -180, 180, Settings.AntiAim.VelocitySpoofer.Pitch, function(val)
+        Settings.AntiAim.VelocitySpoofer.Pitch = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateSlider(hvhTab, "Yaw", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -180, 180, Settings.AntiAim.VelocitySpoofer.Yaw, function(val)
+        Settings.AntiAim.VelocitySpoofer.Yaw = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Network Section
+    local networkLabel = Instance.new("TextLabel")
+    networkLabel.Parent = hvhTab
+    networkLabel.Size = UDim2.new(1, 0, 0, 25)
+    networkLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    networkLabel.BackgroundTransparency = 1
+    networkLabel.Font = Enum.Font.GothamBold
+    networkLabel.Text = "Network"
+    networkLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    networkLabel.TextSize = 14
+    networkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.Network.Enabled, function(val)
+        Settings.AntiAim.Network.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Walking Check", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.Network.WalkingCheck, function(val)
+        Settings.AntiAim.Network.WalkingCheck = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(hvhTab, "Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 1, Settings.AntiAim.Network.Amount, function(val)
+        Settings.AntiAim.Network.Amount = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Velocity Desync Section
+    local velocityDesyncLabel = Instance.new("TextLabel")
+    velocityDesyncLabel.Parent = hvhTab
+    velocityDesyncLabel.Size = UDim2.new(1, 0, 0, 25)
+    velocityDesyncLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    velocityDesyncLabel.BackgroundTransparency = 1
+    velocityDesyncLabel.Font = Enum.Font.GothamBold
+    velocityDesyncLabel.Text = "Velocity Desync"
+    velocityDesyncLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    velocityDesyncLabel.TextSize = 14
+    velocityDesyncLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.VelocityDesync.Enabled, function(val)
+        Settings.AntiAim.VelocityDesync.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(hvhTab, "Range", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.AntiAim.VelocityDesync.Range, function(val)
+        Settings.AntiAim.VelocityDesync.Range = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- FFlag Desync Section
+    local fflagDesyncLabel = Instance.new("TextLabel")
+    fflagDesyncLabel.Parent = hvhTab
+    fflagDesyncLabel.Size = UDim2.new(1, 0, 0, 25)
+    fflagDesyncLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    fflagDesyncLabel.BackgroundTransparency = 1
+    fflagDesyncLabel.Font = Enum.Font.GothamBold
+    fflagDesyncLabel.Text = "FFlag Desync"
+    fflagDesyncLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    fflagDesyncLabel.TextSize = 14
+    fflagDesyncLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.FFlagDesync.Enabled, function(val)
+        Settings.AntiAim.FFlagDesync.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(hvhTab, "Set New", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.AntiAim.FFlagDesync.SetNew, function(val)
+        Settings.AntiAim.FFlagDesync.SetNew = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(hvhTab, "Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 20, Settings.AntiAim.FFlagDesync.Amount, function(val)
+        Settings.AntiAim.FFlagDesync.Amount = val
+    end)
+    yOffset = yOffset + 40
+    
+    CreateSlider(hvhTab, "Set New Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 20, Settings.AntiAim.FFlagDesync.SetNewAmount, function(val)
+        Settings.AntiAim.FFlagDesync.SetNewAmount = val
+    end)
+    
     UpdateCanvasSize(hvhTab)
     
     -- VISUALS TAB CONTENT
@@ -1234,7 +1805,264 @@ local function CreateMainUI()
     }, TargetAimbot.HitChamsMaterial.Name, function(val)
         TargetAimbot.HitChamsMaterial = Enum.Material[val]
     end)
+    yOffset = yOffset + 40
+    
+    -- Backtrack Section
+    local backtrackLabel = Instance.new("TextLabel")
+    backtrackLabel.Parent = visualsTab
+    backtrackLabel.Size = UDim2.new(1, 0, 0, 25)
+    backtrackLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    backtrackLabel.BackgroundTransparency = 1
+    backtrackLabel.Font = Enum.Font.GothamBold
+    backtrackLabel.Text = "Backtrack"
+    backtrackLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    backtrackLabel.TextSize = 14
+    backtrackLabel.TextXAlignment = Enum.TextXAlignment.Left
     yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.Backtrack.Enabled, function(val)
+        Settings.Visuals.Backtrack.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(visualsTab, "Method", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {"Follow", "Static"}, Settings.Visuals.Backtrack.Method, function(val)
+        Settings.Visuals.Backtrack.Method = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Transparency", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 1, Settings.Visuals.Backtrack.Transparency, function(val)
+        Settings.Visuals.Backtrack.Transparency = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(visualsTab, "Material", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {"Plastic", "Neon", "ForceField"}, Settings.Visuals.Backtrack.Material, function(val)
+        Settings.Visuals.Backtrack.Material = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Bullet Tracers Section
+    local bulletTracersLabel = Instance.new("TextLabel")
+    bulletTracersLabel.Parent = visualsTab
+    bulletTracersLabel.Size = UDim2.new(1, 0, 0, 25)
+    bulletTracersLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    bulletTracersLabel.BackgroundTransparency = 1
+    bulletTracersLabel.Font = Enum.Font.GothamBold
+    bulletTracersLabel.Text = "Bullet Tracers"
+    bulletTracersLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    bulletTracersLabel.TextSize = 14
+    bulletTracersLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.BulletTracers.Enabled, function(val)
+        Settings.Visuals.BulletTracers.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Duration", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.BulletTracers.Duration, function(val)
+        Settings.Visuals.BulletTracers.Duration = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Fade", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.BulletTracers.Fade.Enabled, function(val)
+        Settings.Visuals.BulletTracers.Fade.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Fade Duration", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 5, Settings.Visuals.BulletTracers.Fade.Duration, function(val)
+        Settings.Visuals.BulletTracers.Fade.Duration = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Bullet Impacts Section
+    local bulletImpactsLabel = Instance.new("TextLabel")
+    bulletImpactsLabel.Parent = visualsTab
+    bulletImpactsLabel.Size = UDim2.new(1, 0, 0, 25)
+    bulletImpactsLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    bulletImpactsLabel.BackgroundTransparency = 1
+    bulletImpactsLabel.Font = Enum.Font.GothamBold
+    bulletImpactsLabel.Text = "Bullet Impacts"
+    bulletImpactsLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    bulletImpactsLabel.TextSize = 14
+    bulletImpactsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.BulletImpacts.Enabled, function(val)
+        Settings.Visuals.BulletImpacts.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Duration", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.BulletImpacts.Duration, function(val)
+        Settings.Visuals.BulletImpacts.Duration = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Size", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.BulletImpacts.Size, function(val)
+        Settings.Visuals.BulletImpacts.Size = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateDropdown(visualsTab, "Material", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), {"SmoothPlastic", "Neon", "ForceField"}, Settings.Visuals.BulletImpacts.Material, function(val)
+        Settings.Visuals.BulletImpacts.Material = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Fade", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.BulletImpacts.Fade.Enabled, function(val)
+        Settings.Visuals.BulletImpacts.Fade.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Fade Duration", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 5, Settings.Visuals.BulletImpacts.Fade.Duration, function(val)
+        Settings.Visuals.BulletImpacts.Fade.Duration = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- OnHit Section
+    local onHitLabel = Instance.new("TextLabel")
+    onHitLabel.Parent = visualsTab
+    onHitLabel.Size = UDim2.new(1, 0, 0, 25)
+    onHitLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    onHitLabel.BackgroundTransparency = 1
+    onHitLabel.Font = Enum.Font.GothamBold
+    onHitLabel.Text = "OnHit"
+    onHitLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    onHitLabel.TextSize = 14
+    onHitLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Effect", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.OnHit.Effect.Enabled, function(val)
+        Settings.Visuals.OnHit.Effect.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Sound", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.OnHit.Sound.Enabled, function(val)
+        Settings.Visuals.OnHit.Sound.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Sound Volume", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.OnHit.Sound.Volume, function(val)
+        Settings.Visuals.OnHit.Sound.Volume = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateTextBox(visualsTab, "Sound Value", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.OnHit.Sound.Value, function(val)
+        Settings.Visuals.OnHit.Sound.Value = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Chams", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.OnHit.Chams.Enabled, function(val)
+        Settings.Visuals.OnHit.Chams.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Chams Duration", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.OnHit.Chams.Duration, function(val)
+        Settings.Visuals.OnHit.Chams.Duration = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- World Section
+    local worldLabel = Instance.new("TextLabel")
+    worldLabel.Parent = visualsTab
+    worldLabel.Size = UDim2.new(1, 0, 0, 25)
+    worldLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    worldLabel.BackgroundTransparency = 1
+    worldLabel.Font = Enum.Font.GothamBold
+    worldLabel.Text = "World"
+    worldLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    worldLabel.TextSize = 14
+    worldLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Fog", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.World.Fog.Enabled, function(val)
+        Settings.Visuals.World.Fog.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Fog Start", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 50000, Settings.Visuals.World.Fog.Start, function(val)
+        Settings.Visuals.World.Fog.Start = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Fog End", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 50000, Settings.Visuals.World.Fog.End, function(val)
+        Settings.Visuals.World.Fog.End = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Ambient", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.World.Ambient.Enabled, function(val)
+        Settings.Visuals.World.Ambient.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Brightness", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.World.Brightness.Enabled, function(val)
+        Settings.Visuals.World.Brightness.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Brightness Value", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -5, 5, Settings.Visuals.World.Brightness.Value, function(val)
+        Settings.Visuals.World.Brightness.Value = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Clock Time", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.World.ClockTime.Enabled, function(val)
+        Settings.Visuals.World.ClockTime.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Clock Time Value", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 24, Settings.Visuals.World.ClockTime.Value, function(val)
+        Settings.Visuals.World.ClockTime.Value = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "World Exposure", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.World.WorldExposure.Enabled, function(val)
+        Settings.Visuals.World.WorldExposure.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Exposure Value", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), -5, 5, Settings.Visuals.World.WorldExposure.Value, function(val)
+        Settings.Visuals.World.WorldExposure.Value = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Crosshair Section
+    local crosshairLabel = Instance.new("TextLabel")
+    crosshairLabel.Parent = visualsTab
+    crosshairLabel.Size = UDim2.new(1, 0, 0, 25)
+    crosshairLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    crosshairLabel.BackgroundTransparency = 1
+    crosshairLabel.Font = Enum.Font.GothamBold
+    crosshairLabel.Text = "Crosshair"
+    crosshairLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    crosshairLabel.TextSize = 14
+    crosshairLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.Crosshair.Enabled, function(val)
+        Settings.Visuals.Crosshair.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Stick To Target", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.Crosshair.StickToTarget, function(val)
+        Settings.Visuals.Crosshair.StickToTarget = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Size", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 50, Settings.Visuals.Crosshair.Size, function(val)
+        Settings.Visuals.Crosshair.Size = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Gap", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 20, Settings.Visuals.Crosshair.Gap, function(val)
+        Settings.Visuals.Crosshair.Gap = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(visualsTab, "Rotation", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Visuals.Crosshair.Rotation.Enabled, function(val)
+        Settings.Visuals.Crosshair.Rotation.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(visualsTab, "Rotation Speed", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Visuals.Crosshair.Rotation.Speed, function(val)
+        Settings.Visuals.Crosshair.Rotation.Speed = val
+    end)
     
     UpdateCanvasSize(visualsTab)
     
@@ -1335,7 +2163,152 @@ local function CreateMainUI()
     CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), getgenv().Sentinel.network, function(val)
         getgenv().Sentinel.network = val
     end)
+    yOffset = yOffset + 40
+    
+    -- Movement Speed Section
+    local movementSpeedLabel = Instance.new("TextLabel")
+    movementSpeedLabel.Parent = miscTab
+    movementSpeedLabel.Size = UDim2.new(1, 0, 0, 25)
+    movementSpeedLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    movementSpeedLabel.BackgroundTransparency = 1
+    movementSpeedLabel.Font = Enum.Font.GothamBold
+    movementSpeedLabel.Text = "Movement Speed"
+    movementSpeedLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    movementSpeedLabel.TextSize = 14
+    movementSpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
     yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Misc.Movement.Speed.Enabled, function(val)
+        Settings.Misc.Movement.Speed.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(miscTab, "Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 10, Settings.Misc.Movement.Speed.Amount, function(val)
+        Settings.Misc.Movement.Speed.Amount = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Exploits Section
+    local exploitsLabel = Instance.new("TextLabel")
+    exploitsLabel.Parent = miscTab
+    exploitsLabel.Size = UDim2.new(1, 0, 0, 25)
+    exploitsLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    exploitsLabel.BackgroundTransparency = 1
+    exploitsLabel.Font = Enum.Font.GothamBold
+    exploitsLabel.Text = "Exploits"
+    exploitsLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    exploitsLabel.TextSize = 14
+    exploitsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Misc.Exploits.Enabled, function(val)
+        Settings.Misc.Exploits.Enabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "No Recoil", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Misc.Exploits.NoRecoil, function(val)
+        Settings.Misc.Exploits.NoRecoil = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "No Jump Cooldown", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Misc.Exploits.NoJumpCooldown, function(val)
+        Settings.Misc.Exploits.NoJumpCooldown = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "No Slow Down", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Settings.Misc.Exploits.NoSlowDown, function(val)
+        Settings.Misc.Exploits.NoSlowDown = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Aura Section
+    local auraLabel = Instance.new("TextLabel")
+    auraLabel.Parent = miscTab
+    auraLabel.Size = UDim2.new(1, 0, 0, 25)
+    auraLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    auraLabel.BackgroundTransparency = 1
+    auraLabel.Font = Enum.Font.GothamBold
+    auraLabel.Text = "Aura"
+    auraLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    auraLabel.TextSize = 14
+    auraLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Script.Locals.Aura.Enabled, function(val)
+        Script.Locals.Aura.Enabled = val
+    end)
+    yOffset = yOffset + 40
+    
+    -- Fly Section
+    local flyLabel = Instance.new("TextLabel")
+    flyLabel.Parent = miscTab
+    flyLabel.Size = UDim2.new(1, 0, 0, 25)
+    flyLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    flyLabel.BackgroundTransparency = 1
+    flyLabel.Font = Enum.Font.GothamBold
+    flyLabel.Text = "Fly"
+    flyLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    flyLabel.TextSize = 14
+    flyLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    local flyEnabled = false
+    CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), flyEnabled, function(val)
+        flyEnabled = val
+    end)
+    yOffset = yOffset + 30
+    
+    CreateHotkey(miscTab, "Keybind", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Enum.KeyCode.X, function(val)
+        -- Fly keybind callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Notification", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), false, function(val)
+        -- Fly notification callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateSlider(miscTab, "Speed", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 30, 5, function(val)
+        -- Fly speed callback
+    end)
+    yOffset = yOffset + 40
+    
+    -- Trash Talk Section
+    local trashTalkLabel = Instance.new("TextLabel")
+    trashTalkLabel.Parent = miscTab
+    trashTalkLabel.Size = UDim2.new(1, 0, 0, 25)
+    trashTalkLabel.Position = UDim2.new(0, 0, 0, yOffset)
+    trashTalkLabel.BackgroundTransparency = 1
+    trashTalkLabel.Font = Enum.Font.GothamBold
+    trashTalkLabel.Text = "Trash Talk"
+    trashTalkLabel.TextColor3 = Color3.fromRGB(0, 200, 100)
+    trashTalkLabel.TextSize = 14
+    trashTalkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), false, function(val)
+        -- Trash talk enabled callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Target", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), false, function(val)
+        -- Trash talk target callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Notification", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), false, function(val)
+        -- Trash talk notification callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateToggle(miscTab, "Use Keybind", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), false, function(val)
+        -- Trash talk use keybind callback
+    end)
+    yOffset = yOffset + 30
+    
+    CreateHotkey(miscTab, "Keybind", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), Enum.KeyCode.B, function(val)
+        -- Trash talk keybind callback
+    end)
     
     UpdateCanvasSize(miscTab)
     
