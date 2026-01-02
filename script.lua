@@ -22,6 +22,9 @@ if not success or not Menu then
     }
 end
 
+-- Initialize services first
+local Workspace = game:GetService("Workspace")
+
 -- All your existing Script, Settings, and getgenv().Sentinel tables remain the same
 local Script = {
     Functions = {},
@@ -100,7 +103,7 @@ local Script = {
     Connections = {
         GunConnections = {}
     },
-    AuraIgnoreFolder = Instance.new("Folder", game:GetService("Workspace"))
+    AuraIgnoreFolder = Instance.new("Folder", Workspace)
 }
 
 local Settings = {
@@ -438,6 +441,14 @@ local TargetAimbot = {
 
 local Highlight = false
 local Hitnotify = false
+
+-- Initialize variables needed for toggle_lock
+local TargBindEnabled = true
+local TargetPlr = nil
+local target_health = nil
+
+-- Forward declare toggle_lock function (will be fully defined after SigmaOhioPlayer)
+local toggle_lock = nil
 
 -- ============================================
 -- NEW UI SYSTEM FROM SCRATCH
@@ -2574,7 +2585,9 @@ local function CreateLockButton()
     lockStroke.Color = Color3.fromRGB(0, 200, 100)
     
     lockButton.MouseButton1Click:Connect(function()
-        toggle_lock()
+        if toggle_lock then
+            pcall(toggle_lock)
+        end
     end)
     
     lockButton.MouseEnter:Connect(function()
@@ -2604,29 +2617,33 @@ if not uiSuccess then
 end
 
 -- Add Settings Button to Main UI
-if UIManager.MainUI then
-    local settingsButton = Instance.new("TextButton")
-    settingsButton.Parent = UIManager.MainUI.MainFrame.TitleBar
-    settingsButton.Size = UDim2.new(0, 80, 0, 30)
-    settingsButton.Position = UDim2.new(1, -90, 0.5, -15)
-    settingsButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-    settingsButton.BorderSizePixel = 0
-    settingsButton.Font = Enum.Font.GothamBold
-    settingsButton.Text = "Settings"
-    settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    settingsButton.TextSize = 12
-    
-    local settingsBtnCorner = Instance.new("UICorner")
-    settingsBtnCorner.CornerRadius = UDim.new(0, 4)
-    settingsBtnCorner.Parent = settingsButton
-    
-    settingsButton.MouseButton1Click:Connect(function()
-        UIManager.SettingsUIVisible = not UIManager.SettingsUIVisible
-        if UIManager.SettingsUI then
-            UIManager.SettingsUI.Enabled = UIManager.SettingsUIVisible
-        end
-    end)
-end
+pcall(function()
+    if UIManager and UIManager.MainUI and UIManager.MainUI.MainFrame and UIManager.MainUI.MainFrame.TitleBar then
+        local settingsButton = Instance.new("TextButton")
+        settingsButton.Parent = UIManager.MainUI.MainFrame.TitleBar
+        settingsButton.Size = UDim2.new(0, 80, 0, 30)
+        settingsButton.Position = UDim2.new(1, -90, 0.5, -15)
+        settingsButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        settingsButton.BorderSizePixel = 0
+        settingsButton.Font = Enum.Font.GothamBold
+        settingsButton.Text = "Settings"
+        settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        settingsButton.TextSize = 12
+        
+        local settingsBtnCorner = Instance.new("UICorner")
+        settingsBtnCorner.CornerRadius = UDim.new(0, 4)
+        settingsBtnCorner.Parent = settingsButton
+        
+        settingsButton.MouseButton1Click:Connect(function()
+            if UIManager then
+                UIManager.SettingsUIVisible = not UIManager.SettingsUIVisible
+                if UIManager.SettingsUI then
+                    UIManager.SettingsUI.Enabled = UIManager.SettingsUIVisible
+                end
+            end
+        end)
+    end
+end)
 
 if Menu then
     Menu:SetTitle("Nigger.Lua")
@@ -2643,19 +2660,18 @@ end
 -- ESSENTIAL FUNCTIONS FROM ORIGINAL SCRIPT
 -- ============================================
 
+-- Services already initialized above, just get LocalPlayer
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
 local SoundService = game:GetService("SoundService")
 local Stas = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
-local TargBindEnabled = true
-local TargetPlr = nil
+-- Variables already declared above, just initialize highlight
 local TargResolvePos = nil
 
 -- Initialize TargetAimbot highlight
@@ -2712,9 +2728,9 @@ function SigmaOhioPlayer()
     return closestPlayer
 end
 
--- Toggle Lock Function
+-- Toggle Lock Function (now properly defined)
 toggle_lock = function()
-    if TargetAimbot.Enabled then
+    if TargetAimbot and TargetAimbot.Enabled then
         local closest = SigmaOhioPlayer()
         if TargBindEnabled and TargetPlr then
             TargBindEnabled = false
@@ -2722,42 +2738,47 @@ toggle_lock = function()
             TargetPlr = nil
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
                 Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+                if TargetAimbot.LookAt then
+                    LocalPlayer.Character.Humanoid.AutoRotate = true
+                end
             end
-            if TargetAimbot.LookAt then
-                LocalPlayer.Character.Humanoid.AutoRotate = true
-            end
-            if UIManager.LockButton then
+            if UIManager and UIManager.LockButton then
                 UIManager.LockButton.Text = "Lock: OFF"
                 UIManager.LockButton.TextColor3 = Color3.fromRGB(255, 0, 0)
             end
-            Menu.Notify("Untargeted", 2)
+            if Menu and Menu.Notify then
+                Menu.Notify("Untargeted", 2)
+            end
         else
-            TargBindEnabled = true
-            TargetPlr = closest
-            if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("Humanoid") then
-                target_health = TargetPlr.Character.Humanoid.Health
-            else
-                return
+            if closest then
+                TargBindEnabled = true
+                TargetPlr = closest
+                if TargetPlr and TargetPlr.Character and TargetPlr.Character:FindFirstChild("Humanoid") then
+                    target_health = TargetPlr.Character.Humanoid.Health
+                else
+                    return
+                end
+                if UIManager and UIManager.LockButton then
+                    UIManager.LockButton.Text = "Lock: ON"
+                    UIManager.LockButton.TextColor3 = Color3.fromRGB(0, 255, 0)
+                end
+                if Menu and Menu.Notify then
+                    Menu.Notify("Target Locked: " .. tostring(TargetPlr.DisplayName), 2)
+                end
             end
-            if UIManager.LockButton then
-                UIManager.LockButton.Text = "Lock: ON"
-                UIManager.LockButton.TextColor3 = Color3.fromRGB(0, 255, 0)
-            end
-            Menu.Notify("Target Locked: " .. tostring(TargetPlr.DisplayName), 2)
         end
     end
 end
 
 -- Update target health function
-local target_health = nil
 
 local function updatetarget_health()
     if TargBindEnabled and TargetPlr and TargetPlr.Character then
         local humanoid = TargetPlr.Character:FindFirstChild("Humanoid")
         if humanoid then
             local currentHealth = humanoid.Health
-            if currentHealth < target_health then
-                if Hitnotify then
+            if target_health and currentHealth < target_health then
+                if Hitnotify and Menu and Menu.Notify then
                     Menu.Notify('Cactus<font color="#90EE90">.GG [khen.cc]</font>  >  ' .. '+1 Hit | ' .. tostring(getgenv().Sentinel.SelectedPart) .. ' | Target : ' .. TargetPlr.DisplayName, 1.5)
                 end
                 -- Play hit sound and effects would go here
@@ -2790,54 +2811,62 @@ end
 getgenv().Sentinel.LockType = getgenv().Sentinel.LockType or "Namecall"
 getgenv().Sentinel.RESOLVER = getgenv().Sentinel.RESOLVER or "MoveDirection"
 
--- Character trail effect (from original)
-local player = game.Players.LocalPlayer
-player.CharacterAdded:Connect(function(character)
-    local hrp = character:WaitForChild("HumanoidRootPart", 10)
-    if hrp then
-        local a0 = Instance.new("Attachment", hrp)
-        local a1 = Instance.new("Attachment", hrp)
+-- Character trail effect (from original) - with error handling
+pcall(function()
+    local player = game.Players.LocalPlayer
+    if player then
+        player.CharacterAdded:Connect(function(character)
+            pcall(function()
+                local hrp = character:WaitForChild("HumanoidRootPart", 10)
+                if hrp then
+                    local a0 = Instance.new("Attachment", hrp)
+                    local a1 = Instance.new("Attachment", hrp)
 
-        a0.Position = Vector3.new(0, -0.5, -1)
-        a1.Position = Vector3.new(0, -0.5, 1)
+                    a0.Position = Vector3.new(0, -0.5, -1)
+                    a1.Position = Vector3.new(0, -0.5, 1)
 
-        local trail = Instance.new("Trail", hrp)
-        trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
-        trail.Lifetime = 5
-        trail.LightEmission = 1
-        trail.LightInfluence = 1
-        trail.Texture = "rbxassetid://2443461141"
-        trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
-        trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
+                    local trail = Instance.new("Trail", hrp)
+                    trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
+                    trail.Lifetime = 5
+                    trail.LightEmission = 1
+                    trail.LightInfluence = 1
+                    trail.Texture = "rbxassetid://2443461141"
+                    trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
+                    trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
 
-        trail.Attachment0 = a0
-        trail.Attachment1 = a1
+                    trail.Attachment0 = a0
+                    trail.Attachment1 = a1
+                end
+            end)
+        end)
+
+        -- Handle existing character
+        if player.Character then
+            pcall(function()
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local a0 = Instance.new("Attachment", hrp)
+                    local a1 = Instance.new("Attachment", hrp)
+
+                    a0.Position = Vector3.new(0, -0.5, -1)
+                    a1.Position = Vector3.new(0, -0.5, 1)
+
+                    local trail = Instance.new("Trail", hrp)
+                    trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
+                    trail.Lifetime = 5
+                    trail.LightEmission = 1
+                    trail.LightInfluence = 1
+                    trail.Texture = "rbxassetid://2443461141"
+                    trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
+                    trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
+
+                    trail.Attachment0 = a0
+                    trail.Attachment1 = a1
+                end
+            end)
+        end
     end
 end)
-
--- Handle existing character
-if player.Character then
-    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local a0 = Instance.new("Attachment", hrp)
-        local a1 = Instance.new("Attachment", hrp)
-
-        a0.Position = Vector3.new(0, -0.5, -1)
-        a1.Position = Vector3.new(0, -0.5, 1)
-
-        local trail = Instance.new("Trail", hrp)
-        trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
-        trail.Lifetime = 5
-        trail.LightEmission = 1
-        trail.LightInfluence = 1
-        trail.Texture = "rbxassetid://2443461141"
-        trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
-        trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
-
-        trail.Attachment0 = a0
-        trail.Attachment1 = a1
-    end
-end
 
 -- Success message
 task.spawn(function()
