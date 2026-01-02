@@ -22,17 +22,32 @@ local Settings = {
     },
     CSync = {
         Enabled = true, -- Always on
+        Spoof = false,
         Type = "Orbit",
         Distance = 10,
         Height = 2,
         Speed = 10,
         RandomAmount = 10,
-        Color = Color3.fromRGB(255, 255, 255)
+        Color = Color3.fromRGB(255, 255, 255),
+        Visualize = {
+            Enabled = false,
+            Color = Color3.fromRGB(255, 255, 255)
+        }
     },
     BulletTP = {
         Enabled = true, -- Always on
         Anchor = false,
-        Offset = {0, -1, 0}
+        Offset = {0, -1, 0},
+        Prediction = 0.145,
+        UsePrediction = true,
+        TeleportOnActivate = true
+    },
+    TargetHighlight = {
+        Enabled = true,
+        FillColor = Color3.fromRGB(255, 255, 255),
+        OutlineColor = Color3.fromRGB(255, 255, 255),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0
     }
 }
 
@@ -47,6 +62,15 @@ local UserInputService = game:GetService("UserInputService")
 local TargetPlr = nil
 local TargBindEnabled = false
 local target_health = nil
+
+-- Target Highlight
+local TargHighlight = Instance.new("Highlight")
+TargHighlight.Parent = game.CoreGui
+TargHighlight.FillColor = Settings.TargetHighlight.FillColor
+TargHighlight.OutlineColor = Settings.TargetHighlight.OutlineColor
+TargHighlight.FillTransparency = Settings.TargetHighlight.FillTransparency
+TargHighlight.OutlineTransparency = Settings.TargetHighlight.OutlineTransparency
+TargHighlight.Enabled = false
 
 -- CSync Visualization
 local IgnoreFolder = Instance.new("Folder", Workspace)
@@ -172,6 +196,50 @@ LockStroke.Thickness = 2
 LockStroke.Color = Color3.fromRGB(16, 16, 32)
 
 -- Function to create setting controls
+local function CreateColorPicker(parent, text, color, callback)
+    local ColorFrame = Instance.new("Frame")
+    ColorFrame.Parent = parent
+    ColorFrame.BackgroundTransparency = 1
+    ColorFrame.Size = UDim2.new(1, 0, 0, 30)
+    
+    local ColorLabel = Instance.new("TextLabel")
+    ColorLabel.Parent = ColorFrame
+    ColorLabel.BackgroundTransparency = 1
+    ColorLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    ColorLabel.Position = UDim2.new(0, 0, 0, 0)
+    ColorLabel.Font = Enum.Font.Arial
+    ColorLabel.Text = text
+    ColorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ColorLabel.TextSize = 14
+    ColorLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ColorBtn = Instance.new("TextButton")
+    ColorBtn.Parent = ColorFrame
+    ColorBtn.Size = UDim2.new(0, 50, 0, 25)
+    ColorBtn.Position = UDim2.new(1, -55, 0, 2.5)
+    ColorBtn.BackgroundColor3 = color
+    ColorBtn.BorderSizePixel = 0
+    ColorBtn.Font = Enum.Font.ArialBold
+    ColorBtn.Text = ""
+    ColorBtn.TextSize = 12
+    
+    local ColorBtnCorner = Instance.new("UICorner")
+    ColorBtnCorner.CornerRadius = UDim.new(0, 5)
+    ColorBtnCorner.Parent = ColorBtn
+    
+    ColorBtn.MouseButton1Click:Connect(function()
+        -- Simple color picker - you can enhance this with a proper color picker UI
+        local r = math.random(0, 255)
+        local g = math.random(0, 255)
+        local b = math.random(0, 255)
+        local newColor = Color3.fromRGB(r, g, b)
+        ColorBtn.BackgroundColor3 = newColor
+        callback(newColor)
+    end)
+    
+    return ColorFrame
+end
+
 local function CreateToggle(parent, text, value, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Parent = parent
@@ -426,9 +494,51 @@ CreateDropdown(ScrollFrame, "CSync Type", {"Orbit", "Random"}, Settings.CSync.Ty
     Settings.CSync.Type = val
 end)
 
+-- CSync Spoof Setting
+CreateToggle(ScrollFrame, "CSync Spoof", Settings.CSync.Spoof, function(val)
+    Settings.CSync.Spoof = val
+end)
+
+CreateToggle(ScrollFrame, "CSync Visualize", Settings.CSync.Visualize.Enabled, function(val)
+    Settings.CSync.Visualize.Enabled = val
+end)
+
+CreateColorPicker(ScrollFrame, "CSync Color", Settings.CSync.Visualize.Color, function(val)
+    Settings.CSync.Visualize.Color = val
+end)
+
+-- Target Highlight Settings
+CreateToggle(ScrollFrame, "Target Highlight", Settings.TargetHighlight.Enabled, function(val)
+    Settings.TargetHighlight.Enabled = val
+end)
+
+CreateColorPicker(ScrollFrame, "Highlight Fill", Settings.TargetHighlight.FillColor, function(val)
+    Settings.TargetHighlight.FillColor = val
+end)
+
+CreateColorPicker(ScrollFrame, "Highlight Outline", Settings.TargetHighlight.OutlineColor, function(val)
+    Settings.TargetHighlight.OutlineColor = val
+end)
+
+CreateSlider(ScrollFrame, "Fill Transparency", 0, 1, Settings.TargetHighlight.FillTransparency, function(val)
+    Settings.TargetHighlight.FillTransparency = val
+end)
+
+CreateSlider(ScrollFrame, "Outline Transparency", 0, 1, Settings.TargetHighlight.OutlineTransparency, function(val)
+    Settings.TargetHighlight.OutlineTransparency = val
+end)
+
 -- Bullet TP Settings (Always Enabled)
 CreateToggle(ScrollFrame, "Bullet TP Anchor", Settings.BulletTP.Anchor, function(val)
     Settings.BulletTP.Anchor = val
+end)
+
+CreateToggle(ScrollFrame, "Use Prediction", Settings.BulletTP.UsePrediction, function(val)
+    Settings.BulletTP.UsePrediction = val
+end)
+
+CreateToggle(ScrollFrame, "Teleport On Activate", Settings.BulletTP.TeleportOnActivate, function(val)
+    Settings.BulletTP.TeleportOnActivate = val
 end)
 
 CreateTextBox(ScrollFrame, "Offset X", Settings.BulletTP.Offset[1], function(val)
@@ -441,6 +551,10 @@ end)
 
 CreateTextBox(ScrollFrame, "Offset Z", Settings.BulletTP.Offset[3], function(val)
     Settings.BulletTP.Offset[3] = val
+end)
+
+CreateSlider(ScrollFrame, "Bullet TP Prediction", 0, 1, Settings.BulletTP.Prediction, function(val)
+    Settings.BulletTP.Prediction = val
 end)
 
 -- Update ScrollFrame CanvasSize
@@ -618,9 +732,24 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Target Highlight Update
+RunService.RenderStepped:Connect(function()
+    if Settings.TargetHighlight.Enabled and TargBindEnabled and TargetPlr and TargetPlr.Character then
+        TargHighlight.FillColor = Settings.TargetHighlight.FillColor
+        TargHighlight.OutlineColor = Settings.TargetHighlight.OutlineColor
+        TargHighlight.FillTransparency = Settings.TargetHighlight.FillTransparency
+        TargHighlight.OutlineTransparency = Settings.TargetHighlight.OutlineTransparency
+        TargHighlight.Adornee = TargetPlr.Character
+        TargHighlight.Enabled = true
+    else
+        TargHighlight.Adornee = nil
+        TargHighlight.Enabled = false
+    end
+end)
+
 -- CSync (Always Enabled)
 RunService.Heartbeat:Connect(function()
-    CFrameVisualize.Parent = Settings.CSync.Enabled and IgnoreFolder or nil
+    CFrameVisualize.Parent = (Settings.CSync.Enabled and Settings.CSync.Visualize.Enabled) and IgnoreFolder or nil
     
     if Settings.CSync.Enabled and TargetPlr and TargBindEnabled then
         local FakeCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -643,19 +772,24 @@ RunService.Heartbeat:Connect(function()
                 CFrame.new(0, Settings.CSync.Height, Settings.CSync.Distance)
         end
 
-        CFrameVisualize:SetPrimaryPartCFrame(FakeCFrame)
-
-        for _, Part in pairs(CFrameVisualize:GetChildren()) do
-            if Part:IsA("BasePart") then
-                Part.Color = Settings.CSync.Color
+        if Settings.CSync.Visualize.Enabled then
+            CFrameVisualize:SetPrimaryPartCFrame(FakeCFrame)
+            for _, Part in pairs(CFrameVisualize:GetChildren()) do
+                if Part:IsA("BasePart") then
+                    Part.Color = Settings.CSync.Visualize.Color
+                end
             end
         end
 
-        LocalPlayer.Character.HumanoidRootPart.CFrame = FakeCFrame
-        RunService.RenderStepped:Wait()
-        desync_setback.Position = Saved.Position + Vector3.new(0, 1.5, 0)
-        Camera.CameraSubject = desync_setback
-        LocalPlayer.Character.HumanoidRootPart.CFrame = Saved
+        if Settings.CSync.Spoof then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = FakeCFrame
+            RunService.RenderStepped:Wait()
+            desync_setback.Position = Saved.Position + Vector3.new(0, 1.5, 0)
+            Camera.CameraSubject = desync_setback
+            LocalPlayer.Character.HumanoidRootPart.CFrame = Saved
+        else
+            Camera.CameraSubject = LocalPlayer.Character.Humanoid
+        end
     else
         Camera.CameraSubject = LocalPlayer.Character.Humanoid
     end
@@ -669,13 +803,25 @@ end
 
 local function something_tp(Tool)
     local old_grip = Tool.Grip
-    if TargetPlr and TargetPlr.Character and TargBindEnabled then
+    if TargetPlr and TargetPlr.Character and TargBindEnabled and Settings.BulletTP.Enabled then
         Tool.Parent = LocalPlayer.Backpack
         LocalPlayer.Character.RightHand.Anchored = Settings.BulletTP.Anchor
-        Tool.Grip = cframe_to_offset(LocalPlayer.Character.RightHand.CFrame, TargetPlr.Character.HumanoidRootPart.CFrame)
+        
+        local targetCFrame = TargetPlr.Character.HumanoidRootPart.CFrame
+        if Settings.BulletTP.UsePrediction then
+            local velocity = TargetPlr.Character.HumanoidRootPart.Velocity
+            local predictedPos = TargetPlr.Character.HumanoidRootPart.Position + (velocity * Settings.BulletTP.Prediction)
+            targetCFrame = CFrame.new(predictedPos)
+        end
+        
+        Tool.Grip = cframe_to_offset(LocalPlayer.Character.RightHand.CFrame, targetCFrame)
         LocalPlayer.Character.RightHand.Anchored = true
         Tool.Parent = LocalPlayer.Character
-        RunService.RenderStepped:Wait()
+        
+        if Settings.BulletTP.TeleportOnActivate then
+            RunService.RenderStepped:Wait()
+        end
+        
         Tool.Parent = LocalPlayer.Backpack
         LocalPlayer.Character.RightHand.Anchored = false
         Tool.Grip = old_grip
