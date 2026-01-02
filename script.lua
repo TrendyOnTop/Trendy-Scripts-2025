@@ -1,9 +1,26 @@
 -- Redesigned UI Script
-local Menu = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/library/refs/heads/main/cuh.txt",true))()
-
-task.spawn(function()
-    Menu:NameUpdate(0.6, 'Cactus', '.GG [khen.cc]')
+local Menu = nil
+local success, err = pcall(function()
+    Menu = loadstring(game:HttpGet("https://raw.githubusercontent.com/khenn791/library/refs/heads/main/cuh.txt",true))()
+    if Menu then
+        task.spawn(function()
+            Menu:NameUpdate(0.6, 'Cactus', '.GG [khen.cc]')
+        end)
+    end
 end)
+
+if not success or not Menu then
+    warn("Failed to load Menu library:", err)
+    -- Create a simple notification system if Menu fails
+    Menu = {
+        Notify = function(msg, duration)
+            print("[Cactus] " .. tostring(msg))
+        end,
+        SetTitle = function(title) end,
+        SetVisible = function(visible) end,
+        Init = function() end
+    }
+end
 
 -- All your existing Script, Settings, and getgenv().Sentinel tables remain the same
 local Script = {
@@ -376,6 +393,52 @@ getgenv().Desync = false
 getgenv().AntiLockType = "Behind"
 getgenv().Direction = Vector3.new(0, 0, -1)
 
+-- Initialize TargetAimbot BEFORE UI creation
+local TargetAimbot = {
+    Enabled = true, 
+    Keybind = Enum.KeyCode.Q,
+    Autoselect = false,
+    Prediction = 0.145, 
+    RealPrediction = 0.145, 
+    Resolver = false, 
+    ResolverType = "Recalculate", 
+    JumpOffset = 0.06, 
+    RealJumpOffset = 0.09, 
+    HitParts = {"HumanoidRootPart"}, 
+    RealHitPart = "HumanoidRootPart", 
+    KoCheck = false, 
+    LookAt = false,
+    CSync = {
+        Enabled = false,
+        Type = "Orbit",
+        Distance = 10,
+        Height = 2,
+        Speed = 10,
+        RandomAmount = 10,
+        Color = Color3.fromRGB(255, 255, 255),
+    },
+    ViewAt = false,
+    Tracer = true,
+    Highlight = true,
+    HighlightColor1 = Color3.fromRGB(255, 255, 255),
+    HighlightColor2 = Color3.fromRGB(255, 255, 255),
+    Stats = false, 
+    UseFov = false,
+    HitEffect = true,
+    HitEffectType = "Coom",
+    HitEffectColor = Color3.fromRGB(255, 255, 255),
+    HitSounds = true,
+    HitSound = "Bameware",
+    HitChams = true,
+    HitChamsMaterial = Enum.Material.Neon,
+    HitChamsDuration = 1,
+    HitChamsColor = Color3.fromRGB(173, 216, 230),
+    HitChamsTransparency = 0.5
+}
+
+local Highlight = false
+local Hitnotify = false
+
 -- ============================================
 -- NEW UI SYSTEM FROM SCRATCH
 -- ============================================
@@ -385,6 +448,8 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -2526,11 +2591,17 @@ local function CreateLockButton()
     return lockButton
 end
 
--- Initialize UI
-CreateMainUI()
-CreateSettingsUI()
-CreateToggleButton()
-CreateLockButton()
+-- Initialize UI with error handling
+local uiSuccess, uiError = pcall(function()
+    CreateMainUI()
+    CreateSettingsUI()
+    CreateToggleButton()
+    CreateLockButton()
+end)
+
+if not uiSuccess then
+    warn("UI Creation Error:", uiError)
+end
 
 -- Add Settings Button to Main UI
 if UIManager.MainUI then
@@ -2557,59 +2628,16 @@ if UIManager.MainUI then
     end)
 end
 
-Menu:SetTitle("Nigger.Lua")
-Menu:SetVisible(false)
-Menu:Init()
+if Menu then
+    Menu:SetTitle("Nigger.Lua")
+    Menu:SetVisible(false)
+    Menu:Init()
+end
 
 -- ============================================
 -- REST OF YOUR ORIGINAL CODE CONTINUES HERE
 -- (All the particle effects, hit detection, aimbot logic, etc.)
 -- ============================================
-
--- Initialize TargetAimbot and other variables
-local TargetAimbot = {
-    Enabled = true, 
-    Keybind = Enum.KeyCode.Q,
-    Autoselect = false,
-    Prediction = 0.145, 
-    RealPrediction = 0.145, 
-    Resolver = false, 
-    ResolverType = "Recalculate", 
-    JumpOffset = 0.06, 
-    RealJumpOffset = 0.09, 
-    HitParts = {"HumanoidRootPart"}, 
-    RealHitPart = "HumanoidRootPart", 
-    KoCheck = false, 
-    LookAt = false,
-    CSync = {
-        Enabled = false,
-        Type = "Orbit",
-        Distance = 10,
-        Height = 2,
-        Speed = 10,
-        RandomAmount = 10,
-        Color = Color3.fromRGB(255, 255, 255),
-    },
-    ViewAt = false,
-    Tracer = true,
-    Highlight = true,
-    HighlightColor1 = Color3.fromRGB(255, 255, 255),
-    HighlightColor2 = Color3.fromRGB(255, 255, 255),
-    Stats = false, 
-    UseFov = false,
-    HitEffect = true,
-    HitEffectType = "Coom",
-    HitEffectColor = Color3.fromRGB(255, 255, 255),
-    HitSounds = true,
-    HitSound = "Bameware",
-    HitChams = true,
-    HitChamsMaterial = Enum.Material.Neon,
-    HitChamsDuration = 1,
-    HitChamsColor = Color3.fromRGB(173, 216, 230)
-}
-
-local Highlight = false
-local Hitnotify = false
 
 -- ============================================
 -- ESSENTIAL FUNCTIONS FROM ORIGINAL SCRIPT
@@ -2639,37 +2667,43 @@ TargHighlight.FillTransparency = 0.5
 TargHighlight.OutlineTransparency = 0
 TargHighlight.Enabled = false
 
--- FOV Circle
-local FOV43 = Drawing.new("Circle")
-FOV43.Transparency = 0.5
-FOV43.Thickness = 2
-FOV43.Color = Color3.new(1, 0, 0)
-FOV43.Filled = false
-FOV43.Radius = 250
-FOV43.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
-FOV43.Visible = false
+-- FOV Circle (only if Drawing is available)
+local FOV43 = nil
+if Drawing then
+    FOV43 = Drawing.new("Circle")
+    FOV43.Transparency = 0.5
+    FOV43.Thickness = 2
+    FOV43.Color = Color3.new(1, 0, 0)
+    FOV43.Filled = false
+    FOV43.Radius = 250
+    FOV43.Position = Vector2.new(Workspace.CurrentCamera.ViewportSize.X / 2, Workspace.CurrentCamera.ViewportSize.Y / 2)
+    FOV43.Visible = false
+end
 
 -- Function to find closest player
 function SigmaOhioPlayer()
     local closestPlayer
     local shortestDistance = math.huge
     local player = game.Players.LocalPlayer
-    local CC = game:GetService("Workspace").CurrentCamera
+    local CC = Workspace.CurrentCamera
     local screenCenter = Vector2.new(CC.ViewportSize.X / 2, CC.ViewportSize.Y / 2)
-    local fovRadius = FOV43.Radius
+    local fovRadius = FOV43 and FOV43.Radius or 250
     local viewportSize = CC.ViewportSize
 
     for i, v in pairs(game.Players:GetPlayers()) do
         if v ~= player and v.Character and v.Character:FindFirstChild("Humanoid") 
            and v.Character.Humanoid.Health > 0 and v.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = CC:WorldToViewportPoint(v.Character.PrimaryPart.Position)
-            
-            if onScreen and pos.X > 0 and pos.Y > 0 
-               and pos.X < viewportSize.X and pos.Y < viewportSize.Y then
-                local magnitude = (Vector2.new(pos.X, pos.Y) - screenCenter).magnitude
-                if magnitude < fovRadius and magnitude < shortestDistance then
-                    closestPlayer = v
-                    shortestDistance = magnitude
+            local primaryPart = v.Character.PrimaryPart or v.Character:FindFirstChild("HumanoidRootPart")
+            if primaryPart then
+                local pos, onScreen = CC:WorldToViewportPoint(primaryPart.Position)
+                
+                if onScreen and pos.X > 0 and pos.Y > 0 
+                   and pos.X < viewportSize.X and pos.Y < viewportSize.Y then
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - screenCenter).magnitude
+                    if magnitude < fovRadius and magnitude < shortestDistance then
+                        closestPlayer = v
+                        shortestDistance = magnitude
+                    end
                 end
             end
         end
@@ -2686,7 +2720,9 @@ toggle_lock = function()
             TargBindEnabled = false
             target_health = nil
             TargetPlr = nil
-            Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+            end
             if TargetAimbot.LookAt then
                 LocalPlayer.Character.Humanoid.AutoRotate = true
             end
@@ -2732,17 +2768,23 @@ local function updatetarget_health()
 end
 
 -- Update highlight
-RunService.RenderStepped:Connect(function()
-    if TargetAimbot.Enabled and TargBindEnabled and TargetAimbot.Highlight and TargetPlr and TargetPlr.Character and Highlight then
-        TargHighlight.FillColor = TargetAimbot.HighlightColor1
-        TargHighlight.OutlineColor = TargetAimbot.HighlightColor2
-        TargHighlight.Adornee = TargetPlr.Character
-        TargHighlight.Enabled = true
-    else
-        TargHighlight.Adornee = nil
-        TargHighlight.Enabled = false
-    end
-end)
+if RunService then
+    RunService.RenderStepped:Connect(function()
+        if TargetAimbot and TargetAimbot.Enabled and TargBindEnabled and TargetAimbot.Highlight and TargetPlr and TargetPlr.Character and Highlight then
+            if TargHighlight then
+                TargHighlight.FillColor = TargetAimbot.HighlightColor1
+                TargHighlight.OutlineColor = TargetAimbot.HighlightColor2
+                TargHighlight.Adornee = TargetPlr.Character
+                TargHighlight.Enabled = true
+            end
+        else
+            if TargHighlight then
+                TargHighlight.Adornee = nil
+                TargHighlight.Enabled = false
+            end
+        end
+    end)
+end
 
 -- Set LockType
 getgenv().Sentinel.LockType = getgenv().Sentinel.LockType or "Namecall"
@@ -2750,28 +2792,61 @@ getgenv().Sentinel.RESOLVER = getgenv().Sentinel.RESOLVER or "MoveDirection"
 
 -- Character trail effect (from original)
 local player = game.Players.LocalPlayer
-local character = player.Character
-local hrp = character and character:FindFirstChild("HumanoidRootPart")
+player.CharacterAdded:Connect(function(character)
+    local hrp = character:WaitForChild("HumanoidRootPart", 10)
+    if hrp then
+        local a0 = Instance.new("Attachment", hrp)
+        local a1 = Instance.new("Attachment", hrp)
 
-if hrp then
-    local a0 = Instance.new("Attachment", hrp)
-    local a1 = Instance.new("Attachment", hrp)
+        a0.Position = Vector3.new(0, -0.5, -1)
+        a1.Position = Vector3.new(0, -0.5, 1)
 
-    a0.Position = Vector3.new(0, -0.5, -1)
-    a1.Position = Vector3.new(0, -0.5, 1)
+        local trail = Instance.new("Trail", hrp)
+        trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
+        trail.Lifetime = 5
+        trail.LightEmission = 1
+        trail.LightInfluence = 1
+        trail.Texture = "rbxassetid://2443461141"
+        trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
+        trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
 
-    local trail = Instance.new("Trail", hrp)
-    trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
-    trail.Lifetime = 5
-    trail.LightEmission = 1
-    trail.LightInfluence = 1
-    trail.Texture = "rbxassetid://2443461141"
-    trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
-    trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
+        trail.Attachment0 = a0
+        trail.Attachment1 = a1
+    end
+end)
 
-    trail.Attachment0 = a0
-    trail.Attachment1 = a1
+-- Handle existing character
+if player.Character then
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local a0 = Instance.new("Attachment", hrp)
+        local a1 = Instance.new("Attachment", hrp)
+
+        a0.Position = Vector3.new(0, -0.5, -1)
+        a1.Position = Vector3.new(0, -0.5, 1)
+
+        local trail = Instance.new("Trail", hrp)
+        trail.Color = ColorSequence.new(Color3.new(0, 0.717, 0.964), Color3.new(1, 0.717, 0.964))
+        trail.Lifetime = 5
+        trail.LightEmission = 1
+        trail.LightInfluence = 1
+        trail.Texture = "rbxassetid://2443461141"
+        trail.Transparency = NumberSequence.new(0, 0, 0.352468, 0.48125, 1)
+        trail.WidthScale = NumberSequence.new(0, 2, 0.499426, 2, 0)
+
+        trail.Attachment0 = a0
+        trail.Attachment1 = a1
+    end
 end
 
-print("UI Redesigned Successfully!")
-print("All features preserved and new UI system active!")
+-- Success message
+task.spawn(function()
+    wait(1)
+    print("=========================================")
+    print("Cactus.GG [khen.cc] - UI Redesigned")
+    print("All features preserved and active!")
+    print("=========================================")
+    if Menu and Menu.Notify then
+        Menu.Notify("Script Loaded Successfully!", 3)
+    end
+end)
