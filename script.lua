@@ -384,8 +384,13 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
+
+-- Initialize Blur Effect early
+local Blur = Instance.new("BlurEffect", Lighting)
+Blur.Enabled = false
 
 -- UI State
 local UIManager = {
@@ -764,6 +769,7 @@ local function CreateMainUI()
     screenGui.Parent = game.CoreGui
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.ResetOnSpawn = false
+    screenGui.Enabled = true
     
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
@@ -830,6 +836,19 @@ local function CreateMainUI()
     -- Tabs
     local tabs = {}
     local currentTab = nil
+    local tabContentHeights = {}
+    
+    local function UpdateCanvasSize(tabContent)
+        local maxY = 0
+        for _, child in ipairs(tabContent:GetChildren()) do
+            if child:IsA("Frame") or child:IsA("TextLabel") then
+                local y = child.Position.Y.Offset + child.Size.Y.Offset
+                if y > maxY then maxY = y end
+            end
+        end
+        contentContainer.CanvasSize = UDim2.new(0, 0, 0, maxY + 20)
+        tabContentHeights[tabContent] = maxY + 20
+    end
     
     local function SwitchTab(tabName)
         if currentTab then
@@ -838,6 +857,14 @@ local function CreateMainUI()
         if tabs[tabName] then
             tabs[tabName].Visible = true
             currentTab = tabs[tabName]
+            -- Update canvas size for the active tab
+            if tabContentHeights[tabs[tabName]] then
+                contentContainer.CanvasSize = UDim2.new(0, 0, 0, tabContentHeights[tabs[tabName]])
+            else
+                UpdateCanvasSize(tabs[tabName])
+            end
+            -- Reset scroll position
+            contentContainer.CanvasPosition = Vector2.new(0, 0)
         end
     end
     
@@ -1021,7 +1048,7 @@ local function CreateMainUI()
         getgenv().Sentinel.easingDirection = val
     end)
     
-    contentContainer.CanvasSize = UDim2.new(0, 0, 0, yOffset + 50)
+    UpdateCanvasSize(mainTab)
     
     -- HvH TAB CONTENT
     local hvhTab = tabs["HvH"]
@@ -1129,17 +1156,9 @@ local function CreateMainUI()
     CreateSlider(hvhTab, "Random Amount", UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, yOffset), 0, 20, TargetAimbot.CSync.RandomAmount, function(val)
         TargetAimbot.CSync.RandomAmount = val
     end)
+    yOffset = yOffset + 40
     
-    hvhTab:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        local maxY = 0
-        for _, child in ipairs(hvhTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextLabel") then
-                local y = child.Position.Y.Offset + child.Size.Y.Offset
-                if y > maxY then maxY = y end
-            end
-        end
-        contentContainer.CanvasSize = UDim2.new(0, 0, 0, maxY + 20)
-    end)
+    UpdateCanvasSize(hvhTab)
     
     -- VISUALS TAB CONTENT
     local visualsTab = tabs["Visuals"]
@@ -1215,17 +1234,9 @@ local function CreateMainUI()
     }, TargetAimbot.HitChamsMaterial.Name, function(val)
         TargetAimbot.HitChamsMaterial = Enum.Material[val]
     end)
+    yOffset = yOffset + 30
     
-    visualsTab:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        local maxY = 0
-        for _, child in ipairs(visualsTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextLabel") then
-                local y = child.Position.Y.Offset + child.Size.Y.Offset
-                if y > maxY then maxY = y end
-            end
-        end
-        contentContainer.CanvasSize = UDim2.new(0, 0, 0, maxY + 20)
-    end)
+    UpdateCanvasSize(visualsTab)
     
     -- MISC TAB CONTENT
     local miscTab = tabs["Misc"]
@@ -1324,17 +1335,9 @@ local function CreateMainUI()
     CreateToggle(miscTab, "Enabled", UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, yOffset), getgenv().Sentinel.network, function(val)
         getgenv().Sentinel.network = val
     end)
+    yOffset = yOffset + 30
     
-    miscTab:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        local maxY = 0
-        for _, child in ipairs(miscTab:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextLabel") then
-                local y = child.Position.Y.Offset + child.Size.Y.Offset
-                if y > maxY then maxY = y end
-            end
-        end
-        contentContainer.CanvasSize = UDim2.new(0, 0, 0, maxY + 20)
-    end)
+    UpdateCanvasSize(miscTab)
     
     UIManager.MainUI = screenGui
     return screenGui
@@ -1452,18 +1455,35 @@ local function CreateToggleButton()
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.ResetOnSpawn = false
     
-    local toggleButton = Instance.new("ImageButton")
+    local toggleButton = Instance.new("TextButton")
     toggleButton.Name = "ToggleButton"
     toggleButton.Parent = screenGui
     toggleButton.Size = UDim2.new(0, 90, 0, 90)
     toggleButton.Position = UDim2.new(1, -95, 0, 5)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    toggleButton.BackgroundTransparency = 1
-    toggleButton.Image = "rbxassetid://126818107683779"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.Text = "UI"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 20
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0.2, 0)
+    toggleCorner.CornerRadius = UDim.new(0, 8)
     toggleCorner.Parent = toggleButton
+    
+    local toggleStroke = Instance.new("UIStroke")
+    toggleStroke.Parent = toggleButton
+    toggleStroke.Thickness = 2
+    toggleStroke.Color = Color3.fromRGB(0, 200, 100)
+    
+    -- Try to add image as well
+    local imageLabel = Instance.new("ImageLabel")
+    imageLabel.Parent = toggleButton
+    imageLabel.Size = UDim2.new(0.7, 0, 0.7, 0)
+    imageLabel.Position = UDim2.new(0.15, 0, 0.15, 0)
+    imageLabel.BackgroundTransparency = 1
+    imageLabel.Image = "rbxassetid://126818107683779"
+    imageLabel.ImageTransparency = 0
     
     toggleButton.MouseButton1Click:Connect(function()
         UIManager.MainUIVisible = not UIManager.MainUIVisible
@@ -1472,8 +1492,10 @@ local function CreateToggleButton()
         end
         if UIManager.MainUIVisible then
             Blur.Enabled = true
+            toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
         else
             Blur.Enabled = false
+            toggleButton.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
         end
     end)
     
@@ -1495,14 +1517,13 @@ local function CreateLockButton()
     lockButton.Name = "LockButton"
     lockButton.Parent = screenGui
     lockButton.Size = UDim2.new(0, 150, 0, 50)
-    lockButton.Position = UDim2.new(0.5, -75, 0.5, -25)
+    lockButton.Position = UDim2.new(0, 5, 0, 5)
     lockButton.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
     lockButton.BorderSizePixel = 0
-    lockButton.Font = Enum.Font.ArialBold
-    lockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
-    lockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lockButton.TextSize = 25
-    lockButton.RichText = true
+    lockButton.Font = Enum.Font.GothamBold
+    lockButton.Text = "Lock: OFF"
+    lockButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+    lockButton.TextSize = 18
     lockButton.TextStrokeTransparency = 0.5
     
     local lockCorner = Instance.new("UICorner")
@@ -1512,10 +1533,18 @@ local function CreateLockButton()
     local lockStroke = Instance.new("UIStroke")
     lockStroke.Parent = lockButton
     lockStroke.Thickness = 2
-    lockStroke.Color = Color3.fromRGB(16, 16, 32)
+    lockStroke.Color = Color3.fromRGB(0, 200, 100)
     
     lockButton.MouseButton1Click:Connect(function()
         toggle_lock()
+    end)
+    
+    lockButton.MouseEnter:Connect(function()
+        TweenService:Create(lockButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 60)}):Play()
+    end)
+    
+    lockButton.MouseLeave:Connect(function()
+        TweenService:Create(lockButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28, 28, 48)}):Play()
     end)
     
     MakeDraggable(lockButton)
@@ -1525,9 +1554,6 @@ local function CreateLockButton()
 end
 
 -- Initialize UI
-local Blur = Instance.new("BlurEffect", game:GetService("Lighting"))
-Blur.Enabled = false
-
 CreateMainUI()
 CreateSettingsUI()
 CreateToggleButton()
@@ -1692,7 +1718,8 @@ toggle_lock = function()
                 LocalPlayer.Character.Humanoid.AutoRotate = true
             end
             if UIManager.LockButton then
-                UIManager.LockButton.Text = "Lock: " .. "<font color='rgb(255, 0, 0)'>OFF</font>"
+                UIManager.LockButton.Text = "Lock: OFF"
+                UIManager.LockButton.TextColor3 = Color3.fromRGB(255, 0, 0)
             end
             Menu.Notify("Untargeted", 2)
         else
@@ -1704,7 +1731,8 @@ toggle_lock = function()
                 return
             end
             if UIManager.LockButton then
-                UIManager.LockButton.Text = "Lock: " .. "<font color='rgb(0, 255, 0)'>ON</font>"
+                UIManager.LockButton.Text = "Lock: ON"
+                UIManager.LockButton.TextColor3 = Color3.fromRGB(0, 255, 0)
             end
             Menu.Notify("Target Locked: " .. tostring(TargetPlr.DisplayName), 2)
         end
